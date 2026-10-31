@@ -139,3 +139,24 @@ Get-Content .\results\firms.toml
 \`\`\`
 
 今回は \`Project.toml\` に Julia 標準ライブラリ \`Random\`、\`Statistics\` を追加したため、従来の \`Manifest.toml\` との同期には \`Pkg.resolve()\` が必要です。\`Pkg.update()\` は不要です。実行成功後は \`Manifest.toml\` と新規生成した \`results/firms.toml\` のみを GitHub に追加してください。Issue #3 はローカル実行確認まで open とします。
+
+
+## Issue #4 — Finite-N fixed-point enumeration and ES1
+
+\`src/equilibrium.jl\` implements the exact finite-N investment reaction function in Nirei (2015) equations (10), (13), (14), (16), with the **Section 3.4 ES1** rule choosing the minimum absolute log deviation from expected investment among fixed points with positive aggregate net investment. It does not use ES2 or fictitious tâtonnement.
+
+\`initialize_equilibrium_workspace(state)\` preallocates O(N) buffers. \`enumerate_fixed_points!(workspace,state,calibration)\` sorts 2N switch events and sweeps them once, incrementally updating the productivity-weighted capital power sum and net investment. Intervals are **(left,right]**, matching the paper's equality conditions. Identical switch values are grouped and processed only after the interval ending at that value is considered. No tolerance admits otherwise invalid fixed points. \`select_es1(workspace,expected_X,expected_K)\` excludes and counts nonpositive-X fixed points, for which the log criterion is undefined; exact ties prefer the fixed point closest to expected capital and then the smaller K. These last two policies are *numerical implementation choices*, not claims about the author's unpublished code.
+
+\`solve_equilibrium!(workspace,state,calibration,expected_X,K_prior)\` enumerates all candidates, selects ES1, computes the new firm capital in a reusable buffer, recomputes the selected candidate's aggregate capital and investment exactly once, checks residuals and only then swaps the firm's capital and productivity to the next period. For the standalone one-period script, expectations are evaluated at a *specified saddle-path initial state*; the API nevertheless accepts arbitrary expected_X from the two-state Issue #2 expectation system.
+
+In Windows PowerShell, within the existing \`Nirei-2015\` directory:
+
+\`\`\`powershell
+git status --short
+git pull --ff-only origin main
+julia --project=. -e 'using Pkg; Pkg.instantiate()'
+julia --project=. scripts/run_equilibrium.jl
+Get-Content .\results\equilibrium.toml
+\`\`\`
+
+The script generates \`results/equilibrium.toml\`, with equilibrium counts, ES1 choice, endogenous investment shock, fixed-point/accounting residuals, timing, Julia version and RNG seed. No manifest or numerical results are fabricated; Issue #4 remains open until the Windows run has been inspected.
