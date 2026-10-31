@@ -1444,6 +1444,33 @@ function main()
     println("Support-only Case B: completed periods=",
         lambda_path["completed_periods"],"/",lambda_path["requested_periods"],
         "; failure=",lambda_path["failure"])
+    sample_A=lambda_study["case_A_distribution"]
+    sample_B=lambda_study["case_B_distribution"]
+    direct_lambda=lambda_study["direct_modified_firm_effect_at_A_expected_K"]
+    println("Support-only lambda distribution A: mean=",sample_A["mean"],
+        "; sd=",sample_A["sd"],
+        "; min=",sample_A["minimum"],
+        "; max=",sample_A["maximum"])
+    println("Support-only lambda distribution B: mean=",sample_B["mean"],
+        "; sd=",sample_B["sd"],
+        "; min=",sample_B["minimum"],
+        "; max=",sample_B["maximum"])
+    println("Support-only initial A: K0=",lambda_A["K0"],
+        "; expected X=",lambda_A["expected_X"],
+        "; expected K=",lambda_A["expected_K"],
+        "; fixed points=",lambda_A["fixed_points"],
+        "; positive-X fixed points=",lambda_A["positive_investment_fixed_points"])
+    println("Support-only initial B: K0=",lambda_B["K0"],
+        "; expected X=",lambda_B["expected_X"],
+        "; expected K=",lambda_B["expected_K"],
+        "; fixed points=",lambda_B["fixed_points"],
+        "; positive-X fixed points=",lambda_B["positive_investment_fixed_points"])
+    println("Support-only changed 673 firms at fixed K_A: direct X effect=",
+        direct_lambda["X_direct_change_at_fixed_K"],
+        "; direct CES power effect=",
+        direct_lambda["CES_power_direct_change_at_fixed_K"],
+        "; direct aggregate K effect=",
+        direct_lambda["Phi_direct_change_at_fixed_K"])
     cross=output["exogenous_fixed_K_firm_distribution"]
     first_state=cross["snapshots"][1]
     final_state=cross["snapshots"][end]
