@@ -120,6 +120,54 @@ function threshold_support_diagnostics(state, K::Float64)
     )
 end
 
+
+# Explicit counterfactual based on Nirei (2015) Section 2.1 footnote 2
+# and Section 2.6 footnote 4: allow the discrete adjustment exponent to
+# take as many integer steps as needed to place the new gap in [0,1).
+# THIS IS NOT the three-action benchmark; it changes the feasible action
+# set and must never silently replace the published {-1,0,+1} policy.
+function multi_step_response_at_K(firms, calibration, K::Float64)
+    p = calibration.parameters
+    rho = calibration.constants.rho
+    n = length(firms.capital)
+    power = 0.0
+    investment = 0.0
+    nmore_positive = 0
+    nmore_negative = 0
+    kmin = typemax(Int)
+    kmax = typemin(Int)
+    max_gap_violation = 0.0
+    @inbounds for i in 1:n
+        d = (1.0 - p.delta) * firms.capital[i]
+        l = firms.lambda[i]
+        a = firms.next_productivity[i]
+        b = threshold_coefficient(l, a, calibration)
+        # At exact equality, ceiling implements the original convention:
+        # K=d/(lambda*b) -> -1; K=d/b -> 0; K=d*lambda/b -> 1.
+        exponent = ceil(Int, (log(b*K) - log(d)) / log(l))
+        exponent > 1 && (nmore_positive += 1)
+        exponent < -1 && (nmore_negative += 1)
+        kmin = min(kmin, exponent)
+        kmax = max(kmax, exponent)
+        nextk = d * l^exponent
+        gap = (log(nextk) - log(b*K)) / log(l)
+        max_gap_violation = max(
+            max_gap_violation, max(0.0, -gap, gap - 1.0)
+        )
+        power += a^(rho/p.alpha) * nextk^rho
+        investment += nextk - d
+    end
+    return (
+        Phi=(power/n)^(1/rho),
+        X=investment/n,
+        n_more_than_one_investment=nmore_positive,
+        n_more_than_one_divestment=nmore_negative,
+        min_exponent=kmin,
+        max_exponent=kmax,
+        max_gap_violation=max_gap_violation,
+    )
+end
+
 function main()
     state = initialize_simulation(; N=110000, base_seed=20261101)
     cal = state.calibration
@@ -139,6 +187,8 @@ function main()
         "configuration"=>Dict(
             "firms"=>n, "seed"=>20261101,
             "continuum_K"=>s.K, "continuum_X"=>s.X,
+            "multi_step_is_counterfactual" => true,
+            "multi_step_model_warning" => "Footnotes 2 and 4 allow finite multi-step adjustment under wider productivity support; NOT the published three-action benchmark.",
             "expected_stationary_investment_participation_ignoring_productivity"=>qsum/n,
             "count_lambda_does_not_satisfy_one_sided_condition"=>violated,
             "equation18_investment_multiplier"=>coefficient,
@@ -159,6 +209,7 @@ function main()
             state.firms, cal, Ke; use_prior_productivity=true
         )
         support = threshold_support_diagnostics(state, Ke)
+        multistep = multi_step_response_at_K(state.firms, cal, Ke)
         info = Dict{String,Any}(
             "t"=>t, "K_prior"=>K_prior,
             "expected_K"=>Ke, "expected_X"=>expected.X_next,
@@ -168,6 +219,17 @@ function main()
             "reaction_residual_no_productivity_redraw"=>no_new_productivity.Phi-Ke,
             "investment_no_productivity_redraw"=>no_new_productivity.X,
             "one_step_gap_support_at_expected_K"=>support,
+            "multi_step_at_expected_K"=>Dict(
+                "reaction_residual"=>multistep.Phi-Ke,
+                "aggregate_investment"=>multistep.X,
+                "increase_in_reaction_vs_three_action"=>multistep.Phi-at_expected.Phi,
+                "increase_in_investment_vs_three_action"=>multistep.X-at_expected.X,
+                "n_more_than_one_investment"=>multistep.n_more_than_one_investment,
+                "n_more_than_one_divestment"=>multistep.n_more_than_one_divestment,
+                "min_exponent"=>multistep.min_exponent,
+                "max_exponent"=>multistep.max_exponent,
+                "max_gap_violation"=>multistep.max_gap_violation,
+            ),
             "investing_at_expected_K"=>at_expected.investing,
             "inactive_at_expected_K"=>at_expected.inactive,
             "divesting_at_expected_K"=>at_expected.divesting,
