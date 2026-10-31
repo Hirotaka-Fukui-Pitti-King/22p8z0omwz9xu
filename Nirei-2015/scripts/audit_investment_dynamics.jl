@@ -951,6 +951,49 @@ function _fixed_K_distribution_snapshot(
     )
 end
 
+
+# One EXACT firm transition under an exogenously fixed aggregate K. Shared
+# by the earlier distribution audit and the new initial-distribution
+# preconditioning experiment. Not a GE solver or an equilibrium selection.
+function _fixed_K_firm_transition!(
+    firms, rngs, calibration, Kfixed::Float64
+)
+    n=length(firms.capital)
+    p=calibration.parameters
+    draw_productivity!(firms,rngs,calibration)
+    sum_old=0.0
+    sum_new=0.0
+    total_x=0.0
+    investing=0
+    divesting=0
+    @inbounds for i in eachindex(firms.capital)
+        k_old=firms.capital[i]
+        d=(1.0-p.delta)*k_old
+        lambda_i=firms.lambda[i]
+        a_new=firms.next_productivity[i]
+        b_next=threshold_coefficient(lambda_i,a_new,calibration)
+        exponent=Kfixed<=d/(lambda_i*b_next) ? -1 :
+                 Kfixed<=d/b_next ? 0 : 1
+        k_new=d*lambda_i^exponent
+        firms.capital[i]=k_new
+        sum_old+=k_old
+        sum_new+=k_new
+        total_x+=k_new-d
+        investing+=(exponent==1)
+        divesting+=(exponent==-1)
+    end
+    advance_productivity!(firms)
+    old_mean=sum_old/n
+    new_mean=sum_new/n
+    xmean=total_x/n
+    identity_error=new_mean-(1.0-p.delta)*old_mean-xmean
+    return (
+        old_mean=old_mean,new_mean=new_mean,
+        xmean=xmean,identity_error=identity_error,
+        investing=investing,divesting=divesting,
+    )
+end
+
 function fixed_K_distribution_diagnostic(
     calibration; n::Int=110000, seed::Int=20261101, horizon::Int=256
 )
@@ -970,33 +1013,13 @@ function fixed_K_distribution_diagnostic(
     block_count=zeros(Int,2)
     largest_identity_error=0.0
     for t in 1:horizon
-        draw_productivity!(firms,rngs,calibration)
-        sum_old=0.0
-        sum_new=0.0
-        total_x=0.0
-        investing=0
-        divesting=0
-        @inbounds for i in eachindex(firms.capital)
-            k_old=firms.capital[i]
-            d=(1.0-p.delta)*k_old
-            lambda_i=firms.lambda[i]
-            a_new=firms.next_productivity[i]
-            b_next=threshold_coefficient(lambda_i,a_new,calibration)
-            exponent=Kfixed<=d/(lambda_i*b_next) ? -1 :
-                     Kfixed<=d/b_next ? 0 : 1
-            k_new=d*lambda_i^exponent
-            firms.capital[i]=k_new
-            sum_old+=k_old
-            sum_new+=k_new
-            total_x+=k_new-d
-            investing+=(exponent==1)
-            divesting+=(exponent==-1)
-        end
-        advance_productivity!(firms)
-        old_mean=sum_old/n
-        new_mean=sum_new/n
-        xmean=total_x/n
-        identity_error=new_mean-(1.0-p.delta)*old_mean-xmean
+        step=_fixed_K_firm_transition!(firms,rngs,calibration,Kfixed)
+        old_mean=step.old_mean
+        new_mean=step.new_mean
+        xmean=step.xmean
+        identity_error=step.identity_error
+        investing=step.investing
+        divesting=step.divesting
         largest_identity_error=max(largest_identity_error,abs(identity_error))
         if t>horizon-128
             block=t<=horizon-64 ? 1 : 2
@@ -1260,6 +1283,149 @@ function support_consistent_comparison(;horizon::Int=20)
     )
 end
 
+
+# PRECONDITIONED-DISTRIBUTION COUNTERFACTUAL. The initial firms are
+# exactly the benchmark initial firms; we apply the already audited
+# fixed-K firm transition for 256 dates using a SEPARATE shock RNG.
+# Original future GE shock RNG state remains at its initial draw.
+# Case A and B therefore receive identical a_{i,t+1} for every common
+# post-initialization simulation date. Neither this function nor the
+# baseline implementation repositions gaps or rescales capital.
+function _precondition_simulation_state!(sim_state;warmup::Int=256)
+    warmup>=1 || throw(ArgumentError("positive warmup required"))
+    base_seed=sim_state.base_seed
+    pre_rngs=firm_rngs(base_seed+100000003,sim_state.replication)
+    cal=sim_state.calibration
+    Kfixed=cal.steady_state.K
+    capital_before=aggregate_capital(sim_state.firms,cal)
+    initial_lambda=copy(sim_state.firms.lambda)
+    last_step=nothing
+    for _ in 1:warmup
+        last_step=_fixed_K_firm_transition!(
+            sim_state.firms,pre_rngs,cal,Kfixed
+        )
+    end
+    sim_state.firms.lambda==initial_lambda ||
+        error("Firm indivisibilities changed during preconditioning")
+    sim_state.K=aggregate_capital(sim_state.firms,cal)
+    sim_state.mu_prior=cal.steady_state.mu*
+        exp(sim_state.re.h*log(sim_state.K/cal.steady_state.K))
+    sim_state.period=0
+    return Dict{String,Any}(
+        "warmup_periods"=>warmup,
+        "separate_preconditioning_seed"=>base_seed+100000003,
+        "exogenous_K_during_warmup"=>Kfixed,
+        "CES_capital_before"=>capital_before,
+        "CES_capital_after"=>sim_state.K,
+        "firm_capital_mean_after"=>
+            sum(sim_state.firms.capital)/length(sim_state.firms.capital),
+        "last_preconditioning_step_X"=>last_step.xmean,
+        "last_preconditioning_step_capital_identity_error"=>
+            last_step.identity_error,
+        "future_GE_rng_unchanged"=>true,
+        "initial_mu_on_original_linear_stable_eigenspace"=>true,
+    )
+end
+
+function _preconditioned_first_period_diagnostic()
+    caseA=initialize_simulation(;N=110000,base_seed=20261101)
+    caseB=initialize_simulation(;N=110000,base_seed=20261101)
+    caseA.firms.capital==caseB.firms.capital ||
+        error("Case A and B do not start with identical firm capital")
+    caseA.firms.productivity==caseB.firms.productivity ||
+        error("Case A and B initial productivity differ")
+    caseA.firms.initial_gap==caseB.firms.initial_gap ||
+        error("Case A and B initial gap differ")
+    warmup=_precondition_simulation_state!(caseB;warmup=256)
+    beforeA=gap_diagnostics(caseA)
+    beforeB=gap_diagnostics(caseB)
+    firstA=_first_equilibrium_support_summary(caseA)
+    firstB=_first_equilibrium_support_summary(caseB)
+    caseA.firms.next_productivity==caseB.firms.next_productivity ||
+        error("Common post-warmup t=0 productivity innovations DIFFER")
+    firstA["ES1_X"]==0.06936827009543808 ||
+        error("Published Case A first-period investment changed")
+    firstA["ES1_K"]==8.546731346350889 ||
+        error("Published Case A first-period capital changed")
+    return Dict{String,Any}(
+        "caseA"=>firstA,
+        "caseB"=>firstB,
+        "caseA_mean_firm_capital"=>
+            sum(caseA.firms.capital)/length(caseA.firms.capital),
+        "caseB_mean_firm_capital"=>
+            sum(caseB.firms.capital)/length(caseB.firms.capital),
+        "caseA_initial_gap"=>beforeA,
+        "caseB_preconditioned_gap"=>beforeB,
+        "preconditioning"=>warmup,
+        "common_post_GE_shock_vectors_at_t0"=>true,
+        "caseB_is_not_published_initialization"=>true,
+    )
+end
+
+# In contrast to the one-period summary above, this invokes the ORIGINAL
+# simulate_period! sequence without disabling macro closure, ES1, or
+# positive-investment requirement. Report the real stopping date.
+function _preconditioned_GE_path(;horizon::Int=20)
+    sim_state=initialize_simulation(;N=110000,base_seed=20261101)
+    warmup=_precondition_simulation_state!(sim_state;warmup=256)
+    records=Vector{Dict{String,Any}}()
+    failure="none"
+    for _ in 1:horizon
+        try
+            rec=simulate_period!(sim_state)
+            push!(records,Dict{String,Any}(
+                "t"=>rec.t,
+                "K"=>rec.K_next_firm,
+                "X"=>rec.X,
+                "expected_X"=>rec.expected_X,
+                "expected_K"=>rec.expected_K_next,
+                "epsilon"=>rec.epsilon,
+                "n_fixed"=>rec.n_fixed,
+                "n_positive_X"=>rec.n_positive_X,
+                "n_investing"=>rec.n_investing,
+                "n_divesting"=>rec.n_divesting,
+                "fixed_point_residual"=>rec.fixed_point_residual,
+                "investment_residual"=>rec.investment_residual,
+                "logK_expectation_error"=>rec.logK_expectation_error,
+            ))
+        catch caught
+            failure=sprint(showerror,caught)
+            break
+        end
+    end
+    return Dict{String,Any}(
+        "interpretation"=>"Diagnostic preconditioning at exogenous Kbar; not the published simulation initialization",
+        "preconditioning"=>warmup,
+        "requested_periods"=>horizon,
+        "completed_periods"=>length(records),
+        "completed"=>length(records)==horizon,
+        "failure"=>failure,
+        "periods"=>records,
+        "final_GE_capital"=>sim_state.K,
+        "not_published_replication"=>true,
+    )
+end
+
+function preconditioned_distribution_comparison()
+    first_period=_preconditioned_first_period_diagnostic()
+    short_run=_preconditioned_GE_path(;horizon=20)
+    result=Dict{String,Any}(
+        "first_period"=>first_period,
+        "caseB_twenty_periods"=>short_run,
+        "caseA_known_baseline_failure_t"=>5,
+        "common_future_productivity_streams_by_separate_precondition_rng"=>true,
+    )
+    if short_run["completed"]
+        result["caseB_1100_periods"]=_preconditioned_GE_path(
+            ;horizon=1100
+        )
+    else
+        result["caseB_1100_status"]=
+            "Not attempted because preconditioned 20-period gate failed"
+    end
+    return result
+end
+
 function main()
     state = initialize_simulation(; N=110000, base_seed=20261101)
     cal = state.calibration
@@ -1417,6 +1583,8 @@ function main()
     output["periods"] = periods
     output["support_condition_counterfactual"] =
         support_consistent_comparison(;horizon=20)
+    output["preconditioned_distribution_counterfactual"] =
+        preconditioned_distribution_comparison()
     output["exogenous_fixed_K_firm_distribution"] =
         fixed_K_distribution_diagnostic(
             cal;n=n,seed=20261101,horizon=256
@@ -1432,6 +1600,26 @@ function main()
     lambda_A=lambda_study["case_A_initial_equilibrium"]
     lambda_B=lambda_study["case_B_initial_equilibrium"]
     lambda_path=lambda_study["case_B_simulation"]
+    precond=output["preconditioned_distribution_counterfactual"]
+    pa=precond["first_period"]["caseA"]
+    pb=precond["first_period"]["caseB"]
+    pc=precond["caseB_twenty_periods"]
+    println("Preconditioned initial A: K0=",pa["K0"],
+        "; expected X=",pa["expected_X"],
+        "; fixed points=",pa["fixed_points"],
+        "; ES1 X=",get(pa,"ES1_X","none"))
+    println("Preconditioned initial B: K0=",pb["K0"],
+        "; expected X=",pb["expected_X"],
+        "; reaction residual=",pb["reaction_residual_at_expected_K"],
+        "; fixed points=",pb["fixed_points"],
+        "; positive X fixed points=",pb["positive_investment_fixed_points"],
+        "; ES1 X=",get(pb,"ES1_X","none"),
+        "; ES1 K=",get(pb,"ES1_K","none"))
+    println("Preconditioned B gap outside [0,1): ",
+        precond["first_period"]["caseB_preconditioned_gap"]["fraction_gap_outside_0_1"])
+    println("Preconditioned B GE completed ",
+        pc["completed_periods"],"/",pc["requested_periods"],
+        " periods; failure=",pc["failure"])
     println("Support-only Case A: t0 ES1 X=",lambda_A["ES1_X"],
         "; K=",lambda_A["ES1_K"],
         "; first-period residual=",lambda_A["reaction_residual_at_expected_K"])
