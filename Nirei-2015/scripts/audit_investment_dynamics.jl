@@ -867,6 +867,169 @@ function exact_initial_continuum_consistency_audit(
     )
 end
 
+
+# Distribution-transition diagnostic. The candidate aggregate capital is
+# held exogenous at published Kbar; neither a finite-N GE equilibrium nor
+# an alternative ES1 trajectory is constructed. All firm capital updates
+# follow the ORIGINAL {-1,0,+1} choice and iid productivity redraw law.
+#
+# This tests whether the INITIAL joint law of actual (unwrapped) gaps
+# survives transitions, and whether observed fixed-K block moments are
+# approximately stable. It does NOT prove existence/uniqueness of a
+# self-consistent invariant distribution for endogenous aggregate capital.
+function _fixed_K_distribution_snapshot(
+    firms, calibration, Kfixed::Float64, date::Int,
+    net_investment::Float64, capital_identity_error::Float64,
+    investing_fraction::Float64, divesting_fraction::Float64,
+)
+    n=length(firms.capital)
+    rho=calibration.constants.rho
+    alpha=calibration.parameters.alpha
+    sum_k=0.0
+    sum_power=0.0
+    sum_s=0.0
+    sum_s_squared=0.0
+    outside=0
+    below=0
+    above=0
+    bins=zeros(Int,10)
+    sum_loga=0.0
+    sum_logk=0.0
+    sum_loga2=0.0
+    sum_logk2=0.0
+    sum_logak=0.0
+    @inbounds for i in 1:n
+        k_i=firms.capital[i]
+        a_i=firms.productivity[i]
+        lambda_i=firms.lambda[i]
+        b_i=threshold_coefficient(lambda_i,a_i,calibration)
+        actual_gap=log(k_i/(b_i*Kfixed))/log(lambda_i)
+        fractional_gap=mod(actual_gap,1.0)
+        bin_idx=clamp(floor(Int,fractional_gap*10.0)+1,1,10)
+        bins[bin_idx]+=1
+        outside+=(actual_gap<0.0 || actual_gap>=1.0)
+        below+=(actual_gap<0.0)
+        above+=(actual_gap>=1.0)
+        sum_s+=actual_gap
+        sum_s_squared+=actual_gap^2
+        sum_k+=k_i
+        sum_power+=a_i^(rho/alpha)*k_i^rho
+        la=log(a_i)
+        lk=log(k_i)
+        sum_loga+=la
+        sum_logk+=lk
+        sum_loga2+=la^2
+        sum_logk2+=lk^2
+        sum_logak+=la*lk
+    end
+    mean_s=sum_s/n
+    mean_la=sum_loga/n
+    mean_lk=sum_logk/n
+    var_la=max(0.0,sum_loga2/n-mean_la^2)
+    var_lk=max(0.0,sum_logk2/n-mean_lk^2)
+    correlation=(var_la>0.0 && var_lk>0.0) ?
+        (sum_logak/n-mean_la*mean_lk)/sqrt(var_la*var_lk) : 0.0
+    return Dict{String,Any}(
+        "t"=>date,
+        "mean_firm_capital"=>sum_k/n,
+        "CES_capital"=>((sum_power/n)^(inv(rho))),
+        "CES_minus_exogenous_Kbar"=>(sum_power/n)^(inv(rho))-Kfixed,
+        "gross_investment_net_of_depreciated_capital"=>net_investment,
+        "capital_identity_error"=>capital_identity_error,
+        "fraction_investing"=>investing_fraction,
+        "fraction_divesting"=>divesting_fraction,
+        "fraction_actual_gap_outside_0_1"=>outside/n,
+        "fraction_actual_gap_below_zero"=>below/n,
+        "fraction_actual_gap_at_least_one"=>above/n,
+        "mean_actual_gap"=>mean_s,
+        "sd_actual_gap"=>sqrt(max(0.0,sum_s_squared/n-mean_s^2)),
+        "fractional_gap_bin_frequencies"=>bins ./ n,
+        "max_fractional_gap_bin_error_from_uniform"=>
+            maximum(abs.(bins ./ n .- 0.1)),
+        "correlation_log_productivity_log_firm_capital"=>correlation,
+    )
+end
+
+function fixed_K_distribution_diagnostic(
+    calibration; n::Int=110000, seed::Int=20261101, horizon::Int=256
+)
+    horizon>=128 || throw(ArgumentError("fixed-K horizon must be >=128"))
+    rngs=firm_rngs(seed,1)
+    firms=initialize_firms(calibration,rngs;N=n)
+    p=calibration.parameters
+    Kfixed=calibration.steady_state.K
+    checks=(0,1,2,5,10,25,50,100,128,192,256)
+    snapshots=Vector{Dict{String,Any}}()
+    push!(snapshots,_fixed_K_distribution_snapshot(
+        firms,calibration,Kfixed,0,0.0,0.0,0.0,0.0
+    ))
+    block_x=zeros(Float64,2)
+    block_capital=zeros(Float64,2)
+    block_net_growth=zeros(Float64,2)
+    block_count=zeros(Int,2)
+    largest_identity_error=0.0
+    for t in 1:horizon
+        draw_productivity!(firms,rngs,calibration)
+        sum_old=0.0
+        sum_new=0.0
+        total_x=0.0
+        investing=0
+        divesting=0
+        @inbounds for i in eachindex(firms.capital)
+            k_old=firms.capital[i]
+            d=(1.0-p.delta)*k_old
+            lambda_i=firms.lambda[i]
+            a_new=firms.next_productivity[i]
+            b_next=threshold_coefficient(lambda_i,a_new,calibration)
+            exponent=Kfixed<=d/(lambda_i*b_next) ? -1 :
+                     Kfixed<=d/b_next ? 0 : 1
+            k_new=d*lambda_i^exponent
+            firms.capital[i]=k_new
+            sum_old+=k_old
+            sum_new+=k_new
+            total_x+=k_new-d
+            investing+=(exponent==1)
+            divesting+=(exponent==-1)
+        end
+        advance_productivity!(firms)
+        old_mean=sum_old/n
+        new_mean=sum_new/n
+        xmean=total_x/n
+        identity_error=new_mean-(1.0-p.delta)*old_mean-xmean
+        largest_identity_error=max(largest_identity_error,abs(identity_error))
+        if t>horizon-128
+            block=t<=horizon-64 ? 1 : 2
+            block_x[block]+=xmean
+            block_capital[block]+=new_mean
+            block_net_growth[block]+=new_mean-old_mean
+            block_count[block]+=1
+        end
+        if t in checks
+            push!(snapshots,_fixed_K_distribution_snapshot(
+                firms,calibration,Kfixed,t,xmean,identity_error,
+                investing/n,divesting/n
+            ))
+        end
+    end
+    block_x ./= block_count
+    block_capital ./= block_count
+    block_net_growth ./= block_count
+    return Dict{String,Any}(
+        "interpretation"=>"Diagnostic exogenous K=Kbar, original 3-choice and iid shocks; not equilibrium, not ES1, not proof of stationarity",
+        "seed"=>seed,
+        "firms"=>n,
+        "horizon"=>horizon,
+        "K_fixed_exogenous"=>Kfixed,
+        "snapshots"=>snapshots,
+        "last_two_64_period_mean_gross_investment"=>block_x,
+        "last_two_64_period_mean_firm_capital"=>block_capital,
+        "last_two_64_period_mean_change_in_firm_capital"=>block_net_growth,
+        "last_block_mean_gross_X_minus_delta_mean_k_approx"=>
+            block_x[2]-p.delta*block_capital[2],
+        "largest_capital_accounting_identity_error"=>largest_identity_error,
+    )
+end
+
 function main()
     state = initialize_simulation(; N=110000, base_seed=20261101)
     cal = state.calibration
@@ -1022,6 +1185,10 @@ function main()
         push!(periods, info)
     end
     output["periods"] = periods
+    output["exogenous_fixed_K_firm_distribution"] =
+        fixed_K_distribution_diagnostic(
+            cal;n=n,seed=20261101,horizon=256
+        )
     path = normpath(joinpath(@__DIR__,"..","results","initial_collapse_audit.toml"))
     mkpath(dirname(path))
     open(path,"w") do io
@@ -1029,6 +1196,21 @@ function main()
     end
     println("Audit saved: ",path)
     println("One-sided-condition violations: ",violated," of ",n)
+    cross=output["exogenous_fixed_K_firm_distribution"]
+    first_state=cross["snapshots"][1]
+    final_state=cross["snapshots"][end]
+    println("Fixed-K three-choice distribution: initial vs date 256 ",
+        "unwrapped-gap-outside=",
+        first_state["fraction_actual_gap_outside_0_1"]," vs ",
+        final_state["fraction_actual_gap_outside_0_1"],
+        "; fractional-gap max 10-bin deviation=",
+        first_state["max_fractional_gap_bin_error_from_uniform"]," vs ",
+        final_state["max_fractional_gap_bin_error_from_uniform"])
+    println("Fixed-K final CES-minus-Kbar=",
+        final_state["CES_minus_exogenous_Kbar"],
+        "; two recent block mean X=",cross["last_two_64_period_mean_gross_investment"],
+        "; two recent block mean capital drift=",
+        cross["last_two_64_period_mean_change_in_firm_capital"])
     for rec in periods
         if rec["t"]==0
             four = rec["four_way_productivity_at_expected_K"]
