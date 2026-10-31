@@ -9,9 +9,9 @@ max_abs_marginal_utility_linear_residual = 7.105427357601002e-15
 [status]
 requested_periods = 20
 completed_periods = 5
-failure = """Nirei2015 simulation failed at t=5 (K_prior=8.142757611757252, mu_prior=398.7913043898348): DomainError with 3:\nAll fixed points have nonpositive investment; ES1 log criterion undefined"""
+failure = """Nirei2015 simulation failed at t=5 (K_prior=8.142757611757252, mu_prior=398.7913043898348): DomainError with (fixed_points = 3, minimum_investment = -0.05758656336226558, maximum_investment = -0.057398135458978324, minimum_capital = 7.922286680029842, maximum_capital = 7.922475106160655, expected_investment = 0.16651918798803195, expected_capital = 8.146420155827748):\nNo equilibrium has X>0, so the Section 3.4 ES1 log shock is undefined; the capital-based ES1 of Definition 1 is not a valid substitute for log(X/X_expected)"""
 completed = false
-elapsed_seconds = 0.2714353
+elapsed_seconds = 0.244258
 
 [environment]
 julia_version = "1.12.6"
