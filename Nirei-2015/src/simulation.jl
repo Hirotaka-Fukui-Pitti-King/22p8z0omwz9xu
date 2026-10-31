@@ -231,7 +231,7 @@ function simulate_period!(state::SimulationState)
         logX = log(eq.X / s.X)
         isfinite(mu) && mu > 0.0 ||
             throw(DomainError(mu, "unbounded/nonpositive continuation marginal utility"))
-        macro = _realized_macroeconomy(
+        realized_macro = _realized_macroeconomy(
             state.calibration, state.re, logK_prior, logX, logmu, logmu_prior
         )
 
@@ -246,9 +246,9 @@ function simulate_period!(state::SimulationState)
         stable_jump_residual = logmu_error - state.re.h * logK_error
         record = PeriodRecord(
             t, kp, eq.K_next, K_linear, logK_next - K_linear_logdev,
-            macro.Y, macro.C, eq.X, macro.L, macro.w, macro.R, mu,
-            log(eq.K_next), log(macro.Y), log(macro.C),
-            log(eq.X), log(macro.L),
+            realized_macro.Y, realized_macro.C, eq.X, realized_macro.L, realized_macro.w, realized_macro.R, mu,
+            log(eq.K_next), log(realized_macro.Y), log(realized_macro.C),
+            log(eq.X), log(realized_macro.L),
             logK_prior, logK_next, logmu,
             expected.K_next, expected.X_next, expected.C_next,
             expected.L_next, expected.Y_next, expected.mu_next,
@@ -257,9 +257,9 @@ function simulate_period!(state::SimulationState)
             eq.n_fixed, eq.n_admissible, eq.n_nonpositive, eq.objective,
             eq.n_investing, eq.n_inactive, eq.n_divesting,
             eq.capital_residual, eq.investment_residual,
-            macro.production_residual, macro.resource_residual,
-            macro.mu_residual, macro.labor_residual,
-            macro.euler_residual, (macro.Y - macro.C - eq.X) / macro.Y,
+            realized_macro.production_residual, realized_macro.resource_residual,
+            realized_macro.mu_residual, realized_macro.labor_residual,
+            realized_macro.euler_residual, (realized_macro.Y - realized_macro.C - eq.X) / realized_macro.Y,
         )
         # The same finite-N capital drives the next period's expectations.
         state.K = eq.K_next
