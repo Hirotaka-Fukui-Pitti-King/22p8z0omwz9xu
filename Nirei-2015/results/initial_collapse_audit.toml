@@ -8,7 +8,9 @@ max_fixed_X = 0.06936827009543808
 epsilon = -0.9139209899123457
 expected_X = 0.17301019954027186
 equation18_residual = -1.861276036407844e-6
+investment_no_productivity_redraw = 0.1732509142522462
 K_prior = 8.650373019320316
+reaction_residual_no_productivity_redraw = 0.00024137945451307985
 status = "selected"
 reaction_at_expected_K = 8.644122878679608
 t = 0
@@ -27,6 +29,15 @@ reaction_residual_at_expected_K = -0.006251329965564878
     min_gap = 0.0005631938228675018
     sd_gap = 0.2884122787533313
     fraction_gap_outside_0_1 = 0.0006090909090909091
+
+    [periods.one_step_gap_support_at_expected_K]
+    fraction_one_step_next_gap_above_one = 0.0
+    fraction_cutoff_below_zero = 0.0020454545454545456
+    fraction_one_step_next_gap_outside_0_1 = 0.030063636363636365
+    sd_log_threshold_change = 0.007047565939463765
+    fraction_one_step_next_gap_below_zero = 0.030063636363636365
+    mean_log_threshold_change = -5.00075128595557e-7
+    fraction_cutoff_above_one = 0.17274545454545454
 [[periods]]
 investing_at_expected_K = 78738
 X_selected = 0.08181397438641186
@@ -37,7 +48,9 @@ max_fixed_X = 0.08181397438641186
 epsilon = -0.7412805219369651
 expected_X = 0.17169653496947698
 equation18_residual = -2.903282685728925e-5
+investment_no_productivity_redraw = 0.1717714853264244
 K_prior = 8.546731346350889
+reaction_residual_no_productivity_redraw = 7.605536797505863e-5
 status = "selected"
 reaction_at_expected_K = 8.540883582531269
 t = 1
@@ -56,6 +69,15 @@ reaction_residual_at_expected_K = -0.006608133800906302
     min_gap = -0.6500144234580806
     sd_gap = 0.2891398958189635
     fraction_gap_outside_0_1 = 0.0007545454545454546
+
+    [periods.one_step_gap_support_at_expected_K]
+    fraction_one_step_next_gap_above_one = 0.0
+    fraction_cutoff_below_zero = 0.0018909090909090909
+    fraction_one_step_next_gap_outside_0_1 = 0.029936363636363636
+    sd_log_threshold_change = 0.007078888836886372
+    fraction_one_step_next_gap_below_zero = 0.029936363636363636
+    mean_log_threshold_change = -9.044254511242636e-6
+    fraction_cutoff_above_one = 0.1761
 [[periods]]
 investing_at_expected_K = 79015
 X_selected = 0.09066513225984695
@@ -66,7 +88,9 @@ max_fixed_X = 0.09066513225984695
 epsilon = -0.631925164632356
 expected_X = 0.1705618552824479
 equation18_residual = 5.580768946167325e-5
+investment_no_productivity_redraw = 0.17039162153182968
 K_prior = 8.45758092809212
+reaction_residual_no_productivity_redraw = -0.0001704282598762319
 status = "selected"
 reaction_at_expected_K = 8.452523719979732
 t = 2
@@ -85,6 +109,15 @@ reaction_residual_at_expected_K = -0.0064659169363050495
     min_gap = -0.44702980099498824
     sd_gap = 0.28866291959331575
     fraction_gap_outside_0_1 = 0.0012363636363636364
+
+    [periods.one_step_gap_support_at_expected_K]
+    fraction_one_step_next_gap_above_one = 0.0
+    fraction_cutoff_below_zero = 0.0020727272727272725
+    fraction_one_step_next_gap_outside_0_1 = 0.03109090909090909
+    sd_log_threshold_change = 0.00705098856248471
+    fraction_one_step_next_gap_below_zero = 0.03109090909090909
+    mean_log_threshold_change = 1.7304014860758114e-5
+    fraction_cutoff_above_one = 0.17882727272727272
 [[periods]]
 investing_at_expected_K = 79414
 X_selected = 0.02014308041665225
@@ -95,7 +128,9 @@ max_fixed_X = 0.02014308041665225
 epsilon = -2.130345795239976
 expected_X = 0.16955996176958454
 equation18_residual = -9.99890605530851e-5
+investment_no_productivity_redraw = 0.16967013220311142
 K_prior = 8.379149437299423
+reaction_residual_no_productivity_redraw = 0.0001115941053537739
 status = "selected"
 reaction_at_expected_K = 8.374734009732599
 t = 3
@@ -114,6 +149,15 @@ reaction_residual_at_expected_K = -0.006390881668712822
     min_gap = -0.49664347791138785
     sd_gap = 0.2889712489821566
     fraction_gap_outside_0_1 = 0.0020363636363636365
+
+    [periods.one_step_gap_support_at_expected_K]
+    fraction_one_step_next_gap_above_one = 0.0
+    fraction_cutoff_below_zero = 0.001990909090909091
+    fraction_one_step_next_gap_outside_0_1 = 0.03101818181818182
+    sd_log_threshold_change = 0.00705411191174721
+    fraction_one_step_next_gap_below_zero = 0.03101818181818182
+    mean_log_threshold_change = -3.177256075026034e-5
+    fraction_cutoff_above_one = 0.1793909090909091
 [[periods]]
 investing_at_expected_K = 79704
 X_selected = 0.07574976390058641
@@ -124,7 +168,9 @@ max_fixed_X = 0.07574976390058641
 epsilon = -0.7945378105444341
 expected_X = 0.167665871370807
 equation18_residual = 3.135414659816149e-5
+investment_no_productivity_redraw = 0.16754125240570236
 K_prior = 8.231609359467395
+reaction_residual_no_productivity_redraw = -0.0001260446465014553
 status = "selected"
 reaction_at_expected_K = 8.228060314535595
 t = 4
@@ -143,14 +189,26 @@ reaction_residual_at_expected_K = -0.006581227158854119
     min_gap = -0.07866808836825884
     sd_gap = 0.2878746356579442
     fraction_gap_outside_0_1 = 4.545454545454545e-5
+
+    [periods.one_step_gap_support_at_expected_K]
+    fraction_one_step_next_gap_above_one = 0.0
+    fraction_cutoff_below_zero = 0.0018727272727272727
+    fraction_one_step_next_gap_outside_0_1 = 0.03110909090909091
+    sd_log_threshold_change = 0.007055767222861689
+    fraction_one_step_next_gap_below_zero = 0.03110909090909091
+    mean_log_threshold_change = 1.0181814460485934e-5
+    fraction_cutoff_above_one = 0.18642727272727272
 [[periods]]
 expected_K = 8.146420155827748
+status = "no positive investment fixed point; do not change ES1"
+investment_no_productivity_redraw = 0.166324947613344
 n_positive_X = 0
 min_fixed_X = -0.05758656336226558
 K_prior = 8.142757611757252
 investing_at_expected_K = 79967
 inactive_at_expected_K = 30021
 investment_at_expected_K = 0.15990391297028964
+reaction_residual_no_productivity_redraw = -0.00019455874354079583
 reaction_residual_at_expected_K = -0.006652256356968422
 reaction_at_expected_K = 8.13976789947078
 t = 5
@@ -160,7 +218,6 @@ min_fixed_K = 7.922286680029842
 max_fixed_K = 7.922475106160655
 n_fixed = 3
 max_fixed_X = -0.057398135458978324
-status = "no positive investment fixed point; do not change ES1"
 
     [periods.current_gap]
     max_gap = 0.9999998779077668
@@ -168,6 +225,15 @@ status = "no positive investment fixed point; do not change ES1"
     min_gap = -0.6971215328770489
     sd_gap = 0.2888785900322069
     fraction_gap_outside_0_1 = 0.0011
+
+    [periods.one_step_gap_support_at_expected_K]
+    fraction_one_step_next_gap_above_one = 0.0
+    fraction_cutoff_below_zero = 0.001618181818181818
+    fraction_one_step_next_gap_outside_0_1 = 0.032818181818181816
+    sd_log_threshold_change = 0.007090533740492925
+    fraction_one_step_next_gap_below_zero = 0.032818181818181816
+    mean_log_threshold_change = -9.937735956920719e-6
+    fraction_cutoff_above_one = 0.18943636363636362
 
 [configuration]
 firms = 110000
