@@ -1737,6 +1737,14 @@ function equilibrium_path_dependence_audit()
             reftr["K"]==cftr["K"] && reftr["X"]==cftr["X"] ||
                 error("Pre-deviation capital or investment differs")
         end
+        deviated=trial["periods"][tstar+1]
+        original_at_deviation=baseline["periods"][tstar+1]
+        deviated["chosen_index"]!=original_at_deviation["chosen_index"] ||
+            error("Second-best experiment did not actually deviate")
+        devtr=deviated["selected_state_transition"]
+        basetr=original_at_deviation["selected_state_transition"]
+        devtr["K"]!=basetr["K"] ||
+            error("Second-best experiment did not change aggregate capital")
     end
     return Dict{String,Any}(
         "interpretation"=>"Purely diagnostic alternate fixed-point selection, original iid shocks, original {-1,0,1} and Appendix A macro recursion. Not a new RE equilibrium.",
@@ -1962,10 +1970,29 @@ function main()
     end
     for label in sort(collect(keys(ranking["alternative_paths"])))
         trial=ranking["alternative_paths"][label]
+        start_t=trial["deviation"]
+        changed_info=if start_t>=0
+            base_t=base_path["periods"][start_t+1]
+            alt_t=trial["periods"][start_t+1]
+            bt=base_t["selected_state_transition"]
+            at=alt_t["selected_state_transition"]
+            string("; deviation date=",start_t,
+                "; delta selected K=",at["K"]-bt["K"],
+                "; delta selected X=",at["X"]-bt["X"])
+        else
+            ""
+        end
+        final_candidate=trial["periods"][end]
         println("Selection alternative ",label,": completed=",
             trial["completed_periods"],"/20; failure=",trial["failure"],
             "; disagreements=",
-            trial["capital_and_investment_selection_disagreement_dates"])
+            trial["capital_and_investment_selection_disagreement_dates"],
+            changed_info,
+            "; final date=",final_candidate["date"],
+            "; final fixed points=",final_candidate["total_fixed_points"],
+            "; final positive-X points=",
+            final_candidate["positive_investment_fixed_points"],
+            "; final max X=",final_candidate["maximum_X"])
     end
     println("Support-only Case A: t0 ES1 X=",lambda_A["ES1_X"],
         "; K=",lambda_A["ES1_K"],
