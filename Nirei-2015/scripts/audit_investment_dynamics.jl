@@ -1426,6 +1426,328 @@ function preconditioned_distribution_comparison()
     return result
 end
 
+
+# Issue #5: EQUILIBRIUM-SELECTION PATH DEPENDENCE.
+# All alternative rules are strictly DIAGNOSTIC. The production ES1
+# in src/equilibrium.jl and simulation state recursion are UNCHANGED.
+# The fixed-point list is ordered by capital (a strictly monotone
+# sweep). The investment list is weakly monotone for the same reason.
+# Save every candidate of the original ES1 benchmark for auditability.
+function _selection_ranking(workspace, expected_X::Float64, expected_K::Float64)
+    nfixed=workspace.n_fixed
+    nfixed>0 || error("Fixed points must be enumerated")
+    capital=workspace.fixed_capital
+    investment=workspace.fixed_investment
+    # Exact log distance, all candidates, as in Definition 1.
+    best_cap=1
+    best_cap_score=abs(log(capital[1]/expected_K))
+    for j in 2:nfixed
+        sc=abs(log(capital[j]/expected_K))
+        if sc<best_cap_score ||
+           (sc==best_cap_score && capital[j]<capital[best_cap])
+            best_cap=j
+            best_cap_score=sc
+        end
+    end
+    # Section 3.4 selection and deterministic second-best positive X.
+    valid=Int[]
+    for j in 1:nfixed
+        if investment[j]>0.0
+            push!(valid,j)
+        end
+    end
+    sort!(valid;by=j->(
+        abs(log(investment[j]/expected_X)),
+        abs(log(capital[j]/expected_K)),capital[j]
+    ))
+    invest_best=isempty(valid) ? 0 : valid[1]
+    second_best=length(valid)>=2 ? valid[2] : 0
+    max_positive=isempty(valid) ? 0 : maximum(valid)
+    return (
+        capital_best=best_cap,
+        invest_best=invest_best,
+        max_positive=max_positive,
+        second_best=second_best,
+        positive=length(valid),
+        nfixed=nfixed
+    )
+end
+
+function _all_fixed_points_ranked(workspace, expected_X::Float64, expected_K::Float64)
+    r=_selection_ranking(workspace,expected_X,expected_K)
+    entries=Vector{Dict{String,Any}}(undef,r.nfixed)
+    for j in 1:r.nfixed
+        k=workspace.fixed_capital[j]
+        x=workspace.fixed_investment[j]
+        entries[j]=Dict{String,Any}(
+            "capital_rank_ascending"=>j,
+            "capital"=>k,"investment"=>x,
+            "positive_investment"=>x>0.0,
+            "absolute_logK_gap"=>abs(log(k/expected_K)),
+            "absolute_logX_gap_or_NaN"=>x>0.0 ?
+                abs(log(x/expected_X)) : "undefined for nonpositive X",
+        )
+    end
+    return entries
+end
+
+function _period_selection_audit(state)
+    cal=state.calibration
+    p=cal.parameters
+    oldK=state.K
+    expected=compute_expected_equilibrium(
+        state.re,cal,oldK,state.mu_prior
+    )
+    expected_X=expected.X_next
+    expected_K=(1.0-p.delta)*oldK+
+        cal.threshold.A^(cal.constants.rho-1.0)/
+        cal.constants.rho*expected_X
+    draw_productivity!(state.firms,state.rngs,cal)
+    enumeration=enumerate_fixed_points!(state.workspace,state.firms,cal)
+    ranks=_selection_ranking(state.workspace,expected_X,expected_K)
+    ws=state.workspace
+    ranks.positive==enumeration.admissible ||
+        error("Positive fixed point count mismatch")
+    if ranks.invest_best!=0
+        current=select_es1(ws,expected_X,expected_K)
+        current.index==ranks.invest_best ||
+            error("Diagnostic ES1 disagrees with published selector")
+    end
+    record=Dict{String,Any}(
+        "date"=>state.period,
+        "K_prior"=>oldK,
+        "expected_X"=>expected_X,
+        "expected_K"=>expected_K,
+        "total_fixed_points"=>ranks.nfixed,
+        "positive_investment_fixed_points"=>ranks.positive,
+        "minimum_K"=>minimum(view(ws.fixed_capital,1:ranks.nfixed)),
+        "maximum_K"=>maximum(view(ws.fixed_capital,1:ranks.nfixed)),
+        "minimum_X"=>minimum(view(ws.fixed_investment,1:ranks.nfixed)),
+        "maximum_X"=>maximum(view(ws.fixed_investment,1:ranks.nfixed)),
+        "capital_distance_index"=>ranks.capital_best,
+        "capital_distance_X"=>ws.fixed_investment[ranks.capital_best],
+        "capital_distance_K"=>ws.fixed_capital[ranks.capital_best],
+        "capital_and_investment_rules_agree"=>
+            ranks.invest_best==ranks.capital_best,
+        "all_fixed_points"=>_all_fixed_points_ranked(ws,expected_X,expected_K),
+    )
+    if ranks.invest_best>0
+        record["investment_ES1_index"]=ranks.invest_best
+        record["investment_ES1_capital_rank_ascending"]=ranks.invest_best
+        record["investment_ES1_investment_rank_ascending"]=ranks.invest_best
+        record["investment_ES1_K"]=ws.fixed_capital[ranks.invest_best]
+        record["investment_ES1_X"]=ws.fixed_investment[ranks.invest_best]
+        record["max_capital_positive_index"]=ranks.max_positive
+        record["second_best_positive_index"]=ranks.second_best
+        record["ES1_is_max_capital"]=ranks.invest_best==ranks.nfixed
+        record["ES1_is_max_positive_capital"]=
+            ranks.invest_best==ranks.max_positive
+    else
+        record["investment_ES1_status"]="no admissible X>0"
+    end
+    return record,ranks,expected_X,expected_K
+end
+
+# Reuses the EXACT candidate fixed points from production enumeration.
+# The selected candidate can be any index for DIAGNOSTIC purposes,
+# but must have X>0 to retain the Section 3.4 log-shock definition.
+# Capital is recomputed independently with eq(13); X with eq(14).
+function _advance_with_diagnostic_selection!(
+    state, chosen_index::Int, expected_X::Float64
+)
+    ws=state.workspace
+    cal=state.calibration
+    p=cal.parameters
+    rho=cal.constants.rho
+    n=length(state.firms.capital)
+    1<=chosen_index<=ws.n_fixed ||
+        throw(BoundsError(ws.fixed_capital,chosen_index))
+    selected_K=ws.fixed_capital[chosen_index]
+    selected_X=ws.fixed_investment[chosen_index]
+    selected_X>0.0 ||
+        throw(DomainError(selected_X,
+            "nonpositive X cannot enter original log-investment closure"))
+    sumX=0.0
+    investing=0
+    divesting=0
+    @inbounds for i in 1:n
+        d=ws.depreciated[i]
+        lambda_i=state.firms.lambda[i]
+        if selected_K<=ws.switches[2i-1]
+            newk=d/lambda_i
+            divesting+=1
+        elseif selected_K<=ws.switches[2i]
+            newk=d
+        else
+            newk=d*lambda_i
+            investing+=1
+        end
+        ws.next_capital[i]=newk
+        sumX+=newk-d
+    end
+    check_K=aggregate_capital(
+        state.firms.next_productivity,ws.next_capital,p.alpha,rho
+    )
+    check_X=sumX/n
+    abs(check_K-selected_K)<=1e-10*max(1.0,selected_K) ||
+        error("Diagnostic selected capital fails independent CES check")
+    abs(check_X-selected_X)<=1e-10*max(1.0,abs(selected_X)) ||
+        error("Diagnostic selected investment fails independent accounting")
+    old_capital=state.firms.capital
+    state.firms.capital=ws.next_capital
+    ws.next_capital=old_capital
+    advance_productivity!(state.firms)
+    state.K=selected_K
+    state.mu_prior=cal.steady_state.mu*
+        exp(state.re.h*log(selected_K/cal.steady_state.K))
+    state.period+=1
+    return Dict{String,Any}(
+        "K"=>selected_K,"X"=>selected_X,
+        "epsilon"=>log(selected_X/expected_X),
+        "investing_firms"=>investing,"divesting_firms"=>divesting,
+        "capital_check_residual"=>check_K-selected_K,
+        "investment_check_residual"=>check_X-selected_X,
+    )
+end
+
+function _diagnostic_selection_index(ranks, rule::String, time::Int, deviation::Int)
+    if rule=="published_investment_ES1"
+        return ranks.invest_best
+    elseif rule=="capital_distance"
+        return ranks.capital_best
+    elseif rule=="maximum_positive_capital"
+        return ranks.max_positive
+    elseif rule=="second_best_at_one_date"
+        return time==deviation ? ranks.second_best : ranks.invest_best
+    else
+        error("Unsupported diagnostic selection rule: "*rule)
+    end
+end
+
+function _selection_path_trial(
+    rule::String;deviation::Int=-1,horizon::Int=20,save_full::Bool=false,
+    baseline_check::Bool=false
+)
+    state=initialize_simulation(;N=110000,base_seed=20261101)
+    check_state=baseline_check ?
+        initialize_simulation(;N=110000,base_seed=20261101) : nothing
+    periods=Vector{Dict{String,Any}}()
+    completed=0
+    failure="none"
+    disagreement_dates=Int[]
+    for t in 0:horizon-1
+        rec,ranks,ex,ek=_period_selection_audit(state)
+        if ranks.capital_best!=ranks.invest_best
+            push!(disagreement_dates,t)
+        end
+        chosen=_diagnostic_selection_index(ranks,rule,t,deviation)
+        rec["chosen_index"]=chosen
+        rec["rule"]=rule
+        rec["one_time_deviation_date"]=deviation
+        if chosen==0
+            failure="No positive-X fixed point available for selection"
+            rec["failure"]=failure
+            push!(periods,rec)
+            break
+        end
+        if state.workspace.fixed_investment[chosen]<=0.0
+            failure="Chosen capital-based equilibrium has nonpositive X"
+            rec["failure"]=failure
+            push!(periods,rec)
+            break
+        end
+        before_k=baseline_check ? copy(state.firms.capital) : nothing
+        advanced=_advance_with_diagnostic_selection!(state,chosen,ex)
+        rec["selected_state_transition"]=advanced
+        if baseline_check
+            # Independently execute full production GE+ES1 and require that
+            # the diagnostic copy follows the same state at every date.
+            selected_production=simulate_period!(check_state)
+            ranks.invest_best==chosen ||
+                error("Benchmark comparison called on non-ES1 rule")
+            selected_production.K_next_firm==advanced["K"] ||
+                error("Diagnostic/production K mismatch")
+            isapprox(selected_production.X,advanced["X"];atol=1e-12,rtol=1e-12) ||
+                error("Diagnostic/production X mismatch")
+            state.firms.capital==check_state.firms.capital ||
+                error("Diagnostic/production firm capital mismatch")
+            state.firms.productivity==check_state.firms.productivity ||
+                error("Diagnostic/production productivity mismatch")
+            state.K==check_state.K ||
+                error("Diagnostic/production GE state K mismatch")
+            isapprox(state.mu_prior,check_state.mu_prior;atol=1e-10,rtol=1e-12) ||
+                error("Diagnostic/production stable continuation mismatch")
+            rec["baseline_production_transition_exactly_verified"]=true
+        end
+        push!(periods,rec)
+        completed+=1
+    end
+    return Dict{String,Any}(
+        "rule"=>rule,"deviation"=>deviation,
+        "requested_periods"=>horizon,"completed_periods"=>completed,
+        "failure"=>failure,
+        "capital_and_investment_selection_disagreement_dates"=>
+            disagreement_dates,
+        "periods"=>periods,
+        "completed"=>completed==horizon,
+        "diagnostic_not_published_ES1"=>rule!="published_investment_ES1",
+    )
+end
+
+function equilibrium_path_dependence_audit()
+    # The full baseline path is accompanied by independent checks
+    # against the UNMODIFIED simulate_period! production implementation.
+    baseline=_selection_path_trial(
+        "published_investment_ES1";horizon=20,
+        baseline_check=true
+    )
+    first=baseline["periods"][1]
+    first["investment_ES1_index"]==first["total_fixed_points"] ||
+        error("Known benchmark t0 ES1 must select maximum-capital point")
+    isapprox(first["investment_ES1_K"],8.546731346350889;
+             atol=1e-10,rtol=1e-12) ||
+        error("Benchmark ES1 initial capital regression changed")
+    isapprox(first["investment_ES1_X"],0.06936827009543808;
+             atol=1e-10,rtol=1e-12) ||
+        error("Benchmark ES1 initial investment regression changed")
+    trials=Dict{String,Any}(
+        "capital_distance"=>_selection_path_trial("capital_distance"),
+        "maximum_positive_capital"=>_selection_path_trial(
+            "maximum_positive_capital"
+        ),
+    )
+    for tstar in 0:4
+        label="second_best_one_time_t"*string(tstar)
+        trials[label]=_selection_path_trial(
+            "second_best_at_one_date";deviation=tstar
+        )
+    end
+    # Verify identical prefixes of all realized macro paths before the
+    # first deliberate deviation, and identical evolution if selection
+    # coincides with benchmark at that date.
+    for tstar in 0:4
+        trial=trials["second_best_one_time_t"*string(tstar)]
+        for t in 0:(tstar-1)
+            reference=baseline["periods"][t+1]
+            candidate=trial["periods"][t+1]
+            reference["chosen_index"]==candidate["chosen_index"] ||
+                error("Pre-deviation equilibrium selection differs")
+            reftr=reference["selected_state_transition"]
+            cftr=candidate["selected_state_transition"]
+            reftr["K"]==cftr["K"] && reftr["X"]==cftr["X"] ||
+                error("Pre-deviation capital or investment differs")
+        end
+    end
+    return Dict{String,Any}(
+        "interpretation"=>"Purely diagnostic alternate fixed-point selection, original iid shocks, original {-1,0,1} and Appendix A macro recursion. Not a new RE equilibrium.",
+        "baseline"=>baseline,
+        "alternative_paths"=>trials,
+        "baseline_t0_highest_capital_regression_passed"=>true,
+        "baseline_diagnostic_transition_verified_against_original_src"=>true,
+        "common_future_productivity_rng_seed"=>20261101,
+    )
+end
+
 function main()
     state = initialize_simulation(; N=110000, base_seed=20261101)
     cal = state.calibration
@@ -1583,6 +1905,8 @@ function main()
     output["periods"] = periods
     output["support_condition_counterfactual"] =
         support_consistent_comparison(;horizon=20)
+    output["equilibrium_selection_path_dependence"] =
+        equilibrium_path_dependence_audit()
     output["preconditioned_distribution_counterfactual"] =
         preconditioned_distribution_comparison()
     output["exogenous_fixed_K_firm_distribution"] =
@@ -1620,6 +1944,29 @@ function main()
     println("Preconditioned B GE completed ",
         pc["completed_periods"],"/",pc["requested_periods"],
         " periods; failure=",pc["failure"])
+    ranking=output["equilibrium_selection_path_dependence"]
+    base_path=ranking["baseline"]
+    println("Selection path baseline: completed=",base_path["completed_periods"],
+        "/20; failure=",base_path["failure"],
+        "; capital-vs-investment disagreement dates=",
+        base_path["capital_and_investment_selection_disagreement_dates"])
+    for row in base_path["periods"]
+        println("Selection baseline t=",row["date"],
+            "; fixed points=",row["total_fixed_points"],
+            "; positive X=",row["positive_investment_fixed_points"],
+            "; selected capital rank=",
+            get(row,"investment_ES1_capital_rank_ascending","none"),
+            "/",row["total_fixed_points"],
+            "; capital-distance index=",row["capital_distance_index"],
+            "; X=",get(row,"investment_ES1_X","none"))
+    end
+    for label in sort(collect(keys(ranking["alternative_paths"])))
+        trial=ranking["alternative_paths"][label]
+        println("Selection alternative ",label,": completed=",
+            trial["completed_periods"],"/20; failure=",trial["failure"],
+            "; disagreements=",
+            trial["capital_and_investment_selection_disagreement_dates"])
+    end
     println("Support-only Case A: t0 ES1 X=",lambda_A["ES1_X"],
         "; K=",lambda_A["ES1_K"],
         "; first-period residual=",lambda_A["reaction_residual_at_expected_K"])
