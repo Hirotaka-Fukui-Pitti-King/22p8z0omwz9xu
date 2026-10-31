@@ -95,3 +95,24 @@ Get-Content .\results\calibration.toml
 最初の \`Pkg.instantiate()\` により、Julia/Pkg が \`Manifest.toml\` を生成します。パッケージ登録情報と依存バージョンが固定されます。次のスクリプトは、式 (16) の A、定常状態、埋め込み均衡残差を計算し、\`results/calibration.toml\` を作成します。初期段階では PC 上の実行結果とログを確認してから GitHub に Manifest と結果を追加し Issue #1 を閉じます。
 
 このステップでの計算は企業別ショックや一般均衡シミュレーションを一切含みません。Issue #2 以降は、この Julia パッケージの \`BenchmarkParameters\` と \`CalibrationResult\` を直接再利用します。
+
+
+## Issue #2 — Appendix A linear rational expectations（Julia）
+
+追加ソース：\`src/expectations.jl\`、\`scripts/run_expectations.jl\`。既存の \`CalibrationResult\` を再利用し、Appendix A (36)–(37) の \`B\`、\`D\`、\`F = B \ D\`、二つの固有値と安定固有ベクトルを計算します。
+
+**論文の情報時点**：\`compute_expected_equilibrium(solution, calibration, K_prior, mu_prior)\` は \(\widetilde K_{-1},\widetilde\mu_{-1}\) を *別々の predetermined inputs* として受け取り、\(E_{-1}[\widetilde K_0,\widetilde\mu_0,\widetilde X_0,\widetilde C_0,\widetilde L_0,\widetilde Y_0,\widetilde w_0,\widetilde R_0]\) を一次近似で返します。各期の実現 \(\widetilde\mu\) が自動的に安定多様体上に戻るとは仮定しません。\`compute_saddle_path_expectations\` は「初期状態が安定固有空間にある」と明示的に仮定する例示的インターフェースだけです。
+
+**近似の意味**：\`*_next\` の level は条件付きの期待対数偏差の指数変換であり、厳密な水準の条件付き期待値ではありません。実現資本と期待資本を混同せず、後続の Issue #5 では投資ショック後の内生的な限界効用の推移を扱います。
+
+Windows PowerShell で、クローン済み \`Nirei-2015\` ディレクトリから：
+
+\`\`\`powershell
+git status --short
+git pull --ff-only origin main
+julia --project=. -e 'using Pkg; Pkg.instantiate()'
+julia --project=. scripts/run_expectations.jl
+Get-Content .\results\expectations.toml
+\`\`\`
+
+\`Project.toml\` に \`LinearAlgebra\` 標準ライブラリを追加しました。既存の \`Manifest.toml\` を手動で作り直さず、Julia/Pkg に環境を同期させます。\`run_expectations.jl\` は定常点と期首資本を1%増加させた安定経路上の例で係数と方程式残差を \`results/expectations.toml\` に書き込みます。Julia のローカル実行と結果確認が完了するまで GitHub Issue #2 は open に保ちます。
