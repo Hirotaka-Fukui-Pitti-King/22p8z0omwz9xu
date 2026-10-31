@@ -3,6 +3,7 @@
 
 using Nirei2015
 using Statistics: mean, std
+using Distributions: Normal, cdf
 using TOML
 import Pkg
 
@@ -51,7 +52,7 @@ function main()
     # Conditional variance of a symmetric ±d normal truncation.
     # Theoretical sample SD differs from p.lambda_sd due to truncation.
     z = p.lambda_truncation_sd
-    norm_const = erf(z / sqrt(2.0))
+    norm_const = 2.0 * cdf(Normal(), z) - 1.0
     variance_factor = 1.0 - 2.0 * z * exp(-z^2 / 2.0) /
                                   (sqrt(2.0 * pi) * norm_const)
     theoretical_truncated_sd = p.lambda_sd * sqrt(variance_factor)
