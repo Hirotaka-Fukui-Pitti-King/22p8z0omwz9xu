@@ -1,0 +1,186 @@
+{
+  "schema_version": "1.0",
+  "project": "Nirei-2015",
+  "repository": "Hirotaka-Fukui-Pitti-King/22p8z0omwz9xu",
+  "source": {
+    "title": "An interaction-based foundation of aggregate investment fluctuations",
+    "author": "Makoto Nirei",
+    "year": 2015,
+    "doi": "10.3982/TE1611",
+    "sections": [
+      "2.3",
+      "2.4",
+      "3.2",
+      "3.3",
+      "3.4",
+      "3.5",
+      "Appendix A",
+      "Appendix B",
+      "Appendix C"
+    ]
+  },
+  "status": {
+    "documentation": "written",
+    "julia_implementation": "not_started",
+    "benchmark_simulation": "not_run",
+    "table2_replication": "not_verified"
+  },
+  "mission": "Reproduce the benchmark Table 2 using a single executable Julia workflow, finite-firm endogenous investment shocks, and ES1 equilibrium selection.",
+  "language": {
+    "required": "Julia",
+    "only_language_for_model_and_numerics": true,
+    "prohibit_translation_from": [
+      "Python",
+      "R",
+      "MATLAB",
+      "C++"
+    ],
+    "require_julia_native_design": true
+  },
+  "reference_priority": [
+    "Original paper equations and appendices",
+    "Julia official documentation and standard libraries",
+    "Official package documentation and maintained source repositories",
+    "Implementation choices documented in ALGORITHM.md"
+  ],
+  "official_references": {
+    "julia": "https://julialang.org/",
+    "performance": "https://docs.julialang.org/en/v1/manual/performance-tips/",
+    "pkg": "https://pkgdocs.julialang.org/v1/",
+    "linear_algebra": "https://docs.julialang.org/en/v1/stdlib/LinearAlgebra/",
+    "random": "https://docs.julialang.org/en/v1/stdlib/Random/",
+    "sorting": "https://docs.julialang.org/en/v1/base/sort/",
+    "distributions": "https://juliastats.org/Distributions.jl/stable/",
+    "quadgk": "https://juliamath.github.io/QuadGK.jl/stable/",
+    "stable_rng": "https://github.com/JuliaRandom/StableRNGs.jl"
+  },
+  "dependencies": {
+    "standard_library_candidates": [
+      "LinearAlgebra",
+      "Random",
+      "Statistics",
+      "Printf",
+      "TOML"
+    ],
+    "external_candidates": [
+      "Distributions",
+      "QuadGK",
+      "StableRNGs"
+    ],
+    "policy": "Verify versions/API against original package repositories; add only needed packages; save Project.toml and Manifest.toml when implementing."
+  },
+  "benchmark": {
+    "alpha": 0.26,
+    "delta": 0.02,
+    "beta": 0.99,
+    "sigma": 15,
+    "eta": 11,
+    "psi": 1,
+    "zeta": 2,
+    "lambda_mean": 1.028,
+    "lambda_normal_sd_before_truncation": 0.004,
+    "lambda_truncation_lower": 1.02,
+    "lambda_truncation_upper": 1.036,
+    "log_productivity_sd": 0.0005,
+    "productivity_normalization": "E[a^(rho/(alpha*(1-rho)))]=1",
+    "firms": 110000,
+    "periods_per_run": 1100,
+    "burn_in": 100,
+    "replications": 10,
+    "frequency": "quarterly"
+  },
+  "algorithm_order": [
+    "calculate constants steady state and A",
+    "solve Appendix A B\\D and stable saddle path",
+    "initialize firm heterogeneity capital gaps and aggregate capital",
+    "compute approximate expectations from current state",
+    "draw i.i.d. next-period firm productivities",
+    "compute threshold coefficients and switching points",
+    "enumerate all finite-firm aggregate-capital fixed points by sorted threshold sweep",
+    "select ES1 minimizing absolute log realized vs expected investment deviation",
+    "update exact firm capital and endogenous investment shock",
+    "recover macro quantities using log-linear expected-equilibrium conditions",
+    "save macro series and advance state",
+    "discard burn-in and compute 10-run moments and standard errors"
+  ],
+  "equilibrium": {
+    "selection": "ES1",
+    "criterion": "min |log(X_actual)-log(X_expected)| among admissible finite-firm fixed points",
+    "prohibit_es2_substitution": true,
+    "fictitious_tatonnement": "The basic best-response iteration is associated with ES2, not the benchmark ES1.",
+    "switch_point_method": "sort 2N thresholds, update the power-sum at crossings, test each constant-response interval",
+    "complexity": "O(N log N) per period sorting, O(N) scan, O(N) workspace",
+    "tie_break": "deterministic, document as implementation choice",
+    "nonpositive_investment": "never silently clip or log; record exception/explicit handling"
+  },
+  "approximations": {
+    "expectations": "continuum economy and first-order log-linear rational-expectations solution",
+    "realizations": "finite N nonlinear indivisible investments and exact aggregate equation (13)",
+    "finite_vs_linear_capital": "retain distinct quantities and document mapping; no arbitrary shock adjustments",
+    "initial_capital": "provisional construction from uniform gaps; finite-sample scaling choice documented",
+    "timing": "use consistent t and t+1 index; equation (13) productivity index discrepancy must be recorded"
+  },
+  "computation": {
+    "float_type": "Float64 unless accuracy requires otherwise",
+    "type_stability": true,
+    "function_barriers": true,
+    "preallocated_workspace": true,
+    "inplace_operations": true,
+    "stable_elementary_functions": [
+      "expm1",
+      "log1p"
+    ],
+    "avoid_full_reaggregation_for_each_fixed_point": true,
+    "avoid_any_arrays": true,
+    "avoid_global_dynamic_state": true,
+    "record_seed": true,
+    "record_julia_version": true,
+    "profile_before_optimizing": true
+  },
+  "workflow": {
+    "one_end_to_end_replication": true,
+    "avoid_validation_sprawl": true,
+    "inline_invariants": [
+      "finite quantities",
+      "fixed point consistency",
+      "positive log arguments",
+      "accounting checks"
+    ],
+    "no_new_model_extensions": true,
+    "do_not_claim_success_without_execution": true
+  },
+  "targets": {
+    "sd_percent": {
+      "Y": 2.28,
+      "C": 0.86,
+      "X": 6.6,
+      "L": 3.06,
+      "K": 0.26
+    },
+    "corr_with_Y": {
+      "C": 0.822,
+      "X": 0.979,
+      "L": 0.795,
+      "K": -0.018
+    }
+  },
+  "deliverables": [
+    "Julia executable code",
+    "Project.toml",
+    "Manifest.toml",
+    "ten per-run time series",
+    "per-run summary moments",
+    "averaged moments and Monte Carlo standard errors",
+    "Table 2 comparison",
+    "seed and version metadata"
+  ],
+  "completion": "Execute benchmark at N=110000 for 1100 periods and 10 replications, discard first 100 periods, write Table 2 comparison files; report deviations honestly.",
+  "prohibited": [
+    "implement in another language before translating to Julia",
+    "replace ES1 with ES2",
+    "inject aggregate exogenous disturbances",
+    "introduce arbitrary smoothing or clipping",
+    "create unrelated research extensions or validation projects",
+    "claim replication before running the full benchmark"
+  ]
+}
