@@ -4,7 +4,7 @@
 using Nirei2015
 using TOML
 
-function response_at_K(firms, calibration, K::Float64)
+function response_at_K(firms, calibration, K::Float64; use_prior_productivity::Bool=false)
     p = calibration.parameters
     rho = calibration.constants.rho
     n = length(firms.capital)
@@ -16,7 +16,7 @@ function response_at_K(firms, calibration, K::Float64)
     @inbounds for i in 1:n
         d = (1.0 - p.delta) * firms.capital[i]
         l = firms.lambda[i]
-        a = firms.next_productivity[i]
+        a = use_prior_productivity ? firms.productivity[i] : firms.next_productivity[i]
         b = threshold_coefficient(l, a, calibration)
         nextk = if K <= d / (l*b)
             ndivest += 1
@@ -69,6 +69,57 @@ function gap_diagnostics(state)
     )
 end
 
+
+# In the model's one-step policy, the gap after adjustment need not remain
+# in [0,1) when the preferred log threshold moves by more than one
+# indivisibility interval. Proposition 4 uses a modulo-1 evolution and
+# the paper's footnote explicitly discusses expanding the choice set
+# when productivity support is too wide. This is a DIAGNOSTIC only:
+# no modification to the firm's choice set or to the benchmark shock law.
+function threshold_support_diagnostics(state, K::Float64)
+    firms, calibration = state.firms, state.calibration
+    n = length(firms.capital)
+    p = calibration.parameters
+    cutoff_above_one = 0
+    cutoff_below_zero = 0
+    next_gap_outside = 0
+    next_gap_below_zero = 0
+    next_gap_above_one = 0
+    change_sum = 0.0
+    change_squared = 0.0
+    for i in 1:n
+        l = firms.lambda[i]
+        b0 = threshold_coefficient(l, firms.productivity[i], calibration)
+        b1 = threshold_coefficient(l, firms.next_productivity[i], calibration)
+        ln_l = log(l)
+        s0 = log(firms.capital[i] / (b0 * state.K)) / ln_l
+        q = -log1p(-p.delta) / ln_l
+        log_b_change = log(b1 / b0)
+        cutoff = q + (log_b_change + log(K/state.K)) / ln_l
+        cutoff_above_one += cutoff > 1.0
+        cutoff_below_zero += cutoff < 0.0
+        # Retain exactly the current {-1,0,1} policy.
+        adjustment = s0 < cutoff ? 1 : s0 >= cutoff + 1.0 ? -1 : 0
+        next_gap = s0 - cutoff + adjustment
+        next_gap_outside += next_gap < 0.0 || next_gap >= 1.0
+        next_gap_below_zero += next_gap < 0.0
+        next_gap_above_one += next_gap >= 1.0
+        change_sum += log_b_change
+        change_squared += log_b_change^2
+    end
+    average = change_sum / n
+    return Dict(
+        "fraction_cutoff_above_one" => cutoff_above_one/n,
+        "fraction_cutoff_below_zero" => cutoff_below_zero/n,
+        "fraction_one_step_next_gap_outside_0_1" => next_gap_outside/n,
+        "fraction_one_step_next_gap_below_zero" => next_gap_below_zero/n,
+        "fraction_one_step_next_gap_above_one" => next_gap_above_one/n,
+        "sd_log_threshold_change" =>
+            sqrt(max(0.0, change_squared/n-average^2)),
+        "mean_log_threshold_change" => average,
+    )
+end
+
 function main()
     state = initialize_simulation(; N=110000, base_seed=20261101)
     cal = state.calibration
@@ -104,12 +155,19 @@ function main()
         enum = enumerate_fixed_points!(state.workspace, state.firms, cal)
         Ke = (1.0-p.delta)*K_prior + coefficient*expected.X_next
         at_expected = response_at_K(state.firms, cal, Ke)
+        no_new_productivity = response_at_K(
+            state.firms, cal, Ke; use_prior_productivity=true
+        )
+        support = threshold_support_diagnostics(state, Ke)
         info = Dict{String,Any}(
             "t"=>t, "K_prior"=>K_prior,
             "expected_K"=>Ke, "expected_X"=>expected.X_next,
             "reaction_at_expected_K"=>at_expected.Phi,
             "reaction_residual_at_expected_K"=>at_expected.Phi-Ke,
             "investment_at_expected_K"=>at_expected.X,
+            "reaction_residual_no_productivity_redraw"=>no_new_productivity.Phi-Ke,
+            "investment_no_productivity_redraw"=>no_new_productivity.X,
+            "one_step_gap_support_at_expected_K"=>support,
             "investing_at_expected_K"=>at_expected.investing,
             "inactive_at_expected_K"=>at_expected.inactive,
             "divesting_at_expected_K"=>at_expected.divesting,
