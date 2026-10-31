@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "project": "Nirei-2015",
+  "task_id": "T03",
+  "issue_number": 3,
+  "issue_url": "https://github.com/Hirotaka-Fukui-Pitti-King/22p8z0omwz9xu/issues/3",
+  "title": "企業異質性・初期資本ベクトル・固有生産性乱数の実装",
+  "status": "open",
+  "implementation_language": "Julia",
+  "depends_on": [
+    "T01"
+  ],
+  "parallelizable_with": [
+    "T02"
+  ],
+  "source_sections": [
+    "Section 2.6",
+    "Appendix C",
+    "Equation (16)"
+  ],
+  "actions": [
+    "λ_iを±2SDで切断した正規分布から生成し各試行中固定",
+    "生産性a_i,tをi.i.d.対数正規で生成しモーメント正規化",
+    "初期ギャップs_i,0を一様生成しb_i,0とk_i,0を構成",
+    "有限企業からK_0を計算し初期スケール規則を記録",
+    "シードとストリーム、具体型配列、更新用メモリを用意"
+  ],
+  "expected_files": [
+    "src/firms.jl"
+  ],
+  "definition_of_done": "所与のNとseedから一貫した企業ベクトルと次期ショックをJuliaで生成できる",
+  "scope_guardrails": [
+    "本実装に直結しない検証専用プロジェクトを作らない",
+    "Julia-nativeな実装とし他言語のコードを翻訳しない",
+    "結果を実行確認する前に完了扱いしない",
+    "原論文のES1をES2に置換しない"
+  ],
+  "reference_documents": [
+    "Nirei-2015/ALGORITHM.md",
+    "Nirei-2015/policy.json",
+    "Nirei-2015/TASKS.md"
+  ]
+}
