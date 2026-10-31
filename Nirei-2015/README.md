@@ -75,3 +75,23 @@ Makoto Nirei (2015), “An Interaction-Based Foundation of Aggregate Investment 
 ## 出典と優先順位
 
 一次資料は [Nirei (2015) 本文](https://doi.org/10.3982/TE1611)、とくに Section 2.3–2.4、Section 3.2–3.5、Appendices A–C です。論文で明記された式・選択ルールと、未指定箇所を埋める実装上の取り決めを [ALGORITHM.md](ALGORITHM.md) で明示的に分けます。前後のチャット回答よりも原論文の式を優先します。
+
+
+## Issue #1 — Julia calibration のローカル実行
+
+Issue #1 の Julia ソースは \`src/Nirei2015.jl\`、\`src/calibration.jl\`、\`scripts/run_calibration.jl\` にあります。Julia の数値計算は Windows PC で実行します。**Julia 未実行時点では Manifest.toml と calibration.toml をリポジトリに用意していません。**
+
+クローン済みのリポジトリのルートディレクトリから Windows PowerShell で次を実行します。
+
+\`\`\`powershell
+git pull --ff-only origin main
+Set-Location .\Nirei-2015
+julia --version
+julia --project=. -e 'using Pkg; Pkg.instantiate()'
+julia --project=. scripts/run_calibration.jl
+Get-Content .\results\calibration.toml
+\`\`\`
+
+最初の \`Pkg.instantiate()\` により、Julia/Pkg が \`Manifest.toml\` を生成します。パッケージ登録情報と依存バージョンが固定されます。次のスクリプトは、式 (16) の A、定常状態、埋め込み均衡残差を計算し、\`results/calibration.toml\` を作成します。初期段階では PC 上の実行結果とログを確認してから GitHub に Manifest と結果を追加し Issue #1 を閉じます。
+
+このステップでの計算は企業別ショックや一般均衡シミュレーションを一切含みません。Issue #2 以降は、この Julia パッケージの \`BenchmarkParameters\` と \`CalibrationResult\` を直接再利用します。
