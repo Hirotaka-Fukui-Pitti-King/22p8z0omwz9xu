@@ -23,6 +23,17 @@ min_fixed_X = -0.04042436629773039
 investment_at_expected_K = 0.1667654599910685
 reaction_residual_at_expected_K = -0.006251329965564878
 
+    [periods.multi_step_at_expected_K]
+    n_more_than_one_divestment = 0
+    max_exponent = 3
+    min_exponent = -1
+    aggregate_investment = 0.17316914180223889
+    n_more_than_one_investment = 3307
+    increase_in_reaction_vs_three_action = 0.006409313718171106
+    increase_in_investment_vs_three_action = 0.006403681811170375
+    max_gap_violation = 0.0
+    reaction_residual = 0.00015798375260622777
+
     [periods.current_gap]
     max_gap = 1.000866493097295
     mean_gap = 0.49932790476973726
@@ -62,6 +73,17 @@ n_positive_X = 61
 min_fixed_X = -0.0790161604073838
 investment_at_expected_K = 0.16512284445698786
 reaction_residual_at_expected_K = -0.006608133800906302
+
+    [periods.multi_step_at_expected_K]
+    n_more_than_one_divestment = 0
+    max_exponent = 2
+    min_exponent = -1
+    aggregate_investment = 0.17142449277056165
+    n_more_than_one_investment = 3293
+    increase_in_reaction_vs_three_action = 0.006307193069659434
+    increase_in_investment_vs_three_action = 0.006301648313573799
+    max_gap_violation = 0.0
+    reaction_residual = -0.00030094073124686815
 
     [periods.current_gap]
     max_gap = 0.9999827557273031
@@ -103,6 +125,17 @@ min_fixed_X = -0.05423181165888564
 investment_at_expected_K = 0.1640453536873598
 reaction_residual_at_expected_K = -0.0064659169363050495
 
+    [periods.multi_step_at_expected_K]
+    n_more_than_one_divestment = 0
+    max_exponent = 2
+    min_exponent = -1
+    aggregate_investment = 0.17050560744725943
+    n_more_than_one_investment = 3420
+    increase_in_reaction_vs_three_action = 0.006466023071414639
+    increase_in_investment_vs_three_action = 0.006460253759899615
+    max_gap_violation = 0.0
+    reaction_residual = 1.0613510958989991e-7
+
     [periods.current_gap]
     max_gap = 0.9999971273619676
     mean_gap = 0.49970546422790324
@@ -142,6 +175,17 @@ n_positive_X = 184
 min_fixed_X = -0.05399371182890168
 investment_at_expected_K = 0.16327633895444227
 reaction_residual_at_expected_K = -0.006390881668712822
+
+    [periods.multi_step_at_expected_K]
+    n_more_than_one_divestment = 0
+    max_exponent = 2
+    min_exponent = -1
+    aggregate_investment = 0.16967522074420757
+    n_more_than_one_investment = 3412
+    increase_in_reaction_vs_three_action = 0.006404687167080425
+    increase_in_investment_vs_three_action = 0.006398881789765304
+    max_gap_violation = 0.0
+    reaction_residual = 1.3805498367602809e-5
 
     [periods.current_gap]
     max_gap = 0.9999915758542965
@@ -183,6 +227,17 @@ min_fixed_X = -0.07820771697004676
 investment_at_expected_K = 0.16105876661760207
 reaction_residual_at_expected_K = -0.006581227158854119
 
+    [periods.multi_step_at_expected_K]
+    n_more_than_one_divestment = 0
+    max_exponent = 3
+    min_exponent = -1
+    aggregate_investment = 0.1673888413040959
+    n_more_than_one_investment = 3422
+    increase_in_reaction_vs_three_action = 0.0063355344061548635
+    increase_in_investment_vs_three_action = 0.006330074686493825
+    max_gap_violation = 0.0
+    reaction_residual = -0.00024569275269925583
+
     [periods.current_gap]
     max_gap = 0.9999989485397373
     mean_gap = 0.5007905216850241
@@ -199,25 +254,36 @@ reaction_residual_at_expected_K = -0.006581227158854119
     mean_log_threshold_change = 1.0181814460485934e-5
     fraction_cutoff_above_one = 0.18642727272727272
 [[periods]]
-expected_K = 8.146420155827748
-status = "no positive investment fixed point; do not change ES1"
-investment_no_productivity_redraw = 0.166324947613344
-n_positive_X = 0
-min_fixed_X = -0.05758656336226558
-K_prior = 8.142757611757252
 investing_at_expected_K = 79967
+divesting_at_expected_K = 12
+max_fixed_K = 7.922475106160655
 inactive_at_expected_K = 30021
-investment_at_expected_K = 0.15990391297028964
+max_fixed_X = -0.057398135458978324
+expected_X = 0.16651918798803195
+investment_no_productivity_redraw = 0.166324947613344
+K_prior = 8.142757611757252
 reaction_residual_no_productivity_redraw = -0.00019455874354079583
-reaction_residual_at_expected_K = -0.006652256356968422
+status = "no positive investment fixed point; do not change ES1"
 reaction_at_expected_K = 8.13976789947078
 t = 5
-divesting_at_expected_K = 12
-expected_X = 0.16651918798803195
 min_fixed_K = 7.922286680029842
-max_fixed_K = 7.922475106160655
 n_fixed = 3
-max_fixed_X = -0.057398135458978324
+expected_K = 8.146420155827748
+n_positive_X = 0
+min_fixed_X = -0.05758656336226558
+investment_at_expected_K = 0.15990391297028964
+reaction_residual_at_expected_K = -0.006652256356968422
+
+    [periods.multi_step_at_expected_K]
+    n_more_than_one_divestment = 0
+    max_exponent = 2
+    min_exponent = -1
+    aggregate_investment = 0.16649454515873252
+    n_more_than_one_investment = 3610
+    increase_in_reaction_vs_three_action = 0.006596478455110244
+    increase_in_investment_vs_three_action = 0.006590632188442885
+    max_gap_violation = 0.0
+    reaction_residual = -5.5777901858178325e-5
 
     [periods.current_gap]
     max_gap = 0.9999998779077668
@@ -241,5 +307,7 @@ continuum_X = 0.1730122451259319
 expected_stationary_investment_participation_ignoring_productivity = 0.743282198510435
 count_lambda_does_not_satisfy_one_sided_condition = 673
 continuum_K = 8.650534763929938
+multi_step_is_counterfactual = true
 seed = 20261101
 equation18_investment_multiplier = 0.9999910419789534
+multi_step_model_warning = "Footnotes 2 and 4 allow finite multi-step adjustment under wider productivity support; NOT the published three-action benchmark."
