@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "project": "Nirei-2015",
+  "task_id": "T02",
+  "issue_number": 2,
+  "issue_url": "https://github.com/Hirotaka-Fukui-Pitti-King/22p8z0omwz9xu/issues/2",
+  "title": "Appendix A の合理的期待均衡を Julia で解く",
+  "status": "open",
+  "implementation_language": "Julia",
+  "depends_on": [
+    "T01"
+  ],
+  "parallelizable_with": [
+    "T03"
+  ],
+  "source_sections": [
+    "Appendix A equations (26)-(37)",
+    "Proposition 5"
+  ],
+  "actions": [
+    "Appendix A (26)-(37) のパラメータと B,D 行列を構築",
+    "B\\DをLinearAlgebraで解き安定固有値と係数hを計算",
+    "期首集計資本から期待投資・期待資本・期待賃金等を返す関数を構築",
+    "条件付き期待、期首期末資本、指数変換の近似を一貫して扱う",
+    "関数の実行時に線形関係の整合を確認"
+  ],
+  "expected_files": [
+    "src/expectations.jl"
+  ],
+  "definition_of_done": "Julia で安定RE解と条件付き期待系列が計算でき、次のシミュレーターが呼び出せる",
+  "scope_guardrails": [
+    "本実装に直結しない検証専用プロジェクトを作らない",
+    "Julia-nativeな実装とし他言語のコードを翻訳しない",
+    "結果を実行確認する前に完了扱いしない",
+    "原論文のES1をES2に置換しない"
+  ],
+  "reference_documents": [
+    "Nirei-2015/ALGORITHM.md",
+    "Nirei-2015/policy.json",
+    "Nirei-2015/TASKS.md"
+  ]
+}
