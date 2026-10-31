@@ -1,0 +1,179 @@
+[[periods]]
+investing_at_expected_K = 78546
+X_selected = 0.06936827009543808
+divesting_at_expected_K = 16
+max_fixed_K = 8.546731346350889
+inactive_at_expected_K = 31438
+max_fixed_X = 0.06936827009543808
+epsilon = -0.9139209899123457
+expected_X = 0.17301019954027186
+equation18_residual = -1.861276036407844e-6
+K_prior = 8.650373019320316
+status = "selected"
+reaction_at_expected_K = 8.644122878679608
+t = 0
+min_fixed_K = 8.436939670350494
+n_fixed = 420
+expected_K = 8.650374208645173
+K_selected = 8.546731346350889
+n_positive_X = 256
+min_fixed_X = -0.04042436629773039
+investment_at_expected_K = 0.1667654599910685
+reaction_residual_at_expected_K = -0.006251329965564878
+
+    [periods.current_gap]
+    max_gap = 1.000866493097295
+    mean_gap = 0.49932790476973726
+    min_gap = 0.0005631938228675018
+    sd_gap = 0.2884122787533313
+    fraction_gap_outside_0_1 = 0.0006090909090909091
+[[periods]]
+investing_at_expected_K = 78738
+X_selected = 0.08181397438641186
+divesting_at_expected_K = 16
+max_fixed_K = 8.45758092809212
+inactive_at_expected_K = 31246
+max_fixed_X = 0.08181397438641186
+epsilon = -0.7412805219369651
+expected_X = 0.17169653496947698
+equation18_residual = -2.903282685728925e-5
+K_prior = 8.546731346350889
+status = "selected"
+reaction_at_expected_K = 8.540883582531269
+t = 1
+min_fixed_K = 8.296752223541485
+n_fixed = 175
+expected_K = 8.547491716332175
+K_selected = 8.45758092809212
+n_positive_X = 61
+min_fixed_X = -0.0790161604073838
+investment_at_expected_K = 0.16512284445698786
+reaction_residual_at_expected_K = -0.006608133800906302
+
+    [periods.current_gap]
+    max_gap = 0.9999827557273031
+    mean_gap = 0.4992114876740391
+    min_gap = -0.6500144234580806
+    sd_gap = 0.2891398958189635
+    fraction_gap_outside_0_1 = 0.0007545454545454546
+[[periods]]
+investing_at_expected_K = 79015
+X_selected = 0.09066513225984695
+divesting_at_expected_K = 17
+max_fixed_K = 8.379149437299423
+inactive_at_expected_K = 30968
+max_fixed_X = 0.09066513225984695
+epsilon = -0.631925164632356
+expected_X = 0.1705618552824479
+equation18_residual = 5.580768946167325e-5
+K_prior = 8.45758092809212
+status = "selected"
+reaction_at_expected_K = 8.452523719979732
+t = 2
+min_fixed_K = 8.234252508949545
+n_fixed = 96
+expected_K = 8.458989636916037
+K_selected = 8.379149437299423
+n_positive_X = 34
+min_fixed_X = -0.05423181165888564
+investment_at_expected_K = 0.1640453536873598
+reaction_residual_at_expected_K = -0.0064659169363050495
+
+    [periods.current_gap]
+    max_gap = 0.9999971273619676
+    mean_gap = 0.49970546422790324
+    min_gap = -0.44702980099498824
+    sd_gap = 0.28866291959331575
+    fraction_gap_outside_0_1 = 0.0012363636363636364
+[[periods]]
+investing_at_expected_K = 79414
+X_selected = 0.02014308041665225
+divesting_at_expected_K = 12
+max_fixed_K = 8.231609359467395
+inactive_at_expected_K = 30574
+max_fixed_X = 0.02014308041665225
+epsilon = -2.130345795239976
+expected_X = 0.16955996176958454
+equation18_residual = -9.99890605530851e-5
+K_prior = 8.379149437299423
+status = "selected"
+reaction_at_expected_K = 8.374734009732599
+t = 3
+min_fixed_K = 8.157473018214667
+n_fixed = 244
+expected_K = 8.381124891401312
+K_selected = 8.231609359467395
+n_positive_X = 184
+min_fixed_X = -0.05399371182890168
+investment_at_expected_K = 0.16327633895444227
+reaction_residual_at_expected_K = -0.006390881668712822
+
+    [periods.current_gap]
+    max_gap = 0.9999915758542965
+    mean_gap = 0.49867763000921467
+    min_gap = -0.49664347791138785
+    sd_gap = 0.2889712489821566
+    fraction_gap_outside_0_1 = 0.0020363636363636365
+[[periods]]
+investing_at_expected_K = 79704
+X_selected = 0.07574976390058641
+divesting_at_expected_K = 16
+max_fixed_K = 8.142757611757252
+inactive_at_expected_K = 30280
+max_fixed_X = 0.07574976390058641
+epsilon = -0.7945378105444341
+expected_X = 0.167665871370807
+equation18_residual = 3.135414659816149e-5
+K_prior = 8.231609359467395
+status = "selected"
+reaction_at_expected_K = 8.228060314535595
+t = 4
+min_fixed_K = 7.988801625427821
+n_fixed = 719
+expected_K = 8.23464154169445
+K_selected = 8.142757611757252
+n_positive_X = 392
+min_fixed_X = -0.07820771697004676
+investment_at_expected_K = 0.16105876661760207
+reaction_residual_at_expected_K = -0.006581227158854119
+
+    [periods.current_gap]
+    max_gap = 0.9999989485397373
+    mean_gap = 0.5007905216850241
+    min_gap = -0.07866808836825884
+    sd_gap = 0.2878746356579442
+    fraction_gap_outside_0_1 = 4.545454545454545e-5
+[[periods]]
+expected_K = 8.146420155827748
+n_positive_X = 0
+min_fixed_X = -0.05758656336226558
+K_prior = 8.142757611757252
+investing_at_expected_K = 79967
+inactive_at_expected_K = 30021
+investment_at_expected_K = 0.15990391297028964
+reaction_residual_at_expected_K = -0.006652256356968422
+reaction_at_expected_K = 8.13976789947078
+t = 5
+divesting_at_expected_K = 12
+expected_X = 0.16651918798803195
+min_fixed_K = 7.922286680029842
+max_fixed_K = 7.922475106160655
+n_fixed = 3
+max_fixed_X = -0.057398135458978324
+status = "no positive investment fixed point; do not change ES1"
+
+    [periods.current_gap]
+    max_gap = 0.9999998779077668
+    mean_gap = 0.49985347129583363
+    min_gap = -0.6971215328770489
+    sd_gap = 0.2888785900322069
+    fraction_gap_outside_0_1 = 0.0011
+
+[configuration]
+firms = 110000
+continuum_X = 0.1730122451259319
+expected_stationary_investment_participation_ignoring_productivity = 0.743282198510435
+count_lambda_does_not_satisfy_one_sided_condition = 673
+continuum_K = 8.650534763929938
+seed = 20261101
+equation18_investment_multiplier = 0.9999910419789534
