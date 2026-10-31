@@ -32,3 +32,7 @@ jobs:
         run: |
           julia --project=. scripts/run_calibration.jl
           julia --project=. scripts/run_expectations.jl
+      - name: Firm simulation integration smoke (benchmark N, 20 periods)
+        run: |
+          julia --project=. scripts/run_benchmark.jl 20 110000 20261101
+          julia --project=. -e 'using TOML; x = TOML.parsefile("results/simulation_summary.toml"); @assert x["status"]["completed"] && x["status"]["completed_periods"] == 20'
