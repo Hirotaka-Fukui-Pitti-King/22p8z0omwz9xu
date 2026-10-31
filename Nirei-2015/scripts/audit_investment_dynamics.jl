@@ -3,7 +3,7 @@
 # From Nirei-2015/: julia --project=. scripts/audit_investment_dynamics.jl
 using Nirei2015
 using TOML
-using Distributions: Normal, cdf, ccdf
+using Distributions: Normal, cdf, ccdf, pdf
 using LinearAlgebra: SymTridiagonal, eigen
 
 function response_at_K(firms, calibration, K::Float64; use_prior_productivity::Bool=false)
@@ -528,6 +528,184 @@ function initial_uniform_gap_expected_moments(
     )
 end
 
+
+# Continuum reaction for Appendix C's INITIAL uniform gap law (not a
+# stationary law of the actual finite-notch Markov process).
+#
+# With theta=rho/[alpha*(1-rho)] and L_j=log(a_{i,j}), let
+# D=L_1-L_0~N(0,2*sigma_a^2).
+# E[exp(theta*L_0)|D] =
+# exp(theta*(mu-D/2) + theta^2*sigma_a^2/4).
+# The CES power weight of next productivity and threshold-based initial
+# capital simplifies exactly:
+# a_1^(rho/alpha) * a_0^(theta*rho)
+# = exp(theta*L_0 + (rho/alpha)*D).
+# This collapses the independent old/new productivity double integral
+# to a ONE-dimensional Gaussian integral over D.
+#
+# K0(s)=b(a0,lambda)*Kbar*lambda^s is drawn at the stated initial law.
+# The candidate future K is treated as fixed in the reaction. We use
+# exactly the same three-action policies as the production equilibrium.
+# E[CES power]^(1/rho) is NOT E[finite-N equilibrium K] nor E[ES1 K].
+function _legendre_quadrature(n::Int)
+    n>=2 || throw(ArgumentError("Legendre quadrature needs >=2 nodes"))
+    indices=Float64.(1:(n-1))
+    subdiag=indices ./ sqrt.(4.0 .* indices.^2 .- 1.0)
+    ev=eigen(SymTridiagonal(zeros(n),subdiag))
+    return ev.values, 2.0 .* (ev.vectors[1,:].^2)
+end
+
+function _unconditional_initial_continuum_data(
+    calibration; lambda_nodes::Int=32, shock_nodes::Int=40
+)
+    p=calibration.parameters
+    distribution=lambda_distribution(p)
+    lower=p.lambda_mean-p.lambda_truncation_sd*p.lambda_sd
+    upper=p.lambda_mean+p.lambda_truncation_sd*p.lambda_sd
+    lambda_z,lambda_w=_legendre_quadrature(lambda_nodes)
+    diff_z,diff_w=_normal_quadrature(shock_nodes)
+    return (
+        lambda_nodes=lower .+ (upper-lower)/2.0 .* (lambda_z .+ 1.0),
+        lambda_weights=(upper-lower)/2.0 .* lambda_w .*
+            pdf.(Ref(distribution),lower .+
+                 (upper-lower)/2.0 .* (lambda_z .+ 1.0)),
+        difference_nodes=sqrt(2.0)*p.sigma_log_a .* diff_z,
+        difference_weights=diff_w,
+        counts=(lambda_nodes,shock_nodes),
+    )
+end
+
+function unconditional_initial_continuum_reaction(
+    calibration, data, K::Float64
+)
+    p=calibration.parameters
+    rho=calibration.constants.rho
+    s=calibration.steady_state
+    theta=rho/(p.alpha*(1.0-rho))
+    K>0.0 || throw(ArgumentError("continuum candidate capital must be positive"))
+    ratio=log(K/s.K)
+    average_power=0.0
+    average_investment=0.0
+    investing=0.0
+    divesting=0.0
+    # Integrate over lambda and difference D of iid Gaussian productivity.
+    for k in eachindex(data.lambda_nodes)
+        lambda_i=data.lambda_nodes[k]
+        weight_lambda=data.lambda_weights[k]
+        b0_unit=threshold_coefficient(lambda_i,1.0,calibration)
+        scale=(1.0-p.delta)*b0_unit*s.K
+        ln_l=log(lambda_i)
+        for j in eachindex(data.difference_nodes)
+            difference=data.difference_nodes[j]
+            conditional_a0_theta=exp(
+                theta*(calibration.constants.mean_log_a-0.5*difference)+
+                0.25*(theta*p.sigma_log_a)^2
+            )
+            cutoff=(-log1p(-p.delta)+ratio+theta*difference)/ln_l
+            moments=_uniform_gap_integrals(lambda_i,rho,cutoff)
+            w=weight_lambda*data.difference_weights[j]*conditional_a0_theta
+            average_power+=w*exp((rho/p.alpha)*difference)*
+                           scale^rho*moments.expected_power_weight
+            average_investment+=w*scale*moments.expected_net_weight
+            # Participation fractions must be integrated WITHOUT the
+            # conditional capital weight E[a0^theta|D].
+            wprob=weight_lambda*data.difference_weights[j]
+            investing+=wprob*moments.prob_invest
+            divesting+=wprob*moments.prob_divest
+        end
+    end
+    phi=average_power^(inv(rho))
+    return (
+        Phi=phi, residual=phi-K, X=average_investment,
+        investing=investing, divesting=divesting,
+        CES_power=average_power,
+    )
+end
+
+# On a disclosed broad but finite grid, bracket every sign change
+# and bisect each bracket. This is evidence for roots in the tested
+# interval, NOT a proof that no roots exist elsewhere.
+function initial_continuum_consistency_audit(
+    calibration, K_expected::Float64;
+    lambda_nodes::Int=32, shock_nodes::Int=40,
+)
+    s=calibration.steady_state
+    data=_unconditional_initial_continuum_data(
+        calibration;lambda_nodes=lambda_nodes,shock_nodes=shock_nodes
+    )
+    at_steady=unconditional_initial_continuum_reaction(calibration,data,s.K)
+    at_expected=unconditional_initial_continuum_reaction(
+        calibration,data,K_expected
+    )
+    # K is a candidate aggregate within this INITIAL-CROSS-SECTION
+    # reaction, not a new steady-state calibration.
+    ratios=(0.55,0.65,0.75,0.85,0.90,0.94,0.96,0.975,
+            0.985,0.995,1.0,1.005,1.015,1.025,1.04,1.075,1.10,1.20,1.40)
+    grid=Vector{Dict{String,Float64}}()
+    for ratio in ratios
+        v=unconditional_initial_continuum_reaction(
+            calibration,data,s.K*ratio
+        )
+        push!(grid,Dict(
+            "K_to_Kbar"=>ratio,"Phi_minus_K"=>v.residual,
+            "X"=>v.X,"Phi"=>v.Phi,
+        ))
+    end
+    roots=Float64[]
+    root_residuals=Float64[]
+    for z in 1:(length(ratios)-1)
+        left=s.K*ratios[z]
+        right=s.K*ratios[z+1]
+        vl=grid[z]["Phi_minus_K"]
+        vr=grid[z+1]["Phi_minus_K"]
+        if vl==0.0
+            push!(roots,left)
+            push!(root_residuals,vl)
+        elseif (vl<0.0 && vr>0.0) || (vl>0.0 && vr<0.0)
+            for iteration in 1:52
+                mid=left+(right-left)/2.0
+                vm=unconditional_initial_continuum_reaction(
+                    calibration,data,mid
+                ).residual
+                if (vl<0.0 && vm<0.0) || (vl>0.0 && vm>0.0)
+                    left=mid
+                    vl=vm
+                else
+                    right=mid
+                end
+            end
+            root=left+(right-left)/2.0
+            push!(roots,root)
+            push!(root_residuals,
+                unconditional_initial_continuum_reaction(
+                    calibration,data,root
+                ).residual)
+        end
+    end
+    return Dict{String,Any}(
+        "interpretation"=>"One-period continuum reaction at Appendix C initial distribution, not an invariant stationary law and not an ES1 equilibrium expectation",
+        "lambda_quadrature_nodes"=>lambda_nodes,
+        "difference_normal_quadrature_nodes"=>shock_nodes,
+        "Kbar"=>s.K,
+        "K_expected"=>K_expected,
+        "Phi_at_Kbar"=>at_steady.Phi,
+        "Phi_at_Kbar_minus_Kbar"=>at_steady.residual,
+        "X_at_Kbar"=>at_steady.X,
+        "X_at_Kbar_minus_Xbar"=>at_steady.X-s.X,
+        "investing_at_Kbar"=>at_steady.investing,
+        "divesting_at_Kbar"=>at_steady.divesting,
+        "Phi_at_expected_K"=>at_expected.Phi,
+        "Phi_at_expected_K_minus_expected_K"=>at_expected.residual,
+        "X_at_expected_K"=>at_expected.X,
+        "X_at_expected_K_minus_expected_Xbar"=>at_expected.X-s.X,
+        "root_capitals_in_tested_intervals"=>roots,
+        "root_residuals"=>root_residuals,
+        "tested_ratio_min"=>first(ratios),
+        "tested_ratio_max"=>last(ratios),
+        "grid"=>grid,
+    )
+end
+
 function main()
     state = initialize_simulation(; N=110000, base_seed=20261101)
     cal = state.calibration
@@ -632,6 +810,20 @@ function main()
                 gapmom_24["expected_net_investment"]
             info["initial_uniform_gap_expected_X_minus_continuum_forecast"] =
                 gapmom_36["expected_net_investment"]-expected.X_next
+            continuum_low=initial_continuum_consistency_audit(
+                cal, Ke;lambda_nodes=24,shock_nodes=32
+            )
+            continuum_high=initial_continuum_consistency_audit(
+                cal, Ke;lambda_nodes=32,shock_nodes=40
+            )
+            info["unconditional_initial_continuum_24x32"]=continuum_low
+            info["unconditional_initial_continuum_32x40"]=continuum_high
+            info["continuum_quadrature_convergence_Phi_at_Kbar"]=
+                continuum_high["Phi_at_Kbar"]-
+                continuum_low["Phi_at_Kbar"]
+            info["continuum_quadrature_convergence_X_at_Kbar"]=
+                continuum_high["X_at_Kbar"]-
+                continuum_low["X_at_Kbar"]
         end
         if enum.admissible == 0
             info["status"] = "no positive investment fixed point; do not change ES1"
@@ -679,6 +871,15 @@ function main()
                 moments["expected_net_investment"],
                 "; 36 minus 24 node error: ",
                 rec["initial_uniform_gap_convergence_X"])
+            continuum=rec["unconditional_initial_continuum_32x40"]
+            println("t=0 unconditional initial-continuum Phi(Kbar)-Kbar: ",
+                continuum["Phi_at_Kbar_minus_Kbar"],
+                "; X(Kbar)-Xbar: ",continuum["X_at_Kbar_minus_Xbar"],
+                "; roots in searched range: ",
+                continuum["root_capitals_in_tested_intervals"])
+            println("t=0 unconditional continuum quadrature convergence Phi: ",
+                rec["continuum_quadrature_convergence_Phi_at_Kbar"],
+                "; X: ",rec["continuum_quadrature_convergence_X_at_Kbar"])
         end
         println("t=",rec["t"]," expected K=",rec["expected_K"],
             " Phi(expected K)-expected K=",rec["reaction_residual_at_expected_K"],
