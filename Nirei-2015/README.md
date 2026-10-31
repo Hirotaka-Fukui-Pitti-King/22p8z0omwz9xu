@@ -116,3 +116,26 @@ Get-Content .\results\expectations.toml
 \`\`\`
 
 \`Project.toml\` に \`LinearAlgebra\` 標準ライブラリを追加しました。既存の \`Manifest.toml\` を手動で作り直さず、Julia/Pkg に環境を同期させます。\`run_expectations.jl\` は定常点と期首資本を1%増加させた安定経路上の例で係数と方程式残差を \`results/expectations.toml\` に書き込みます。Julia のローカル実行と結果確認が完了するまで GitHub Issue #2 は open に保ちます。
+
+
+## Issue #3 — 企業異質性・初期資本・固有生産性（Julia）
+
+実装：\`src/firms.jl\` と \`scripts/run_firms.jl\`。Section 2.2、2.6、3.2–3.3、Appendix C の \(\lambda_i\)、\(a_{i,t}\)、\(s_{i,0}\) を既存の \`CalibrationResult\` で初期化します。外生集計ショックや企業間相関は追加しません。
+
+- \`firm_rngs(seed, replication)\` は4つの明示的な \`Random.Xoshiro\` ストリームを生成します。ストリームごとのシードを記録しますが、異なるシードが数学的に独立であることや Julia のバージョンをまたぐビット一致は保証しません。
+- \`initialize_firms(calibration, rngs)\` は、\(\lambda_i\) を切断正規分布から一度だけ生成し、\(\log a_{i,0}\) をモーメント正規化した正規分布から生成し、\(s_{i,0}\sim U[0,1)\) とします。初期資本は \(k_{i,0}=b_{i,0}\bar K\lambda_i^{s_{i,0}}\) です。
+- \`aggregate_capital(state, calibration)\` は原論文 (13) に対応する有限 \(N\) の厳密なべき乗和を計算します。**有限 \(N\) の \(K_0\) を \(\bar K\) に強制一致させません。** 初期ギャップの一様性は \(\bar K\) を基準にした構成上の条件であり、実現 \(K_0\) を基準に計算したギャップが区間外に出ることがあります。その差と該当企業数をログに記録します。有限標本スケーリングは原論文 Appendix C では明示されておらず、この方法は実装上の選択です。
+- \`draw_productivity!(state, rngs, calibration)\` は事前確保した \`next_productivity\` に次期の iid 生産性を生成し、現在の資本、現在の生産性、固定された \(\lambda_i\) を変更しません。\`advance_productivity!\` は資本更新後の時点移動で配列参照を交換します。Issue #4 は \`capital\` と \`next_productivity\` を直接利用できます。
+- 本段階では企業の投資方策、有限企業の固定点・ES1、マクロ逐次シミュレーションは実装しません。
+
+Windows PowerShell で、クローン済み \`Nirei-2015\` ディレクトリから次を実行します。
+
+\`\`\`powershell
+git status --short
+git pull --ff-only origin main
+julia --project=. -e 'using Pkg; Pkg.resolve(); Pkg.instantiate()'
+julia --project=. scripts/run_firms.jl
+Get-Content .\results\firms.toml
+\`\`\`
+
+今回は \`Project.toml\` に Julia 標準ライブラリ \`Random\`、\`Statistics\` を追加したため、従来の \`Manifest.toml\` との同期には \`Pkg.resolve()\` が必要です。\`Pkg.update()\` は不要です。実行成功後は \`Manifest.toml\` と新規生成した \`results/firms.toml\` のみを GitHub に追加してください。Issue #3 はローカル実行確認まで open とします。
