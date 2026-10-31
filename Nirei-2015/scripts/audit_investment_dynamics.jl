@@ -717,6 +717,156 @@ function initial_continuum_consistency_audit(
     )
 end
 
+
+# Closed-form Gaussian expectation for the initial one-step continuum.
+# Write theta=rho/[alpha*(1-rho)], D=log(a1/a0)~N(0,2*sigma_a^2),
+# v(D)=K/[(1-delta)*Kbar]*exp(theta*D), and
+# h(D)=clamp(v(D),lambda^-1,lambda).
+# Exact s0~Uniform[0,1) integration of ORIGINAL {-1,0,+1} policy:
+#  E_s0[X_i | a0,D,lambda]
+#     =(1-delta)b0*Kbar * (lambda-1)/log(lambda) * (h(D)-1)
+#  E_s0[a1^(rho/alpha)*k1^rho | a0,D,lambda]
+#     =a1^(rho/alpha)*[(1-delta)b0*Kbar]^rho *
+#       (lambda^rho-1)/(rho*log(lambda)) * h(D)^rho.
+# Since E[a0^theta | D] = exp(theta*(mu-D/2) + theta^2*sigma_a^2/4),
+# integrate D using tilted Gaussian truncated moments, with NO
+# approximation to the Gaussian tails or to clipping.
+function _tilted_normal_interval(
+    sd::Float64, tilt::Float64, low::Float64, high::Float64
+)
+    normal=Normal()
+    shift=tilt*sd^2
+    p_low=isfinite(low) ? cdf(normal,(low-shift)/sd) : 0.0
+    p_high=isfinite(high) ? cdf(normal,(high-shift)/sd) : 1.0
+    return exp(0.5*(tilt*sd)^2)*max(0.0,p_high-p_low)
+end
+
+function _bounded_exponential_normal_moment(
+    sd::Float64, tilt::Float64, exponent::Float64,
+    base::Float64, theta::Float64, ln_lambda::Float64,
+)
+    threshold_low=(-ln_lambda-base)/theta
+    threshold_high=(ln_lambda-base)/theta
+    return exp(-exponent*ln_lambda)*
+             _tilted_normal_interval(sd,tilt,-Inf,threshold_low) +
+           exp(exponent*base)*
+             _tilted_normal_interval(
+                 sd,tilt+exponent*theta,threshold_low,threshold_high
+             ) +
+           exp(exponent*ln_lambda)*
+             _tilted_normal_interval(sd,tilt,threshold_high,Inf)
+end
+
+function exact_gaussian_initial_continuum_reaction(
+    calibration, data, K::Float64
+)
+    p=calibration.parameters
+    rho=calibration.constants.rho
+    s=calibration.steady_state
+    K>0.0 || throw(ArgumentError("candidate K must be positive"))
+    theta=rho/(p.alpha*(1.0-rho))
+    sd=sqrt(2.0)*p.sigma_log_a
+    base=-log1p(-p.delta)+log(K/s.K)
+    prefactor=exp(theta*calibration.constants.mean_log_a+
+                  0.25*(theta*p.sigma_log_a)^2)
+    power_total=0.0
+    x_total=0.0
+    for j in eachindex(data.lambda_nodes)
+        lambda_i=data.lambda_nodes[j]
+        w=data.lambda_weights[j]
+        logl=log(lambda_i)
+        b0_unit=threshold_coefficient(lambda_i,1.0,calibration)
+        scale=(1.0-p.delta)*b0_unit*s.K
+        investment_tilt=-0.5*theta
+        power_tilt=(rho/p.alpha)-0.5*theta
+        exph=_bounded_exponential_normal_moment(
+            sd,investment_tilt,1.0,base,theta,logl
+        )
+        baseline=exp(0.5*(investment_tilt*sd)^2)
+        exph_rho=_bounded_exponential_normal_moment(
+            sd,power_tilt,rho,base,theta,logl
+        )
+        x_total+=w*prefactor*scale*(lambda_i-1.0)/logl*
+                 (exph-baseline)
+        power_total+=w*prefactor*scale^rho*
+                     expm1(rho*logl)/(rho*logl)*exph_rho
+    end
+    phi=power_total^(inv(rho))
+    return (Phi=phi,residual=phi-K,X=x_total,CES_power=power_total)
+end
+
+# Bracket and bisect the analytic-in-productivity continuum map over the
+# same explicitly disclosed range as the independent 2D quadrature.
+function exact_initial_continuum_consistency_audit(
+    calibration, K_expected::Float64; lambda_nodes::Int=64
+)
+    s=calibration.steady_state
+    data=_unconditional_initial_continuum_data(
+        calibration;lambda_nodes=lambda_nodes,shock_nodes=2
+    )
+    at_bar=exact_gaussian_initial_continuum_reaction(calibration,data,s.K)
+    at_exp=exact_gaussian_initial_continuum_reaction(
+        calibration,data,K_expected
+    )
+    ratios=(0.55,0.65,0.75,0.85,0.90,0.94,0.96,0.975,
+            0.985,0.995,1.0,1.005,1.015,1.025,1.04,1.075,1.10,1.20,1.40)
+    residuals=Float64[]
+    roots=Float64[]
+    x_roots=Float64[]
+    for ratio in ratios
+        push!(residuals,
+            exact_gaussian_initial_continuum_reaction(
+                calibration,data,s.K*ratio
+            ).residual)
+    end
+    for j in 1:(length(ratios)-1)
+        lo=s.K*ratios[j]
+        hi=s.K*ratios[j+1]
+        flo=residuals[j]
+        fhi=residuals[j+1]
+        if flo==0.0
+            push!(roots,lo)
+            push!(x_roots,
+                exact_gaussian_initial_continuum_reaction(
+                    calibration,data,lo
+                ).X)
+        elseif (flo<0.0 && fhi>0.0)||(flo>0.0 && fhi<0.0)
+            for iteration in 1:52
+                middle=lo+0.5*(hi-lo)
+                fmid=exact_gaussian_initial_continuum_reaction(
+                    calibration,data,middle
+                ).residual
+                if (flo<0.0 && fmid<0.0)||(flo>0.0 && fmid>0.0)
+                    lo=middle
+                    flo=fmid
+                else
+                    hi=middle
+                end
+            end
+            root=lo+0.5*(hi-lo)
+            push!(roots,root)
+            push!(x_roots,
+                exact_gaussian_initial_continuum_reaction(
+                    calibration,data,root
+                ).X)
+        end
+    end
+    return Dict{String,Any}(
+        "method"=>"exact Gaussian difference integration with normal CDF, Gauss-Legendre only for lambda",
+        "Kbar"=>s.K,
+        "lambda_nodes"=>lambda_nodes,
+        "Phi_at_Kbar_minus_Kbar"=>at_bar.residual,
+        "X_at_Kbar_minus_Xbar"=>at_bar.X-s.X,
+        "Phi_at_expected_K_minus_expected_K"=>at_exp.residual,
+        "X_at_expected_K"=>at_exp.X,
+        "root_capitals_in_tested_intervals"=>roots,
+        "root_investments"=>x_roots,
+        "searched_K_to_Kbar_range_min"=>first(ratios),
+        "searched_K_to_Kbar_range_max"=>last(ratios),
+        "not_a_long_run_stationary_distribution"=>true,
+    )
+end
+
 function main()
     state = initialize_simulation(; N=110000, base_seed=20261101)
     cal = state.calibration
@@ -829,6 +979,17 @@ function main()
             )
             info["unconditional_initial_continuum_32x40"]=continuum_low
             info["unconditional_initial_continuum_48x64"]=continuum_high
+            gaussian_exact_48=exact_initial_continuum_consistency_audit(
+                cal,Ke;lambda_nodes=48
+            )
+            gaussian_exact_64=exact_initial_continuum_consistency_audit(
+                cal,Ke;lambda_nodes=64
+            )
+            info["exact_normal_continuum_48_lambda_nodes"]=gaussian_exact_48
+            info["exact_normal_continuum_64_lambda_nodes"]=gaussian_exact_64
+            info["exact_normal_continuum_lambda_convergence_Phi"]=
+                gaussian_exact_64["Phi_at_Kbar_minus_Kbar"]-
+                gaussian_exact_48["Phi_at_Kbar_minus_Kbar"]
             info["continuum_quadrature_convergence_Phi_at_Kbar"]=
                 continuum_high["Phi_at_Kbar"]-
                 continuum_low["Phi_at_Kbar"]
@@ -892,6 +1053,14 @@ function main()
             println("t=0 unconditional continuum quadrature convergence Phi: ",
                 rec["continuum_quadrature_convergence_Phi_at_Kbar"],
                 "; X: ",rec["continuum_quadrature_convergence_X_at_Kbar"])
+            exact=rec["exact_normal_continuum_64_lambda_nodes"]
+            println("t=0 exact-Gaussian continuum Phi(Kbar)-Kbar: ",
+                exact["Phi_at_Kbar_minus_Kbar"],
+                "; X(Kbar)-Xbar: ",exact["X_at_Kbar_minus_Xbar"],
+                "; roots: ",exact["root_capitals_in_tested_intervals"],
+                "; root X: ",exact["root_investments"])
+            println("t=0 Gaussian-analytic lambda quadrature convergence Phi: ",
+                rec["exact_normal_continuum_lambda_convergence_Phi"])
         end
         println("t=",rec["t"]," expected K=",rec["expected_K"],
             " Phi(expected K)-expected K=",rec["reaction_residual_at_expected_K"],
