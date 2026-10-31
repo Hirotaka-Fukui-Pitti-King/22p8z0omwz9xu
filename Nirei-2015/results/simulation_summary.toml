@@ -1,0 +1,46 @@
+[integrity]
+max_abs_production_linear_residual = 0.0
+max_abs_resources_linear_residual = 1.3877787807814457e-17
+max_abs_fixed_point_residual = 8.704148513061227e-14
+max_abs_investment_residual = 6.38378239159465e-16
+max_abs_stable_jump_residual = 1.3530843112619095e-16
+max_abs_marginal_utility_linear_residual = 8.881784197001252e-16
+
+[status]
+requested_periods = 20
+completed_periods = 4
+failure = """Nirei2015 simulation failed at t=4 (K_prior=8.419022949237629, mu_prior=361.6733869369932): DomainError with 43:\nAll fixed points have nonpositive investment; ES1 log criterion undefined"""
+completed = false
+elapsed_seconds = 0.097474
+
+[environment]
+julia_version = "1.12.6"
+active_project = "C:\\github\\22p8z0omwz9xu\\Nirei-2015\\Project.toml"
+
+    [environment.packages]
+    QuadGK = "2.11.3"
+    Statistics = "1.11.5"
+    Distributions = "0.25.132"
+    Random = "1.11.0"
+    TOML = "1.0.3"
+
+[initial_period]
+K_next = 8.586611566034568
+epsilon = -0.4644717441129242
+realized_X = 0.10873890354462808
+expected_X = 0.17302245305207303
+
+[configuration]
+price_setting = "Predetermined price equations imposed in expectations, not realized macro identities"
+burnin = 19
+periods = 20
+initial_K = 8.651341922024374
+conditional_expectations = "Appendix A B^-1D two-state forecast of log deviations"
+moment_calculation = "Not part of Issue #5. Diagnostic summary only."
+firms = 2000
+rng = "Random.Xoshiro"
+base_seed = 20261101
+macro_closure = "First-order bounded-continuation mu_t = h*log(K_{t+1}^firm/Kbar); finite-N forecast drift is measured"
+initial_mu = 333.9649216125741
+capital = "Firm aggregation is exact; Appendix A linear capital is a separate diagnostic"
+replication = 1
