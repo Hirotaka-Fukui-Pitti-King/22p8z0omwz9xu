@@ -666,6 +666,20 @@ function main()
     println("Audit saved: ",path)
     println("One-sided-condition violations: ",violated," of ",n)
     for rec in periods
+        if rec["t"]==0
+            four = rec["four_way_productivity_at_expected_K"]
+            moments = rec["initial_uniform_gap_36_nodes"]
+            println("t=0 four-way reaction residuals A/B/C/D: ",
+                four["residual_A"], " / ",four["residual_B"], " / ",
+                four["residual_C"], " / ",four["residual_D"])
+            println("t=0 Shapley threshold effect: ",
+                four["threshold_effect_shapley"],
+                "; direct CES effect: ",four["CES_weight_effect_shapley"])
+            println("t=0 uniform-gap and iid-productivity expected X (fixed K): ",
+                moments["expected_net_investment"],
+                "; 36 minus 24 node error: ",
+                rec["initial_uniform_gap_convergence_X"])
+        end
         println("t=",rec["t"]," expected K=",rec["expected_K"],
             " Phi(expected K)-expected K=",rec["reaction_residual_at_expected_K"],
             " selected X=",get(rec,"X_selected","no positive-X fixed point"),
