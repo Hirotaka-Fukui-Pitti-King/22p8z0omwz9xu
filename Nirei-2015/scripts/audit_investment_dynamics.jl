@@ -4,6 +4,7 @@
 using Nirei2015
 using TOML
 using Distributions: Normal, cdf, ccdf
+using LinearAlgebra: SymTridiagonal, eigen
 
 function response_at_K(firms, calibration, K::Float64; use_prior_productivity::Bool=false)
     p = calibration.parameters
@@ -364,6 +365,169 @@ function boundedness_assumption_audit(
     return output
 end
 
+
+# Four cases at a FIXED candidate aggregate capital.
+# A=old thresholds/old CES productivity; B=new thresholds/old CES;
+# C=old thresholds/new CES; D=new thresholds/new CES (actual benchmark).
+# B and C are identifying counterfactuals, not feasible equilibrium paths.
+function four_way_productivity_effects(firms, calibration, K::Float64,
+                                       old_response, new_response)
+    p = calibration.parameters
+    rho = calibration.constants.rho
+    n = length(firms.capital)
+    power = zeros(Float64,4)
+    investment_old = 0.0
+    investment_new = 0.0
+    investing_old = 0
+    investing_new = 0
+    @inbounds for i in 1:n
+        d = (1.0-p.delta)*firms.capital[i]
+        lambda_i = firms.lambda[i]
+        old_a = firms.productivity[i]
+        new_a = firms.next_productivity[i]
+        old_b = threshold_coefficient(lambda_i,old_a,calibration)
+        new_b = threshold_coefficient(lambda_i,new_a,calibration)
+        old_exponent = K<=d/(lambda_i*old_b) ? -1 :
+                       K<=d/old_b ? 0 : 1
+        new_exponent = K<=d/(lambda_i*new_b) ? -1 :
+                       K<=d/new_b ? 0 : 1
+        old_capital = d*lambda_i^old_exponent
+        new_capital = d*lambda_i^new_exponent
+        old_weight = old_a^(rho/p.alpha)
+        new_weight = new_a^(rho/p.alpha)
+        power[1] += old_weight*old_capital^rho/n
+        power[2] += old_weight*new_capital^rho/n
+        power[3] += new_weight*old_capital^rho/n
+        power[4] += new_weight*new_capital^rho/n
+        investment_old += (old_capital-d)/n
+        investment_new += (new_capital-d)/n
+        investing_old += old_exponent==1
+        investing_new += new_exponent==1
+    end
+    phi = power.^(inv(rho))
+    isapprox(phi[1],old_response.Phi;atol=1e-9,rtol=1e-10) ||
+        error("four-way A disagrees with no-redraw reaction")
+    isapprox(phi[4],new_response.Phi;atol=1e-9,rtol=1e-10) ||
+        error("four-way D disagrees with benchmark reaction")
+    isapprox(investment_old,old_response.X;atol=1e-9,rtol=1e-10) ||
+        error("four-way no-redraw investment mismatch")
+    isapprox(investment_new,new_response.X;atol=1e-9,rtol=1e-10) ||
+        error("four-way benchmark investment mismatch")
+    threshold_effect = 0.5*((phi[2]-phi[1])+(phi[4]-phi[3]))
+    ces_effect = 0.5*((phi[3]-phi[1])+(phi[4]-phi[2]))
+    isapprox(threshold_effect+ces_effect,phi[4]-phi[1];
+             atol=1e-10,rtol=1e-12) ||
+        error("Shapley effects fail to add to total productivity effect")
+    return Dict(
+        "phi_A_old_threshold_old_CES"=>phi[1],
+        "phi_B_new_threshold_old_CES"=>phi[2],
+        "phi_C_old_threshold_new_CES"=>phi[3],
+        "phi_D_new_threshold_new_CES"=>phi[4],
+        "residual_A"=>phi[1]-K,
+        "residual_B"=>phi[2]-K,
+        "residual_C"=>phi[3]-K,
+        "residual_D"=>phi[4]-K,
+        "threshold_effect_shapley"=>threshold_effect,
+        "CES_weight_effect_shapley"=>ces_effect,
+        "total_effect_D_minus_A"=>phi[4]-phi[1],
+        "X_A_and_C"=>investment_old,
+        "X_B_and_D"=>investment_new,
+        "n_investing_old_threshold"=>investing_old,
+        "n_investing_new_threshold"=>investing_new,
+        "is_fixed_K_counterfactual"=>true,
+    )
+end
+
+# Analytically integrate over s_0 ~ Uniform[0,1). For each firm,
+# k_0(s)=b(a_0,lambda)*Kbar*lambda^s. Next threshold is b(a_1,lambda)*K.
+# c=[log(b_1*K/((1-delta)*b_0*Kbar))]/log(lambda).
+# Invest s<c; divest s>=c+1; only {-1,0,+1} choices are allowed.
+# These are moments conditional on a_0, a_1, lambda and a FIXED K.
+# The random finite-N K_0 and hence its conditional expectation are not
+# integrated out; this is not an exact ex-ante RE forecast.
+@inline function _uniform_gap_integrals(
+    lambda_i::Float64, rho::Float64, cutoff::Float64
+)
+    hi_invest = clamp(cutoff,0.0,1.0)
+    lo_divest = clamp(cutoff+1.0,0.0,1.0)
+    logl = log(lambda_i)
+    g0 = expm1(logl*hi_invest)/logl
+    g1 = (lambda_i-exp(logl*lo_divest))/logl
+    pow0 = expm1(rho*logl*hi_invest)/(rho*logl)
+    pow1 = (exp(rho*logl*lo_divest)-exp(rho*logl*hi_invest))/(rho*logl)
+    pow2 = (exp(rho*logl)-exp(rho*logl*lo_divest))/(rho*logl)
+    return (
+        expected_net_weight=(lambda_i-1.0)*g0+
+                            (inv(lambda_i)-1.0)*g1,
+        expected_power_weight=lambda_i^rho*pow0+pow1+
+                              lambda_i^(-rho)*pow2,
+        prob_invest=hi_invest,
+        prob_divest=1.0-lo_divest,
+    )
+end
+
+# Golub-Welsch Gaussian quadrature for Z~N(0,1).
+# Recurrence: off-diagonal sqrt(j), j=1,...,n-1.
+# No extra dependency and no unverified hard-coded quadrature constants.
+function _normal_quadrature(n::Int)
+    n>=2 || throw(ArgumentError("normal quadrature requires >=2 nodes"))
+    jacobi = SymTridiagonal(zeros(n),sqrt.(Float64.(1:(n-1))))
+    eig = eigen(jacobi)
+    return eig.values,eig.vectors[1,:].^2
+end
+
+# Integrate over initial independent uniform s_0 and next-period iid Normal
+# log productivity, conditional on sampled a_0 and lambda. The reference
+# prior aggregate capital is Kbar by construction of k_0(s), while
+# candidate K is FIXED at the realized conditional forecast.
+# In particular, (E[K^rho])^(1/rho) is not E[K].
+function initial_uniform_gap_expected_moments(
+    firms, calibration, K::Float64; nodes::Int=32
+)
+    p = calibration.parameters
+    rho = calibration.constants.rho
+    s = calibration.steady_state
+    c = calibration.constants
+    gaussian_nodes, gaussian_weights = _normal_quadrature(nodes)
+    n = length(firms.capital)
+    xsum = 0.0
+    powersum = 0.0
+    pinvest = 0.0
+    pdivest = 0.0
+    factor = rho/(p.alpha*(1.0-rho))
+    @inbounds for i in 1:n
+        lambda_i = firms.lambda[i]
+        a0 = firms.productivity[i]
+        log_a0 = log(a0)
+        b0 = threshold_coefficient(lambda_i,a0,calibration)
+        capital_scale = (1.0-p.delta)*b0*s.K
+        base_log_ratio = -log1p(-p.delta)+log(K/s.K)
+        logl = log(lambda_i)
+        for j in eachindex(gaussian_nodes)
+            loga1 = c.mean_log_a+p.sigma_log_a*gaussian_nodes[j]
+            weight = gaussian_weights[j]/n
+            cutoff = (base_log_ratio+factor*(loga1-log_a0))/logl
+            moment = _uniform_gap_integrals(lambda_i,rho,cutoff)
+            xsum += weight*capital_scale*moment.expected_net_weight
+            powersum += weight*exp((rho/p.alpha)*loga1)*
+                        capital_scale^rho*moment.expected_power_weight
+            pinvest += weight*moment.prob_invest
+            pdivest += weight*moment.prob_divest
+        end
+    end
+    return Dict(
+        "quadrature_nodes"=>nodes,
+        "expected_net_investment"=>xsum,
+        "expected_CES_power_mean"=>powersum,
+        "CES_capital_of_expected_power_not_expected_capital"=>
+            powersum^(inv(rho)),
+        "expected_investing_fraction"=>pinvest,
+        "expected_divesting_fraction"=>pdivest,
+        "conditional_on_initial_lambda_a0_and_fixed_candidate_K"=>true,
+        "not_exact_ex_ante_expectation_of_nonlinear_K"=>true,
+    )
+end
+
 function main()
     state = initialize_simulation(; N=110000, base_seed=20261101)
     cal = state.calibration
@@ -414,6 +578,9 @@ function main()
         )
         support = threshold_support_diagnostics(state, Ke)
         multistep = multi_step_response_at_K(state.firms, cal, Ke)
+        four_way = four_way_productivity_effects(
+            state.firms, cal, Ke, no_new_productivity, at_expected
+        )
         assumptions = boundedness_assumption_audit(
             state, Ke, expected.X_next, at_expected, multistep, qsum/n
         )
@@ -427,6 +594,7 @@ function main()
             "investment_no_productivity_redraw"=>no_new_productivity.X,
             "one_step_gap_support_at_expected_K"=>support,
             "paper_assumption_audit_at_expected_K"=>assumptions,
+            "four_way_productivity_at_expected_K"=>four_way,
             "multi_step_at_expected_K"=>Dict(
                 "reaction_residual"=>multistep.Phi-Ke,
                 "aggregate_investment"=>multistep.X,
@@ -448,6 +616,23 @@ function main()
             "max_fixed_X"=>maximum(view(state.workspace.fixed_investment,1:enum.total)),
             "current_gap"=>initial_gap,
         )
+        if t==0
+            # Exact-in-gap moments and Gaussian quadrature for future iid
+            # productivity. Do not imply that finite-N forecast K is fixed.
+            gapmom_24 = initial_uniform_gap_expected_moments(
+                state.firms, cal, Ke; nodes=24
+            )
+            gapmom_36 = initial_uniform_gap_expected_moments(
+                state.firms, cal, Ke; nodes=36
+            )
+            info["initial_uniform_gap_24_nodes"] = gapmom_24
+            info["initial_uniform_gap_36_nodes"] = gapmom_36
+            info["initial_uniform_gap_convergence_X"] =
+                gapmom_36["expected_net_investment"]-
+                gapmom_24["expected_net_investment"]
+            info["initial_uniform_gap_expected_X_minus_continuum_forecast"] =
+                gapmom_36["expected_net_investment"]-expected.X_next
+        end
         if enum.admissible == 0
             info["status"] = "no positive investment fixed point; do not change ES1"
             push!(periods, info)
