@@ -269,9 +269,23 @@ function select_es1(
             end
         end
     end
-    positive > 0 ||
-        throw(DomainError(workspace.n_fixed,
-                          "All fixed points have nonpositive investment; ES1 log criterion undefined"))
+    if positive == 0
+        # Diagnostic on the genuine finite-N equilibrium correspondence.
+        # Do not clip X or silently switch to capital-based selection:
+        # Section 3.4 defines the ES1 shock using log(X/X_expected).
+        fixed_ks = view(workspace.fixed_capital, 1:workspace.n_fixed)
+        fixed_xs = view(workspace.fixed_investment, 1:workspace.n_fixed)
+        throw(DomainError((
+            fixed_points=workspace.n_fixed,
+            minimum_investment=minimum(fixed_xs),
+            maximum_investment=maximum(fixed_xs),
+            minimum_capital=minimum(fixed_ks),
+            maximum_capital=maximum(fixed_ks),
+            expected_investment=xe,
+            expected_capital=ke,
+        ), "No equilibrium has X>0, so the Section 3.4 ES1 log shock is undefined; " *
+           "the capital-based ES1 of Definition 1 is not a valid substitute for log(X/X_expected)"))
+    end
     return ES1Selection(best, best_score, ke,
                         positive, workspace.n_fixed - positive)
 end
