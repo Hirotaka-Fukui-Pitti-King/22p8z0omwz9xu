@@ -653,6 +653,8 @@ function initial_continuum_consistency_audit(
     end
     roots=Float64[]
     root_residuals=Float64[]
+    root_investments=Float64[]
+    root_investing_fractions=Float64[]
     for z in 1:(length(ratios)-1)
         left=s.K*ratios[z]
         right=s.K*ratios[z+1]
@@ -661,6 +663,11 @@ function initial_continuum_consistency_audit(
         if vl==0.0
             push!(roots,left)
             push!(root_residuals,vl)
+            root_stats=unconditional_initial_continuum_reaction(
+                calibration,data,left
+            )
+            push!(root_investments,root_stats.X)
+            push!(root_investing_fractions,root_stats.investing)
         elseif (vl<0.0 && vr>0.0) || (vl>0.0 && vr<0.0)
             for iteration in 1:52
                 mid=left+(right-left)/2.0
@@ -676,10 +683,12 @@ function initial_continuum_consistency_audit(
             end
             root=left+(right-left)/2.0
             push!(roots,root)
-            push!(root_residuals,
-                unconditional_initial_continuum_reaction(
-                    calibration,data,root
-                ).residual)
+            root_stats=unconditional_initial_continuum_reaction(
+                calibration,data,root
+            )
+            push!(root_residuals,root_stats.residual)
+            push!(root_investments,root_stats.X)
+            push!(root_investing_fractions,root_stats.investing)
         end
     end
     return Dict{String,Any}(
@@ -700,6 +709,8 @@ function initial_continuum_consistency_audit(
         "X_at_expected_K_minus_expected_Xbar"=>at_expected.X-s.X,
         "root_capitals_in_tested_intervals"=>roots,
         "root_residuals"=>root_residuals,
+        "root_investments"=>root_investments,
+        "root_investing_fractions"=>root_investing_fractions,
         "tested_ratio_min"=>first(ratios),
         "tested_ratio_max"=>last(ratios),
         "grid"=>grid,
@@ -811,13 +822,13 @@ function main()
             info["initial_uniform_gap_expected_X_minus_continuum_forecast"] =
                 gapmom_36["expected_net_investment"]-expected.X_next
             continuum_low=initial_continuum_consistency_audit(
-                cal, Ke;lambda_nodes=24,shock_nodes=32
-            )
-            continuum_high=initial_continuum_consistency_audit(
                 cal, Ke;lambda_nodes=32,shock_nodes=40
             )
-            info["unconditional_initial_continuum_24x32"]=continuum_low
-            info["unconditional_initial_continuum_32x40"]=continuum_high
+            continuum_high=initial_continuum_consistency_audit(
+                cal, Ke;lambda_nodes=48,shock_nodes=64
+            )
+            info["unconditional_initial_continuum_32x40"]=continuum_low
+            info["unconditional_initial_continuum_48x64"]=continuum_high
             info["continuum_quadrature_convergence_Phi_at_Kbar"]=
                 continuum_high["Phi_at_Kbar"]-
                 continuum_low["Phi_at_Kbar"]
@@ -871,12 +882,13 @@ function main()
                 moments["expected_net_investment"],
                 "; 36 minus 24 node error: ",
                 rec["initial_uniform_gap_convergence_X"])
-            continuum=rec["unconditional_initial_continuum_32x40"]
+            continuum=rec["unconditional_initial_continuum_48x64"]
             println("t=0 unconditional initial-continuum Phi(Kbar)-Kbar: ",
                 continuum["Phi_at_Kbar_minus_Kbar"],
                 "; X(Kbar)-Xbar: ",continuum["X_at_Kbar_minus_Xbar"],
                 "; roots in searched range: ",
-                continuum["root_capitals_in_tested_intervals"])
+                continuum["root_capitals_in_tested_intervals"],
+                "; investment at roots: ",continuum["root_investments"])
             println("t=0 unconditional continuum quadrature convergence Phi: ",
                 rec["continuum_quadrature_convergence_Phi_at_Kbar"],
                 "; X: ",rec["continuum_quadrature_convergence_X_at_Kbar"])
