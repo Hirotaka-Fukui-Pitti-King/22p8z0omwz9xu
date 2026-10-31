@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "project": "Nirei-2015",
+  "task_id": "T01",
+  "issue_number": 1,
+  "issue_url": "https://github.com/Hirotaka-Fukui-Pitti-King/22p8z0omwz9xu/issues/1",
+  "title": "Julia プロジェクト・定常状態・閾値定数 A の実装",
+  "status": "open",
+  "implementation_language": "Julia",
+  "depends_on": [],
+  "parallelizable_with": [],
+  "source_sections": [
+    "Table 1",
+    "Appendix C",
+    "Equation (16)"
+  ],
+  "actions": [
+    "公式 Julia/Pkg と必要なパッケージの公式 API を参照して環境作成",
+    "Table 1のパラメータとλの切断正規分布を定義",
+    "c_L,ρと生産性平均正規化を計算",
+    "式(16)のAを切断正規分布の1次元積分で計算",
+    "Euler条件・資源制約・家計労働供給条件から定常状態を計算",
+    "定常値と使用バージョンを出力"
+  ],
+  "expected_files": [
+    "Project.toml",
+    "Manifest.toml",
+    "src/Nirei2015.jl",
+    "src/calibration.jl"
+  ],
+  "definition_of_done": "Julia の単一実行から A と定常状態の全係数が計算され、環境がロックされる",
+  "scope_guardrails": [
+    "本実装に直結しない検証専用プロジェクトを作らない",
+    "Julia-nativeな実装とし他言語のコードを翻訳しない",
+    "結果を実行確認する前に完了扱いしない",
+    "原論文のES1をES2に置換しない"
+  ],
+  "reference_documents": [
+    "Nirei-2015/ALGORITHM.md",
+    "Nirei-2015/policy.json",
+    "Nirei-2015/TASKS.md"
+  ]
+}
