@@ -1,0 +1,34 @@
+name: Julia syntax and package smoke checks
+
+on:
+  push:
+    paths:
+      - 'Nirei-2015/**'
+      - '.github/workflows/julia-nirei.yml'
+  pull_request:
+    paths:
+      - 'Nirei-2015/**'
+      - '.github/workflows/julia-nirei.yml'
+  workflow_dispatch:
+
+jobs:
+  julia-checks:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Nirei-2015
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.12.6'
+      - name: Parse every Julia source and script
+        run: julia --project=. scripts/check_julia_syntax.jl
+      - name: Resolve installed dependencies
+        run: julia --project=. -e 'using Pkg; Pkg.instantiate()'
+      - name: Precompile and load package
+        run: julia --project=. -e 'using Pkg; Pkg.precompile(); using Nirei2015'
+      - name: Calibration and RE smoke run
+        run: |
+          julia --project=. scripts/run_calibration.jl
+          julia --project=. scripts/run_expectations.jl
