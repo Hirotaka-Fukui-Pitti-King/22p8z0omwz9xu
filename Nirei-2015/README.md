@@ -160,3 +160,25 @@ Get-Content .\results\equilibrium.toml
 \`\`\`
 
 The script generates \`results/equilibrium.toml\`, with equilibrium counts, ES1 choice, endogenous investment shock, fixed-point/accounting residuals, timing, Julia version and RNG seed. No manifest or numerical results are fabricated; Issue #4 remains open until the Windows run has been inspected.
+
+
+## Issue #5 — Dynamic one-trial benchmark simulation
+
+\`src/simulation.jl\` connects the **existing** Appendix A two-state conditional forecasts, Issue #3's iid firm productivity and Issue #4's exact finite-N ES1 equilibrium. The entry point \`scripts/run_benchmark.jl\` generates a full *one-trial* macroeconomic time series and diagnostics. It does not compute the ten-trial Table 2 moments (Issue #6).
+
+**Important linearization/selection caveat**: The existing Appendix A system determines conditional expectations, but by itself does not uniquely specify how to realize the forward-looking marginal utility after each finite-N, nonlinear ES1 outcome. The present Julia implementation explicitly adopts the first-order bounded-continuation restriction \(\widetilde\mu_t=h\log(K_{t+1}^{firm}/\bar K)\). This is a *closure assumption* motivated by the stable eigenspace of Appendix A, NOT a demonstrated exact rational-expectations solution of the finite-firm stochastic economy. In particular, conditional expectation errors need not have zero mean under ES1; they and the exact-versus-linearized capital gap are saved. The simulator uses two-state \`compute_expected_equilibrium\` each period, and never substitutes the price-setting equations (29),(31) as realized identities. \`R_t\` is computed from the ex-post discount-factor identity, not asserted to be the ex-ante forecast rate. The macro levels are exponentiated **first-order log-linear solutions**; the corresponding nonlinear level resource constraint need not hold exactly and its gap is recorded. See \`src/simulation.jl\` for the precise ordering and conditions.
+
+PowerShell from the already cloned \`Nirei-2015\` directory:
+
+\`\`\`powershell
+git status --short
+git pull --ff-only origin main
+julia --project=. -e 'using Pkg; Pkg.instantiate()'
+julia --project=. scripts/run_benchmark.jl
+Get-Content .\results\simulation_summary.toml
+Import-Csv .\results\simulation_rep01.csv | Select-Object -First 10
+\`\`\`
+
+The default is \`N=110000, T=1100, seed=20261101\`; for a short local integration check use \`julia --project=. scripts/run_benchmark.jl 20 2000 20261101\`, which **overwrites** \`results/simulation_rep01.csv\` and \`results/simulation_summary.toml\`. Run the full default afterward to produce benchmark-size artifacts. If a failure occurs the CLI stores the successful prefix and failure metadata and exits with an error; it never silently fabricates remaining periods. \`simulation_rep01.csv\` contains one row per period and includes all expectation, realization, ES1, and residual fields; \`simulation_summary.toml\` records the burn-in diagnostic and Julia metadata.
+
+**Issue #4 initial shock:** The one-period run with N=110000 gave \(\varepsilon_0=-0.9139209899123457\), whereas Appendix A uses a *small-shock first-order expansion*. This discrepancy is a substantive potential threat to the replication; do not disguise it by capping shocks, changing ES1, or assuming that the linearized macro levels are exact at this magnitude. The simulation records the post-100-period mean and spread of \(\varepsilon_t\) to assess whether it persists. The one-trial Julia 1100-period execution and economic validation must be completed on the Windows PC before closing Issue #5.
