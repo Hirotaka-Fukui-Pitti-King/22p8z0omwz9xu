@@ -4,7 +4,7 @@
 using Nirei2015
 using TOML
 using Distributions: Normal, cdf, ccdf, pdf, truncated
-using Random: Xoshiro, rand
+using Random: Xoshiro, rand, randn!
 using LinearAlgebra: SymTridiagonal, eigen
 
 function response_at_K(firms, calibration, K::Float64; use_prior_productivity::Bool=false)
@@ -1756,6 +1756,293 @@ function equilibrium_path_dependence_audit()
     )
 end
 
+
+# Issue #5: CONDITIONAL EXPECTATIONS ON A GIVEN FIRM-STATE DISTRIBUTION.
+#
+# Equation (16): b(a,lambda) = B(lambda)*a^q, q=rho/(alpha*(1-rho)).
+# For d=(1-delta)*k and a trial aggregate K, divest iff
+# a<=a_minus=(d/(lambda*K*B))^(1/q); invest iff
+# a>a_plus=(d/(K*B))^(1/q).  The three regions are disjoint.
+# log a' ~ Normal(m,sigma^2) independent conditional on the prior state.
+# Thus E[X(K)|M]=mean_i d_i[(lambda-1)P_+
+#                            +(lambda^-1-1)P_-].
+# With r=rho/alpha, the Gaussian tilted moments yield
+# E[S(K)|M]=mean_i d_i^rho exp(r*m+0.5*r^2*sigma^2) *
+#    [1+(lambda^-rho-1)*Phi(z_- -r*sigma)
+#       +(lambda^rho-1)*CCDF(z_+ -r*sigma)].
+# E[S^(1/rho)] != E[S]^(1/rho) (Jensen), so this is explicitly
+# the expected CES POWER SUM, not expected aggregate capital.
+function _conditional_finite_firm_response(state, K::Float64)
+    cal=state.calibration
+    p=cal.parameters
+    c=cal.constants
+    rho=c.rho
+    q=c.productivity_exponent
+    r=rho/p.alpha
+    sigma=p.sigma_log_a
+    m=c.mean_log_a
+    normal=Normal()
+    n=length(state.firms.capital)
+    total_x=0.0
+    total_s=0.0
+    max_probability_error=0.0
+    min_probability=1.0
+    moment_scale=exp(r*m+0.5*r^2*sigma^2)
+    K>0.0 || throw(ArgumentError("Trial capital must be positive"))
+    @inbounds for i in 1:n
+        lambda_i=state.firms.lambda[i]
+        d=(1.0-p.delta)*state.firms.capital[i]
+        loglambda=log(lambda_i)
+        logB=log(cal.threshold.A)+
+             (log(expm1(rho*loglambda))-
+              log(expm1(loglambda)))/(1.0-rho)
+        logap=(log(d/K)-logB)/q
+        logam=logap-loglambda/q
+        zm=(logam-m)/sigma
+        zp=(logap-m)/sigma
+        pminus=cdf(normal,zm)
+        pplus=ccdf(normal,zp)
+        pzero=zp>0.0 && zm>0.0 ?
+            ccdf(normal,zm)-ccdf(normal,zp) :
+            cdf(normal,zp)-cdf(normal,zm)
+        max_probability_error=max(
+            max_probability_error,abs(pminus+pzero+pplus-1.0)
+        )
+        min_probability=min(min_probability,pminus,pzero,pplus)
+        0.0<=pminus<=1.0 && 0.0<=pzero<=1.0 &&
+        0.0<=pplus<=1.0 || error("Invalid conditional firm probabilities")
+        total_x+=d*((lambda_i-1.0)*pplus+
+                  (inv(lambda_i)-1.0)*pminus)
+        tilted_minus=cdf(normal,zm-r*sigma)
+        tilted_plus=ccdf(normal,zp-r*sigma)
+        total_s+=d^rho*moment_scale*(
+            1.0+(lambda_i^(-rho)-1.0)*tilted_minus+
+            (lambda_i^rho-1.0)*tilted_plus
+        )
+    end
+    max_probability_error<1e-12 ||
+        error("Probability simplex identity failed")
+    return Dict{String,Any}(
+        "trial_K"=>K,"expected_investment"=>total_x/n,
+        "expected_CES_power_sum"=>total_s/n,
+        "power_mean_implied_K_NOT_E_K"=>(total_s/n)^(1.0/rho),
+        "max_probability_sum_error"=>max_probability_error,
+        "minimum_firm_action_probability"=>min_probability,
+        "method"=>"Analytic Gaussian CDF and tilted truncated lognormal moments at fixed candidate K",
+    )
+end
+
+function _empirical_mean_se(v::Vector{Float64})
+    n=length(v)
+    n>=2 || error("At least two draws needed")
+    avg=sum(v)/n
+    sd=sqrt(sum((x-avg)^2 for x in v)/(n-1))
+    return (mean=avg,se=sd/sqrt(n))
+end
+
+# Wilson 95% interval (valid at 0 and 1, where naive Wald SE is zero).
+function _wilson_interval(success::Int,n::Int)
+    n>0 || error("positive number of draws required")
+    z=1.959963984540054
+    phat=success/n
+    denom=1.0+z^2/n
+    center=(phat+z^2/(2n))/denom
+    radius=z/denom*sqrt(phat*(1.0-phat)/n+z^2/(4n^2))
+    return (max(0.0,center-radius),min(1.0,center+radius))
+end
+
+# Keep this RNG independent of the original benchmark firm RNGs.  At
+# exactly a fixed prior firm distribution, re-draw all 110,000 iid
+# productivities, enumerate EVERY equilibrium and select published ES1
+# when X>0.  The actual realized benchmark shock is drawn ONLY after
+# this procedure, with the original unchanged RNG state.
+function _conditional_ES1_draw_audit!(
+    state, dateslot::Int, analytic_at_expected, analytic_at_Kbar;
+    draws::Int=32
+)
+    draws>=3 || error("At least 3 conditional draws are required")
+    c=state.calibration.constants
+    p=state.calibration.parameters
+    rho=c.rho
+    rex=compute_expected_equilibrium(
+        state.re,state.calibration,state.K,state.mu_prior
+    )
+    xe=rex.X_next
+    ke=(1.0-p.delta)*state.K+
+       state.calibration.threshold.A^(rho-1.0)/rho*xe
+    rng=Xoshiro(UInt64(state.base_seed) ⊻
+        (0xda942042e4dd58b5+UInt64(dateslot+1)*0x9e3779b97f4a7c15))
+    xat=Float64[]
+    sat=Float64[]
+    kat=Float64[]
+    xbar=Float64[]
+    sbar=Float64[]
+    es1_x=Float64[]
+    es1_log_shock=Float64[]
+    nfail=0
+    max_fixed=0
+    for _ in 1:draws
+        buffer=state.firms.next_productivity
+        randn!(rng,buffer)
+        @inbounds @simd for i in eachindex(buffer)
+            buffer[i]=exp(c.mean_log_a+p.sigma_log_a*buffer[i])
+        end
+        state.firms.next_ready=true
+        trial=response_at_K(state.firms,state.calibration,ke)
+        trial_bar=response_at_K(
+            state.firms,state.calibration,state.calibration.steady_state.K
+        )
+        push!(xat,trial.X)
+        push!(sat,trial.Phi^rho)
+        push!(kat,trial.Phi)
+        push!(xbar,trial_bar.X)
+        push!(sbar,trial_bar.Phi^rho)
+        enumeration=enumerate_fixed_points!(
+            state.workspace,state.firms,state.calibration
+        )
+        max_fixed=max(max_fixed,enumeration.total)
+        if enumeration.admissible==0
+            nfail+=1
+        else
+            chosen=select_es1(state.workspace,xe,ke)
+            xselected=state.workspace.fixed_investment[chosen.index]
+            push!(es1_x,xselected)
+            push!(es1_log_shock,log(xselected/xe))
+        end
+    end
+    state.firms.next_ready=false
+    fixed_x=_empirical_mean_se(xat)
+    fixed_s=_empirical_mean_se(sat)
+    fixed_k=_empirical_mean_se(kat)
+    bar_x=_empirical_mean_se(xbar)
+    bar_s=_empirical_mean_se(sbar)
+    reference_x=analytic_at_expected["expected_investment"]
+    reference_s=analytic_at_expected["expected_CES_power_sum"]
+    # Distinguish an analytic implementation error from finite-MC
+    # error; use independent random draws and a conservative 6SE gate.
+    abs(fixed_x.mean-reference_x)<=6fixed_x.se+2e-5 ||
+        error("Analytic expected X disagrees with independent Monte Carlo")
+    abs(fixed_s.mean-reference_s)<=6fixed_s.se+2e-5 ||
+        error("Analytic expected CES power sum disagrees with Monte Carlo")
+    return Dict{String,Any}(
+        "independent_draws"=>draws,
+        "fixed_expected_K_X_mean"=>fixed_x.mean,
+        "fixed_expected_K_X_MC_SE"=>fixed_x.se,
+        "fixed_expected_K_CES_power_mean"=>fixed_s.mean,
+        "fixed_expected_K_CES_power_MC_SE"=>fixed_s.se,
+        "fixed_expected_K_aggregate_K_mean"=>fixed_k.mean,
+        "fixed_expected_K_aggregate_K_MC_SE"=>fixed_k.se,
+        "fixed_expected_K_Jensen_gap_EK_minus_powermean_transform"=>
+            fixed_k.mean-analytic_at_expected["power_mean_implied_K_NOT_E_K"],
+        "fixed_Kbar_X_mean"=>bar_x.mean,
+        "fixed_Kbar_X_MC_SE"=>bar_x.se,
+        "fixed_Kbar_CES_power_mean"=>bar_s.mean,
+        "fixed_Kbar_CES_power_MC_SE"=>bar_s.se,
+        "analytic_minus_MC_expected_K_X"=>reference_x-fixed_x.mean,
+        "analytic_minus_MC_expected_K_CES_power"=>reference_s-fixed_s.mean,
+        "analytic_minus_MC_Kbar_X"=>
+            analytic_at_Kbar["expected_investment"]-bar_x.mean,
+        "analytic_minus_MC_Kbar_CES_power"=>
+            analytic_at_Kbar["expected_CES_power_sum"]-bar_s.mean,
+        "ES1_nonexistence_count"=>nfail,
+        "ES1_nonexistence_probability_estimate"=>nfail/draws,
+        "ES1_nonexistence_Wilson_95pct_interval"=>
+            collect(_wilson_interval(nfail,draws)),
+        "ES1_defined_count"=>length(es1_x),
+        "ES1_max_enumerated_fixed_points"=>max_fixed,
+        "ES1_conditional_mean_X_given_defined"=>
+            isempty(es1_x) ? "undefined: no successful draw" :
+            sum(es1_x)/length(es1_x),
+        "ES1_conditional_mean_log_investment_shock_given_defined"=>
+            isempty(es1_log_shock) ? "undefined: no successful draw" :
+            sum(es1_log_shock)/length(es1_log_shock),
+        "nonexistence_trials_not_treated_as_zero_investment"=>true,
+        "conditioning_is_given_full_firm_distribution_before_productivity_redraw"=>true,
+    )
+end
+
+function conditional_expectations_issue5_audit()
+    state=initialize_simulation(;N=110000,base_seed=20261101)
+    p=state.calibration.parameters
+    rho=state.calibration.constants.rho
+    cal=state.calibration
+    records=Vector{Dict{String,Any}}()
+    for t in 0:5
+        expected=compute_expected_equilibrium(
+            state.re,cal,state.K,state.mu_prior
+        )
+        ke=(1.0-p.delta)*state.K+
+             cal.threshold.A^(rho-1.0)/rho*expected.X_next
+        analytic_expected=_conditional_finite_firm_response(state,ke)
+        analytic_bar=_conditional_finite_firm_response(
+            state,cal.steady_state.K
+        )
+        diagnostic=Dict{String,Any}(
+            "t"=>t,"K_prior"=>state.K,
+            "expected_X_from_Appendix_A"=>expected.X_next,
+            "expected_K_from_equation_18"=>ke,
+            "analytic_at_expected_K"=>analytic_expected,
+            "analytic_at_Kbar"=>analytic_bar,
+            "conditional_firm_response_minus_Appendix_A_expected_X"=>
+                analytic_expected["expected_investment"]-expected.X_next,
+            "not_equilibrium_mean"=>true,
+        )
+        if t==0 || t==4 || t==5
+            diagnostic["conditional_draws"]=_conditional_ES1_draw_audit!(
+                state,t,analytic_expected,analytic_bar;draws=32
+            )
+        end
+        draw_productivity!(state.firms,state.rngs,cal)
+        realized=response_at_K(state.firms,cal,ke)
+        enumeration=enumerate_fixed_points!(
+            state.workspace,state.firms,cal
+        )
+        diagnostic["realized_X_at_expected_K"]=realized.X
+        diagnostic["realized_Phi_minus_expected_K"]=realized.Phi-ke
+        diagnostic["total_fixed_points"]=enumeration.total
+        diagnostic["positive_X_fixed_points"]=enumeration.admissible
+        if enumeration.admissible==0
+            diagnostic["ES1_X"]="undefined: no positive-X fixed point"
+            push!(records,diagnostic)
+            break
+        end
+        sel=select_es1(state.workspace,expected.X_next,ke)
+        chosen_X=state.workspace.fixed_investment[sel.index]
+        chosen_K=state.workspace.fixed_capital[sel.index]
+        diagnostic["ES1_X"]=chosen_X
+        diagnostic["ES1_K"]=chosen_K
+        diagnostic["ES1_log_investment_shock"]=log(chosen_X/expected.X_next)
+        if t==0
+            isapprox(chosen_X,0.06936827009543808;
+                     atol=1e-10,rtol=1e-12) ||
+                error("Baseline ES1 investment regression differs")
+            isapprox(chosen_K,8.546731346350889;
+                     atol=1e-10,rtol=1e-12) ||
+                error("Baseline ES1 capital regression differs")
+        end
+        chosen=solve_equilibrium!(
+            state.workspace,state.firms,cal,expected.X_next,state.K
+        )
+        chosen.K_next==chosen_K ||
+            error("Benchmark candidate mismatch after actual state transition")
+        state.K=chosen.K_next
+        state.mu_prior=cal.steady_state.mu*
+            exp(state.re.h*log(state.K/cal.steady_state.K))
+        state.period+=1
+        push!(records,diagnostic)
+    end
+    return Dict{String,Any}(
+        "interpretation"=>"Analytic fixed-candidate K conditional response, not conditional ES1; separate conditional finite-N ES1 distribution via iid draws. Original benchmark untouched.",
+        "records"=>records,
+        "analytic_method"=>"Gaussian probabilities for all three choices and tilted lognormal moments of CES power sum",
+        "conditional_ES1_MC_dates"=>[0,4,5],
+        "conditional_ES1_MC_draws_per_date"=>32,
+        "frozen_stable_jump_is_replication_closure_not_independently_proven_author_GE_solution"=>true,
+        "no_forecast_replacement_performed"=>true,
+        "no_production_source_changes"=>true,
+    )
+end
+
 function main()
     state = initialize_simulation(; N=110000, base_seed=20261101)
     cal = state.calibration
@@ -1915,6 +2202,8 @@ function main()
         support_consistent_comparison(;horizon=20)
     output["equilibrium_selection_path_dependence"] =
         equilibrium_path_dependence_audit()
+    output["conditional_expectations_issue5"] =
+        conditional_expectations_issue5_audit()
     output["preconditioned_distribution_counterfactual"] =
         preconditioned_distribution_comparison()
     output["exogenous_fixed_K_firm_distribution"] =
@@ -1925,6 +2214,31 @@ function main()
     mkpath(dirname(path))
     open(path,"w") do io
         TOML.print(io,output)
+    end
+    for rec in output["conditional_expectations_issue5"]["records"]
+        println("Conditional expectations t=",rec["t"],
+            "; Appendix A X=",rec["expected_X_from_Appendix_A"],
+            "; analytic E[X(K^e)]=",
+            rec["analytic_at_expected_K"]["expected_investment"],
+            "; X bias=",
+            rec["conditional_firm_response_minus_Appendix_A_expected_X"],
+            "; realized X(K^e)=",rec["realized_X_at_expected_K"],
+            "; ES1 X=",rec["ES1_X"],
+            "; positive fixed points=",rec["positive_X_fixed_points"])
+        if haskey(rec,"conditional_draws")
+            mc=rec["conditional_draws"]
+            println("Conditional ES1 t=",rec["t"],
+                "; no-positive-X=",mc["ES1_nonexistence_count"],"/",
+                mc["independent_draws"],
+                "; 95% Wilson interval=",
+                mc["ES1_nonexistence_Wilson_95pct_interval"],
+                "; conditional X=",mc["ES1_conditional_mean_X_given_defined"],
+                "; conditional log shock=",
+                mc["ES1_conditional_mean_log_investment_shock_given_defined"],
+                "; MC analytic X residual=",
+                mc["analytic_minus_MC_expected_K_X"],
+                "; MC SE=",mc["fixed_expected_K_X_MC_SE"])
+        end
     end
     println("Audit saved: ",path)
     println("One-sided-condition violations: ",violated," of ",n)
