@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "project": "Nirei-2015",
+  "task_id": "T05",
+  "issue_number": 5,
+  "issue_url": "https://github.com/Hirotaka-Fukui-Pitti-King/22p8z0omwz9xu/issues/5",
+  "title": "期待形成→ES1→マクロ遷移の一期間・全期間シミュレーター",
+  "status": "open",
+  "implementation_language": "Julia",
+  "depends_on": [
+    "T02",
+    "T03",
+    "T04"
+  ],
+  "parallelizable_with": [],
+  "source_sections": [
+    "Section 3.3-3.4",
+    "Appendix A",
+    "Appendix B"
+  ],
+  "actions": [
+    "期待形成→新ショック→企業閾値→ES1→企業資本遷移を一つの期間関数に統合",
+    "投資ショックε_tを内生計算しC,L,Y,wと状態変数を更新",
+    "有限N実現資本と一次近似資本を明示的に区別",
+    "期首・期末、条件付き期待、実現金利の情報時点を保持",
+    "各期のマクロ時系列、例外、ES1情報とシードを保存",
+    "Julia単一エントリーポイントから全期間を実行"
+  ],
+  "expected_files": [
+    "src/simulation.jl",
+    "scripts/run_benchmark.jl"
+  ],
+  "definition_of_done": "一つのJuliaコマンドでT期間を走らせて全系列が出力され、次期へ状態が継続する",
+  "scope_guardrails": [
+    "本実装に直結しない検証専用プロジェクトを作らない",
+    "Julia-nativeな実装とし他言語のコードを翻訳しない",
+    "結果を実行確認する前に完了扱いしない",
+    "原論文のES1をES2に置換しない"
+  ],
+  "reference_documents": [
+    "Nirei-2015/ALGORITHM.md",
+    "Nirei-2015/policy.json",
+    "Nirei-2015/TASKS.md"
+  ]
+}
