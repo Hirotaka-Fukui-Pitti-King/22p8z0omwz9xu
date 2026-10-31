@@ -1,31 +1,71 @@
-# Nullius in verba
+# 논문 재현 연구 모음
 
-> *Nullius addictus iurare in verba magistri.*  
-> — Q. Horatius Flaccus, *Epistulae* I, 1, 14.
+이 저장소는 다양한 학술 논문의 실증분석, 이론 모형 및 수치계산 결과를 재현하기 위한 코드와 관련 자료를 체계적으로 정리한 공간입니다.
 
-## Propositum
+논문에서 제시된 연구 방법론과 분석 과정을 이해하고, 주요 결과를 독립적으로 검증하며, 재현 가능한 연구 환경을 구축하는 것을 목적으로 합니다.
 
-Hoc repositorium ad investigationes scientificas reproducendas et earum rationes independenter examinandas destinatur. Non satis est eventus ab aliis editos accipere: quaerendum est quibus ex datis, hypothesibus et computationibus efficiantur.
+## 연구 목적
 
-## Principia
+- **재현성 검증 (Replication):** 원 논문의 분석 방법과 자료를 바탕으로 주요 결과를 재현합니다.
+- **방법론 학습 (Methodological Understanding):** 계량경제학적 추정, 구조 모형 및 수치해석 기법의 구현 과정을 학습합니다.
+- **결과 검증 (Verification):** 논문에 보고된 결과와 재현 결과를 비교하고 차이가 발생하는 원인을 기록합니다.
+- **연구 확장 (Extension):** 필요한 경우 대안적 가정, 추정 방법 및 추가 실험을 검토합니다.
 
-- **Perspicuitas.** Fontes datorum, hypotheses et rationes computationum clare indicandi sunt.
-- **Reproductio.** Quod computatum est, eisdem condicionibus iterum computari debet.
-- **Examinatio independens.** Eventus non auctoritate, sed argumentis et experimentis computatoriis probandi sunt.
-- **Fides erga fontes.** Opera priora suis auctoribus tribuenda sunt; discrepantiae, ubi reperiuntur, aperte referendae sunt.
+## 저장소 구조
 
-## Ratio operis
+각 논문은 독립된 디렉터리에서 관리하며, 가능한 경우 다음과 같은 구조를 따릅니다.
 
-1. Fontes primarios et rationes investigationis prioris cognoscere.
-2. Data et codicem ad computationes necessaria colligere atque ordinare.
-3. Computationes repetere et eventus cum iis qui publicati sunt conferre.
-4. Differentias investigare et rationem earum, quoad fieri potest, explicare.
-5. Methodos et eventus ita documentare ut ab aliis examinari possint.
+```text
+.
+├── README.md
+├── papers/
+│   ├── paper-01/
+│   │   ├── README.md
+│   │   ├── code/
+│   │   ├── data/
+│   │   ├── results/
+│   │   └── figures/
+│   ├── paper-02/
+│   └── ...
+└── LICENSE
+```
 
-## De interpretatione
+각 논문의 디렉터리에는 원 논문의 서지정보, 재현 대상, 실행 환경, 실행 방법 및 결과 비교를 기록합니다. 자료 이용에 제한이 있는 경우 원자료를 직접 배포하지 않고 공식적인 접근 경로를 안내합니다.
 
-Reproductio eventuum per se non demonstrat hypotheses veras esse nec interpretationem causalem rectam esse. Ostendit potius utrum eventus ex datis et rationibus declaratis denuo obtineri possint.
+## 재현 결과
 
----
+논문별 재현 작업의 진행 상황은 각 디렉터리의 `README.md`에 기록합니다.
 
-*Non auctoritas, sed ratio et testimonia.*
+| 상태 | 설명 |
+|---|---|
+| Not Started | 재현 작업을 시작하지 않음 |
+| In Progress | 코드 구현 또는 결과 검증 진행 중 |
+| Replicated | 주요 결과의 재현을 확인함 |
+| Partially Replicated | 일부 결과만 재현함 |
+| Not Replicated | 주요 결과를 재현하지 못함 |
+
+재현 여부는 원 논문의 결과와 실제 계산 결과를 비교하여 판단하며, 확인되지 않은 결과를 성공적으로 재현한 것으로 표시하지 않습니다.
+
+## 사용 환경
+
+논문에 따라 다음과 같은 프로그래밍 언어와 분석 도구를 사용할 수 있습니다.
+
+- Julia
+- Python
+- R
+- MATLAB
+- Stata
+
+구체적인 소프트웨어 버전, 패키지 의존성 및 실행 방법은 각 프로젝트의 문서에 명시합니다.
+
+## 유의사항
+
+이 저장소는 학술적 학습과 연구 결과의 독립적인 검증을 목적으로 합니다.
+
+각 논문의 저작권은 원저자 및 해당 출판사에 귀속됩니다. 원 논문의 코드나 데이터를 활용하는 경우 관련 라이선스와 이용 조건을 준수합니다.
+
+별도의 표시가 없는 한, 이 저장소의 재현 코드는 원저자가 작성하거나 공식적으로 검증한 코드가 아닙니다. 또한 재현 결과에 대한 해석과 책임은 이 저장소의 작성자에게 있습니다.
+
+## 참고 및 인용
+
+이 저장소의 자료를 활용할 경우 해당 원 논문을 우선적으로 인용해 주시기 바랍니다. 각 프로젝트의 상세한 서지정보는 해당 디렉터리에서 확인할 수 있습니다.
