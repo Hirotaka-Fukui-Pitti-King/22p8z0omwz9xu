@@ -1,0 +1,64 @@
+[steady_state]
+a_c = 0.8429530201342286
+a_x = 0.15704697986577146
+w = 1.3877044604812827
+X = 0.1730122451259319
+C = 0.9286469225562867
+L = 0.5340590799087168
+K_over_Y = 7.852278651781027
+mu = 334.0561743072841
+Y = 1.1016591676822185
+K = 8.650534763929938
+R = 1.0101010101010102
+a_R = 33.5570469798657
+
+[parameters]
+psi = 1.0
+firms = 110000
+alpha = 0.26
+sigma_log_a = 0.0005
+lambda_sd_before_truncation = 0.004
+zeta = 2.0
+eta = 11.0
+lambda_truncation_sd = 2.0
+lambda_upper = 1.036
+delta = 0.02
+beta = 0.99
+sigma = 15.0
+lambda_lower = 1.02
+lambda_mean = 1.028
+
+[source]
+paper = "Nirei (2015), An Interaction-Based Foundation of Aggregate Investment Fluctuations"
+status = "computed locally; not a published table of A or steady-state levels"
+doi = "10.3982/TE1611"
+equations = "Table 1, Appendix C, (7)-(12), (16)-(18)"
+
+[equilibrium_residuals]
+productivity_moment = 0.0
+resource_market = 0.0
+production = 0.0
+labor_share = 0.0
+capital_accumulation = 3.2085387057643076e-18
+labor_supply = 8.000428450306413e-17
+euler = 0.0
+
+[structural_constants]
+c_L = 0.6727272727272727
+productivity_exponent = 9.999999999999998
+mean_log_a = -1.2499999999999997e-6
+rho = 0.7222222222222222
+
+[environment]
+julia_version = "1.12.6"
+active_project = "C:\\github\\22p8z0omwz9xu\\Nirei-2015\\Project.toml"
+
+    [environment.dependencies]
+    QuadGK = "2.11.3"
+    Distributions = "0.25.132"
+    TOML = "1.0.3"
+
+[threshold_constant]
+integral = 0.4290758659044136
+A = 3.2269999274410597
+integral_error_estimate = 1.949829186997931e-15
