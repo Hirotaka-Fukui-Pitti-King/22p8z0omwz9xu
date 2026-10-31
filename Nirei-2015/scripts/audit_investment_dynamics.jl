@@ -3,7 +3,8 @@
 # From Nirei-2015/: julia --project=. scripts/audit_investment_dynamics.jl
 using Nirei2015
 using TOML
-using Distributions: Normal, cdf, ccdf, pdf
+using Distributions: Normal, cdf, ccdf, pdf, truncated
+using Random: Xoshiro, rand
 using LinearAlgebra: SymTridiagonal, eigen
 
 function response_at_K(firms, calibration, K::Float64; use_prior_productivity::Bool=false)
@@ -1030,6 +1031,235 @@ function fixed_K_distribution_diagnostic(
     )
 end
 
+
+# Case B is a fully labeled SUPPORT-ONLY counterfactual: the published
+# continuum calibration (A, Kbar, linear RE coefficients) remains identical
+# to Case A. Re-solving a new continuum calibration would be a SECOND change.
+# Conditional replacement coupling has the correct independent conditional
+# lambda marginal: accept each original lambda when above cutoff; otherwise
+# independently redraw from the original law conditional on lambda>cutoff.
+# All a0/s0 and subsequent productivity RNG streams are exactly unchanged.
+function _apply_lambda_support_counterfactual!(sim_state)
+    cal=sim_state.calibration
+    p=cal.parameters
+    s=cal.steady_state
+    floor_value=nextfloat(inv(1.0-p.delta))
+    upper=p.lambda_mean+p.lambda_truncation_sd*p.lambda_sd
+    original_lower=p.lambda_mean-p.lambda_truncation_sd*p.lambda_sd
+    original_lower<floor_value<upper ||
+        throw(ArgumentError("support-only test requires the cutoff to be inside the published support"))
+    corrected_distribution=truncated(
+        Normal(p.lambda_mean,p.lambda_sd),floor_value,upper
+    )
+    replacement_rng=Xoshiro(UInt64(sim_state.base_seed) ⊻ 0x397e1b3a935e57af)
+    changed=Int[]
+    for i in eachindex(sim_state.firms.lambda)
+        if sim_state.firms.lambda[i]<=inv(1.0-p.delta)
+            lambda_new=rand(replacement_rng,corrected_distribution)
+            lambda_new>inv(1.0-p.delta) ||
+                error("The conditional lambda sampler hit the excluded boundary")
+            sim_state.firms.lambda[i]=lambda_new
+            b=threshold_coefficient(
+                lambda_new,sim_state.firms.productivity[i],cal
+            )
+            sim_state.firms.initial_b[i]=b
+            sim_state.firms.capital[i]=
+                b*s.K*exp(sim_state.firms.initial_gap[i]*log(lambda_new))
+            push!(changed,i)
+        end
+    end
+    all(l->l*(1.0-p.delta)>1.0,sim_state.firms.lambda) ||
+        error("Case B still violates lambda*(1-delta)>1")
+    sim_state.K=aggregate_capital(sim_state.firms,cal)
+    sim_state.mu_prior=s.mu*exp(sim_state.re.h*log(sim_state.K/s.K))
+    return changed
+end
+
+function _support_sample_description(state,modified_count::Int)
+    l=state.firms.lambda
+    n=length(l)
+    avg=sum(l)/n
+    sd=sqrt(sum((v-avg)^2 for v in l)/(n-1))
+    return Dict{String,Any}(
+        "mean"=>avg,"sd"=>sd,"minimum"=>minimum(l),
+        "maximum"=>maximum(l),"modified_firms"=>modified_count,
+        "violations"=>count(v->v*(1.0-state.calibration.parameters.delta)<=1.0,l)
+    )
+end
+
+# The comparison is at the SAME candidate K, for the EXACT subset of
+# firms replaced in Case B. The other firms have identical capital,
+# lambda, shocks and policies. This is the direct (fixed-K) channel, NOT
+# a decomposition of the generally discontinuous ES1-selected outcome.
+function _direct_changed_firm_effect(stateA,stateB,indices,Ka::Float64)
+    cal=stateA.calibration
+    p=cal.parameters
+    rho=cal.constants.rho
+    n=length(stateA.firms.lambda)
+    change_x=0.0
+    change_power=0.0
+    modified_indices=Set(indices)
+    untouched_count=0
+    for i in 1:n
+        if !(i in modified_indices)
+            stateA.firms.lambda[i]==stateB.firms.lambda[i] ||
+                error("Unchanged lambda accidentally modified")
+            stateA.firms.capital[i]==stateB.firms.capital[i] ||
+                error("Unchanged firm capital accidentally modified")
+            untouched_count+=1
+            continue
+        end
+        a=stateA.firms.next_productivity[i]
+        a==stateB.firms.next_productivity[i] ||
+            error("Common productivity shocks not preserved")
+        x=Vector{Float64}(undef,2)
+        power=Vector{Float64}(undef,2)
+        for (j,st) in enumerate((stateA,stateB))
+            lambda_i=st.firms.lambda[i]
+            d=(1.0-p.delta)*st.firms.capital[i]
+            b=threshold_coefficient(lambda_i,a,cal)
+            adjustment=Ka<=d/(lambda_i*b) ? -1 :
+                       Ka<=d/b ? 0 : 1
+            knext=d*lambda_i^adjustment
+            x[j]=knext-d
+            power[j]=a^(rho/p.alpha)*knext^rho
+        end
+        change_x+=(x[2]-x[1])/n
+        change_power+=(power[2]-power[1])/n
+    end
+    a_response=response_at_K(stateA.firms,cal,Ka)
+    b_response=response_at_K(stateB.firms,cal,Ka)
+    isapprox(b_response.X-a_response.X,change_x;atol=1e-10,rtol=1e-8) ||
+        error("Changed-firm investment attribution does not reconcile")
+    isapprox(b_response.Phi^rho-a_response.Phi^rho,change_power;
+             atol=1e-10,rtol=1e-8) ||
+        error("Changed-firm CES-power attribution does not reconcile")
+    return Dict(
+        "fixed_candidate_K"=>Ka,
+        "changed_firms"=>length(indices),
+        "unchanged_firms"=>untouched_count,
+        "X_direct_change_at_fixed_K"=>change_x,
+        "CES_power_direct_change_at_fixed_K"=>change_power,
+        "Phi_direct_change_at_fixed_K"=>b_response.Phi-a_response.Phi,
+        "all_unchanged_firm_contributions_identical"=>true,
+        "not_selected_equilibrium_attribution"=>true,
+    )
+end
+
+function _first_equilibrium_support_summary(state)
+    cal=state.calibration
+    expected=compute_expected_equilibrium(
+        state.re,cal,state.K,state.mu_prior
+    )
+    p=cal.parameters
+    Ke=(1.0-p.delta)*state.K+
+       cal.threshold.A^(cal.constants.rho-1.0)/
+       cal.constants.rho*expected.X_next
+    draw_productivity!(state.firms,state.rngs,cal)
+    enumeration=enumerate_fixed_points!(
+        state.workspace,state.firms,cal
+    )
+    at_expected=response_at_K(state.firms,cal,Ke)
+    result=Dict{String,Any}(
+        "K0"=>state.K,"expected_X"=>expected.X_next,
+        "expected_K"=>Ke,
+        "reaction_residual_at_expected_K"=>at_expected.Phi-Ke,
+        "investment_at_expected_K"=>at_expected.X,
+        "fixed_points"=>enumeration.total,
+        "positive_investment_fixed_points"=>enumeration.admissible,
+        "n_investing_at_expected_K"=>at_expected.investing,
+        "n_divesting_at_expected_K"=>at_expected.divesting,
+    )
+    if enumeration.admissible>0
+        selected=select_es1(
+            state.workspace,expected.X_next,Ke
+        )
+        result["ES1_X"]=state.workspace.fixed_investment[selected.index]
+        result["ES1_K"]=state.workspace.fixed_capital[selected.index]
+    else
+        result["ES1_status"]="No positive-X fixed point"
+    end
+    return result
+end
+
+function _support_case_path(;horizon::Int=20)
+    sim_state=initialize_simulation(;N=110000,base_seed=20261101)
+    changed=_apply_lambda_support_counterfactual!(sim_state)
+    series=Vector{Dict{String,Any}}()
+    failure="none"
+    for t in 0:(horizon-1)
+        try
+            rec=simulate_period!(sim_state)
+            push!(series,Dict{String,Any}(
+                "t"=>t,"K"=>rec.K_next_firm,
+                "X"=>rec.X,"expected_X"=>rec.expected_X,
+                "expected_K"=>rec.expected_K_next,
+                "epsilon"=>rec.epsilon,"n_fixed"=>rec.n_fixed,
+                "n_positive_X"=>rec.n_positive_X,
+                "n_investing"=>rec.n_investing,
+                "n_divesting"=>rec.n_divesting,
+                "fixed_point_residual"=>rec.fixed_point_residual,
+                "investment_residual"=>rec.investment_residual,
+            ))
+        catch error_object
+            failure=sprint(showerror,error_object)
+            break
+        end
+    end
+    return Dict{String,Any}(
+        "requested_periods"=>horizon,
+        "completed_periods"=>length(series),
+        "completed"=>length(series)==horizon,
+        "failure"=>failure,
+        "periods"=>series,
+        "changed_firms"=>length(changed),
+    )
+end
+
+function support_consistent_comparison(;horizon::Int=20)
+    a=initialize_simulation(;N=110000,base_seed=20261101)
+    b=initialize_simulation(;N=110000,base_seed=20261101)
+    a.firms.productivity==b.firms.productivity ||
+        error("Initial productivity random numbers differ")
+    a.firms.initial_gap==b.firms.initial_gap ||
+        error("Initial gap random numbers differ")
+    sampleA=_support_sample_description(a,0)
+    changed=_apply_lambda_support_counterfactual!(b)
+    sampleB=_support_sample_description(b,length(changed))
+    sampleA["violations"]==673 ||
+        error("Unexpected benchmark support violation count: "*
+              string(sampleA["violations"]))
+    sampleB["violations"]==0 || error("Case B violates support")
+    firstA=_first_equilibrium_support_summary(a)
+    firstB=_first_equilibrium_support_summary(b)
+    a.firms.next_productivity==b.firms.next_productivity ||
+        error("Subsequent productivity draws differ in first period")
+    isapprox(firstA["ES1_X"],0.06936827009543808;
+             atol=1e-9,rtol=1e-10) ||
+        error("Baseline Case A first-period ES1 investment regression")
+    isapprox(firstA["ES1_K"],8.546731346350889;
+             atol=1e-9,rtol=1e-10) ||
+        error("Baseline Case A first-period ES1 capital regression")
+    direct=_direct_changed_firm_effect(
+        a,b,changed,firstA["expected_K"]
+    )
+    path=_support_case_path(;horizon=horizon)
+    return Dict{String,Any}(
+        "interpretation"=>"Case A published calibration vs conditional replacement of violating lambdas only; macro calibration held fixed in both; diagnostic Case B NOT published Appendix C",
+        "case_A_distribution"=>sampleA,
+        "case_B_distribution"=>sampleB,
+        "case_A_initial_equilibrium"=>firstA,
+        "case_B_initial_equilibrium"=>firstB,
+        "direct_modified_firm_effect_at_A_expected_K"=>direct,
+        "case_B_simulation"=>path,
+        "initial_productivity_shocks_identical"=>true,
+        "initial_gaps_identical"=>true,
+        "all_subsequent_productivity_streams_identical_by_construction"=>true,
+        "published_calibration_unchanged"=>true,
+        "case_B_uses_theory_support_but_still_unbounded_productivity"=>true,
+    )
+end
+
 function main()
     state = initialize_simulation(; N=110000, base_seed=20261101)
     cal = state.calibration
@@ -1185,6 +1415,8 @@ function main()
         push!(periods, info)
     end
     output["periods"] = periods
+    output["support_condition_counterfactual"] =
+        support_consistent_comparison(;horizon=20)
     output["exogenous_fixed_K_firm_distribution"] =
         fixed_K_distribution_diagnostic(
             cal;n=n,seed=20261101,horizon=256
@@ -1196,6 +1428,22 @@ function main()
     end
     println("Audit saved: ",path)
     println("One-sided-condition violations: ",violated," of ",n)
+    lambda_study=output["support_condition_counterfactual"]
+    lambda_A=lambda_study["case_A_initial_equilibrium"]
+    lambda_B=lambda_study["case_B_initial_equilibrium"]
+    lambda_path=lambda_study["case_B_simulation"]
+    println("Support-only Case A: t0 ES1 X=",lambda_A["ES1_X"],
+        "; K=",lambda_A["ES1_K"],
+        "; first-period residual=",lambda_A["reaction_residual_at_expected_K"])
+    println("Support-only Case B: changed firms=",
+        lambda_study["case_B_distribution"]["modified_firms"],
+        "; support violations=",lambda_study["case_B_distribution"]["violations"],
+        "; t0 ES1 X=",get(lambda_B,"ES1_X","none"),
+        "; K=",get(lambda_B,"ES1_K","none"),
+        "; first-period residual=",lambda_B["reaction_residual_at_expected_K"])
+    println("Support-only Case B: completed periods=",
+        lambda_path["completed_periods"],"/",lambda_path["requested_periods"],
+        "; failure=",lambda_path["failure"])
     cross=output["exogenous_fixed_K_firm_distribution"]
     first_state=cross["snapshots"][1]
     final_state=cross["snapshots"][end]
