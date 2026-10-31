@@ -1920,10 +1920,16 @@ function _conditional_ES1_draw_audit!(
     reference_s=analytic_at_expected["expected_CES_power_sum"]
     # Distinguish an analytic implementation error from finite-MC
     # error; use independent random draws and a conservative 6SE gate.
-    abs(fixed_x.mean-reference_x)<=6fixed_x.se+2e-5 ||
+    abs(fixed_x.mean-reference_x)<=6.0*fixed_x.se+2e-5 ||
         error("Analytic expected X disagrees with independent Monte Carlo")
-    abs(fixed_s.mean-reference_s)<=6fixed_s.se+2e-5 ||
+    abs(fixed_s.mean-reference_s)<=6.0*fixed_s.se+2e-5 ||
         error("Analytic expected CES power sum disagrees with Monte Carlo")
+    abs(bar_x.mean-analytic_at_Kbar["expected_investment"])<=
+        6.0*bar_x.se+2e-5 ||
+        error("Analytic expected X at Kbar disagrees with Monte Carlo")
+    abs(bar_s.mean-analytic_at_Kbar["expected_CES_power_sum"])<=
+        6.0*bar_s.se+2e-5 ||
+        error("Analytic expected CES power at Kbar disagrees with Monte Carlo")
     return Dict{String,Any}(
         "independent_draws"=>draws,
         "fixed_expected_K_X_mean"=>fixed_x.mean,
@@ -2237,7 +2243,11 @@ function main()
                 mc["ES1_conditional_mean_log_investment_shock_given_defined"],
                 "; MC analytic X residual=",
                 mc["analytic_minus_MC_expected_K_X"],
-                "; MC SE=",mc["fixed_expected_K_X_MC_SE"])
+                "; MC SE=",mc["fixed_expected_K_X_MC_SE"],
+                "; analytic-minus-MC CES-power=",
+                mc["analytic_minus_MC_expected_K_CES_power"],
+                "; Jensen gap E[K]-E[S]^(1/rho)=",
+                mc["fixed_expected_K_Jensen_gap_EK_minus_powermean_transform"])
         end
     end
     println("Audit saved: ",path)
