@@ -1,0 +1,87 @@
+[checks]
+lambda_unchanged_by_productivity_draw = true
+same_seed_initialization_bitwise = true
+lambda_in_truncated_support = true
+current_productivity_unchanged_by_next_draw = true
+capital_unchanged_by_productivity_draw = true
+next_productivity_positive_finite = true
+sampled_gaps_in_0_1 = true
+
+[environment]
+julia_version = "1.12.6"
+active_project = "C:\\github\\22p8z0omwz9xu\\Nirei-2015\\Project.toml"
+
+    [environment.dependencies]
+    QuadGK = "2.11.3"
+    Statistics = "1.11.5"
+    Distributions = "0.25.132"
+    Random = "1.11.0"
+    TOML = "1.0.3"
+
+[parameters]
+E_a_power_theoretical = 1.0
+mean_log_productivity_theoretical = -1.2499999999999997e-6
+lambda_theoretical_mean_truncated = 1.028
+lambda_lower = 1.02
+sd_log_productivity_theoretical = 0.0005
+firms = 110000
+lambda_upper = 1.036
+lambda_theoretical_sd_truncated = 0.0035185026441369592
+lambda_sd_untruncated = 0.004
+productivity_exponent = 9.999999999999998
+lambda_mean_untruncated = 1.028
+
+[sample_next_productivity]
+minimum = 0.9978811568354292
+mean = 1.0000000083074518
+maximum = 1.002238194023056
+std = 0.0005005815303463694
+
+[sample_initial_capital]
+minimum = 8.38616354457177
+mean = 8.650410765315073
+maximum = 8.951483981002234
+std = 0.0817696852962987
+
+[sample_lambda]
+minimum = 1.0200012680082202
+mean = 1.0280019191601835
+maximum = 1.0359993740132583
+std = 0.003504921324222382
+
+[moments]
+K0_relative_deviation = -1.869764286677178e-5
+realized_gap_min = 0.0005631938228669626
+steady_Kbar = 8.650534763929938
+realized_gap_mean = 0.49932790476974176
+realized_gap_max = 1.000866493097293
+finite_K0 = 8.650373019320316
+sample_mean_a_power = 1.0000118822647772
+realized_gap_outside_0_1_count = 67
+realized_gap_std = 0.2884135897271727
+
+[sample_log_productivity]
+minimum = -0.0022272594083826646
+mean = -6.697494069829054e-8
+maximum = 0.002165635370498081
+std = 0.0005010435568689784
+
+[rng]
+rng_type = "Random.Xoshiro"
+seed_initial_productivity = "1376283091349625769"
+seed_initial_gap = "11820040416372857149"
+seed_subsequent_productivity = "589684135958365284"
+seed_lambda = "2611923443470704702"
+base_seed = 20261101
+replication = 1
+
+[sample_initial_gap]
+minimum = 7.611480641100954e-6
+mean = 0.49863998929353304
+maximum = 0.9999981031847383
+std = 0.28841374304564527
+
+[source]
+paper = "Nirei (2015), Sections 2.2, 2.6, 3.2-3.3, Appendix C"
+note = "Realized finite-N gaps relative to K0 may differ from originally drawn uniform gaps"
+initialization = "Kbar-based sampled capital gaps; finite-N aggregate capital not rescaled"

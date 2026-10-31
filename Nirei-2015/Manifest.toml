@@ -2,7 +2,7 @@
 
 julia_version = "1.12.6"
 manifest_format = "2.0"
-project_hash = "d3b820cc96b40826c1d8a5a34e5cee4018ec14c3"
+project_hash = "4200d268f8bfaaa8625e94ad4505190a306669b2"
 
 [[deps.Accessors]]
 deps = ["CompositionsBase", "ConstructionBase", "Dates", "InverseFunctions", "MacroTools"]
@@ -203,7 +203,7 @@ uuid = "e1d29d7a-bbdc-5cf2-9ac0-f12de2c33e28"
 version = "1.2.1"
 
 [[deps.Nirei2015]]
-deps = ["Distributions", "LinearAlgebra", "QuadGK", "TOML"]
+deps = ["Distributions", "LinearAlgebra", "QuadGK", "Random", "Statistics", "TOML"]
 path = "."
 uuid = "efe9581f-d7c7-45d8-bf3b-ef554be2e652"
 version = "0.1.0"
