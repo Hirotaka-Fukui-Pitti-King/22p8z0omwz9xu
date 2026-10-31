@@ -18,10 +18,12 @@ export draw_productivity!, advance_productivity!, aggregate_capital
 export threshold_coefficient, realized_initial_gap_summary
 export EquilibriumWorkspace, FixedPointEnumeration, ES1Selection, EquilibriumResult
 export initialize_equilibrium_workspace, enumerate_fixed_points!, select_es1, solve_equilibrium!
+export SimulationState, PeriodRecord, SimulationFailure, initialize_simulation, simulate_period!, simulate_path!
 
 include("calibration.jl")
 include("expectations.jl")
 include("firms.jl")
 include("equilibrium.jl")
+include("simulation.jl")
 
 end # module Nirei2015
