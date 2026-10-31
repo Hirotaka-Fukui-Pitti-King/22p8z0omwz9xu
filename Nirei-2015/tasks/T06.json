@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "project": "Nirei-2015",
+  "task_id": "T06",
+  "issue_number": 6,
+  "issue_url": "https://github.com/Hirotaka-Fukui-Pitti-King/22p8z0omwz9xu/issues/6",
+  "title": "Benchmark 110,000社×1,100期×10試行を実行し Table 2 を再現",
+  "status": "open",
+  "implementation_language": "Julia",
+  "depends_on": [
+    "T05"
+  ],
+  "parallelizable_with": [],
+  "source_sections": [
+    "Table 2",
+    "Section 3.5",
+    "Appendix C"
+  ],
+  "actions": [
+    "N=110000、T=1100、10試行をJuliaで実際に完走",
+    "最初の100期を除去して各試行の5標準偏差と4相関を算出",
+    "試行間の平均とMonte Carlo標準誤差を算出",
+    "論文Table 2の9モーメントとの比較表を作成",
+    "全試行のマクロ時系列、seed、Juliaとパッケージのバージョンを保存",
+    "一致・不一致を実測値に基づいて報告し実行方法を文書化"
+  ],
+  "expected_files": [
+    "src/moments.jl",
+    "scripts/run_benchmark.jl",
+    "results/table2_comparison.csv",
+    "results/run_metadata.json"
+  ],
+  "definition_of_done": "110000社×1100期×10試行の実行が完了し、比較表・モーメント・標準誤差・時系列を実際に保存する",
+  "scope_guardrails": [
+    "本実装に直結しない検証専用プロジェクトを作らない",
+    "Julia-nativeな実装とし他言語のコードを翻訳しない",
+    "結果を実行確認する前に完了扱いしない",
+    "原論文のES1をES2に置換しない"
+  ],
+  "reference_documents": [
+    "Nirei-2015/ALGORITHM.md",
+    "Nirei-2015/policy.json",
+    "Nirei-2015/TASKS.md"
+  ]
+}
