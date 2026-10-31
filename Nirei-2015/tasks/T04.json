@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "project": "Nirei-2015",
+  "task_id": "T04",
+  "issue_number": 4,
+  "issue_url": "https://github.com/Hirotaka-Fukui-Pitti-King/22p8z0omwz9xu/issues/4",
+  "title": "有限企業の集計固定点全探索と ES1 均衡選択",
+  "status": "open",
+  "implementation_language": "Julia",
+  "depends_on": [
+    "T01",
+    "T03"
+  ],
+  "parallelizable_with": [],
+  "source_sections": [
+    "Equations (13),(14),(16)",
+    "Section 3.4",
+    "Definition 1"
+  ],
+  "actions": [
+    "減価償却後資本と式(16)の閾値係数を求める",
+    "各企業の2N切替点をソートし同一閾値を一括処理",
+    "区間別にべき乗和と投資和を更新し固定点を列挙",
+    "有効固定点のXを計算し|log X-log X_e|最小のES1を選択",
+    "同点・境界・非正投資の決定的取り扱いを記録",
+    "選択した企業投資、K、Xと必要なinvariantを返す"
+  ],
+  "expected_files": [
+    "src/equilibrium.jl"
+  ],
+  "definition_of_done": "任意の企業状態とX_eを入力して有限企業ES1均衡を返し、固定点と投資集計が一致する",
+  "scope_guardrails": [
+    "本実装に直結しない検証専用プロジェクトを作らない",
+    "Julia-nativeな実装とし他言語のコードを翻訳しない",
+    "結果を実行確認する前に完了扱いしない",
+    "原論文のES1をES2に置換しない"
+  ],
+  "reference_documents": [
+    "Nirei-2015/ALGORITHM.md",
+    "Nirei-2015/policy.json",
+    "Nirei-2015/TASKS.md"
+  ]
+}
