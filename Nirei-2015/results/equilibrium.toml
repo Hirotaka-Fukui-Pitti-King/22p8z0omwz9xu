@@ -1,0 +1,53 @@
+[source]
+paper = "Nirei (2015), Theoretical Economics 10, 953-985"
+timing = "K_prior is computed using a_i,t and k_i,t; equilibrium uses a_i,t+1"
+selection = "minimum absolute log investment innovation across positive-X fixed points"
+expected_level = "exp of first-order expected log deviation, not exact E[X]"
+initialization = "saddle-path mu for standalone one-period example only"
+intervals = "(left,right], events at right applied after testing the interval"
+nonpositive_X = "excluded from log-based selection and counted (not clipped)"
+doi = "10.3982/TE1611"
+equations = "(10), (13), (14), (16); Section 3.4 ES1"
+tie_break = "closest log K to continuum expected K, then smaller K"
+
+[run]
+firms = 110000
+rng_type = "Random.Xoshiro"
+base_seed = 20261101
+replication = 1
+elapsed_seconds = 0.0300206
+
+[equilibrium]
+maximum_fixed_point_K = 8.546731346350889
+K_prior = 8.650373019320316
+investing_firms = 34672
+admissible_positive_X = 256
+es1_objective = 0.9139209899123457
+epsilon_log_investment = -0.9139209899123457
+X_realized = 0.06936827009543808
+all_fixed_points = 420
+inactive_firms = 73617
+K_selected = 8.546731346350889
+X_expected = 0.17301019954027186
+K_expected_continuum = 8.650374208645173
+excluded_nonpositive_X = 164
+divesting_firms = 1711
+minimum_fixed_point_K = 8.436939670350494
+
+[environment]
+julia_version = "1.12.6"
+active_project = "C:\\github\\22p8z0omwz9xu\\Nirei-2015\\Project.toml"
+
+    [environment.dependencies]
+    QuadGK = "2.11.3"
+    Statistics = "1.11.5"
+    LinearAlgebra = "1.12.0"
+    Distributions = "0.25.132"
+    Random = "1.11.0"
+    TOML = "1.0.3"
+
+[residuals]
+fixed_point_K = -1.0480505352461478e-13
+aggregate_investment = 4.163336342344337e-17
+post_advance_K = -1.0480505352461478e-13
+threshold_violation = 0.0
