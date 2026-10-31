@@ -1,0 +1,112 @@
+[eigen_solution]
+stable_eigenvector_K_normalized = [1.0, -2.92812848148131]
+eigenvalues = [0.9926468530200838, 1.0214144258882667]
+stable_index = 1
+stable_eigenvalue = 0.9926468530200838
+unstable_eigenvalue = 1.0214144258882667
+h = -2.92812848148131
+
+[perturbed_expectations]
+logY_next = 0.002761063516419141
+K_next = 8.736400878534996
+X_next = 0.17410427331667605
+logmu_prior = -0.02913584717132357
+logmu_next = -0.028921607004688453
+logX_next = 0.006292018590061191
+C_next = 0.9306021326329847
+K_prior = 8.737040111569238
+R_next = 1.0098846290718693
+mu_next = 324.5331079040513
+logK_prior = 0.009950330853168092
+logw_next = 0.0025259587939928745
+mu_prior = 324.46358732425153
+L_next = 0.5341846544814671
+logR_next = -0.00021424016663511639
+logK_next = 0.009877164607905954
+logC_next = 0.0021032263450558955
+logL_next = 0.0002351047224262662
+Y_next = 1.1047051217188544
+w_next = 1.3912141755984455
+
+[steady_state_expectations]
+logY_next = 0.0
+K_next = 8.650534763929938
+X_next = 0.1730122451259319
+logmu_prior = 0.0
+logmu_next = 0.0
+logX_next = 0.0
+C_next = 0.9286469225562867
+K_prior = 8.650534763929938
+R_next = 1.0101010101010102
+mu_next = 334.0561743072841
+logK_prior = 0.0
+logw_next = 0.0
+mu_prior = 334.0561743072841
+L_next = 0.5340590799087168
+logR_next = 0.0
+logK_next = 0.0
+logC_next = 0.0
+logL_next = 0.0
+Y_next = 1.1016591676822185
+w_next = 1.3877044604812827
+
+[source]
+paper = "Nirei (2015), Theoretical Economics 10, 953-985"
+levels = "Exp of first-order conditional expected log deviations; not exact conditional means in levels"
+information_timing = "K_prior and mu_prior are observable at t=-1; outputs are E_-1 of log deviations at t=0"
+saddle_path_example = "The 1% K disturbance initializes mu_prior on the stable eigenspace; general state API does not reset mu"
+appendix = "Appendix A equations (26)-(37) and Proposition 5"
+doi = "10.3982/TE1611"
+
+[matrix_eigen_residuals]
+stable_eigenvector_inf = 1.1102230246251565e-16
+stable_manifold_residual = 0.0
+BF_minus_D_inf = 0.0
+
+[matrices]
+B_rows = [[7.852348993288572, -0.05886364301765381], [0.0, 45.37114553367994]]
+D_rows = [[7.965702435956752, 0.0], [0.9072394746971989, 45.347360783602305]]
+F_rows = [[1.0145855052596553, 0.007492380330412559], [0.019995956990412248, 0.9994757736486952]]
+
+[derived_coefficients]
+a_R = 33.5570469798657
+A1 = 0.11212121212121218
+eta_L = 0.3932492590048464
+
+[environment]
+julia_version = "1.12.6"
+active_project = "C:\\github\\22p8z0omwz9xu\\Nirei-2015\\Project.toml"
+
+    [environment.dependencies]
+    QuadGK = "2.11.3"
+    LinearAlgebra = "1.12.0"
+    Distributions = "0.25.132"
+    TOML = "1.0.3"
+
+[perturbed_residuals]
+eq31_factor_price = 9.280770596475918e-17
+eq29_firm_wage = -8.673617379884035e-19
+eq26_capital = 0.0
+eq33_marginal_utility = 0.0
+eq30_labor_supply = 0.0
+system = 1.3877787807814457e-17
+eq32_euler = 0.0
+eq35_labor = 0.0
+eq37_capital = -1.3877787807814457e-17
+eq27_output = 0.0
+eq28_resources = -8.673617379884035e-19
+eq36_mu = -2.220446049250313e-16
+
+[steady_state_residuals]
+eq31_factor_price = 0.0
+eq29_firm_wage = 0.0
+eq26_capital = 0.0
+eq33_marginal_utility = 0.0
+eq30_labor_supply = 0.0
+system = 0.0
+eq32_euler = 0.0
+eq35_labor = 0.0
+eq37_capital = 0.0
+eq27_output = 0.0
+eq28_resources = 0.0
+eq36_mu = 0.0
