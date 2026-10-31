@@ -1,8 +1,10 @@
 [[periods]]
 equation18_residual = -1.861276036407844e-6
 investment_no_productivity_redraw = 0.1732509142522462
+initial_uniform_gap_convergence_X = -5.475778171726287e-7
 K_prior = 8.650373019320316
 investing_at_expected_K = 78546
+continuum_quadrature_convergence_X_at_Kbar = 2.7988697689218522e-6
 X_selected = 0.06936827009543808
 reaction_residual_no_productivity_redraw = 0.00024137945451307985
 status = "selected"
@@ -13,6 +15,7 @@ min_fixed_K = 8.436939670350494
 max_fixed_K = 8.546731346350889
 n_fixed = 420
 expected_K = 8.650374208645173
+exact_normal_continuum_lambda_convergence_Phi = 8.881784197001252e-15
 K_selected = 8.546731346350889
 n_positive_X = 256
 min_fixed_X = -0.04042436629773039
@@ -20,8 +23,262 @@ inactive_at_expected_K = 31438
 investment_at_expected_K = 0.1667654599910685
 reaction_residual_at_expected_K = -0.006251329965564878
 max_fixed_X = 0.06936827009543808
-epsilon = -0.9139209899123457
 expected_X = 0.17301019954027186
+initial_uniform_gap_expected_X_minus_continuum_forecast = -0.006539206017418142
+continuum_quadrature_convergence_Phi_at_Kbar = 2.7980194623467014e-6
+epsilon = -0.9139209899123457
+
+    [periods.exact_normal_continuum_64_lambda_nodes]
+    method = "exact Gaussian difference integration with normal CDF, Gauss-Legendre only for lambda"
+    Phi_at_Kbar_minus_Kbar = -0.006329509472303485
+    Kbar = 8.650534763929938
+    Phi_at_expected_K_minus_expected_K = -0.006301559122613654
+    not_a_long_run_stationary_distribution = true
+    searched_K_to_Kbar_range_min = 0.55
+    root_investments = [-0.0001910041017394848]
+    searched_K_to_Kbar_range_max = 1.4
+    X_at_expected_K = 0.16655571243212253
+    X_at_Kbar_minus_Xbar = -0.006323899665767102
+    root_capitals_in_tested_intervals = [8.477333063081147]
+    lambda_nodes = 64
+
+    [periods.unconditional_initial_continuum_32x40]
+    Phi_at_expected_K = 8.644069479231181
+    tested_ratio_min = 0.55
+    Phi_at_Kbar_minus_Kbar = -0.006333175234109589
+    Phi_at_expected_K_minus_expected_K = -0.006304729413992405
+    root_investments = [-0.00020515033062922723]
+    X_at_Kbar_minus_Xbar = -0.006327566575403343
+    root_capitals_in_tested_intervals = [8.477318916962897]
+    root_residuals = [8.881784197001252e-15]
+    X_at_expected_K_minus_expected_Xbar = -0.006459704042650283
+    tested_ratio_max = 1.4
+    difference_normal_quadrature_nodes = 40
+    lambda_quadrature_nodes = 32
+    K_expected = 8.650374208645173
+    divesting_at_Kbar = 0.00015715584192128277
+    Kbar = 8.650534763929938
+    Phi_at_Kbar = 8.644201588695829
+    root_investing_fractions = [0.10442074064822984]
+    X_at_expected_K = 0.16655254108328163
+    interpretation = "One-period continuum reaction at Appendix C initial distribution, not an invariant stationary law and not an ES1 equilibrium expectation"
+    investing_at_Kbar = 0.7138720620913567
+    X_at_Kbar = 0.16668467855052857
+
+        [[periods.unconditional_initial_continuum_32x40.grid]]
+        K_to_Kbar = 0.55
+        Phi_minus_K = 3.488850706362018
+        X = -0.23081062301855473
+        Phi = 8.246644826523484
+        [[periods.unconditional_initial_continuum_32x40.grid]]
+        K_to_Kbar = 0.65
+        Phi_minus_K = 2.623797229969024
+        X = -0.23081062301855473
+        Phi = 8.246644826523484
+        [[periods.unconditional_initial_continuum_32x40.grid]]
+        K_to_Kbar = 0.75
+        Phi_minus_K = 1.7587437535760309
+        X = -0.23081062301855473
+        Phi = 8.246644826523484
+        [[periods.unconditional_initial_continuum_32x40.grid]]
+        K_to_Kbar = 0.85
+        Phi_minus_K = 0.8936902771830368
+        X = -0.23081062301855473
+        Phi = 8.246644826523484
+        [[periods.unconditional_initial_continuum_32x40.grid]]
+        K_to_Kbar = 0.9
+        Phi_minus_K = 0.46116353898653983
+        X = -0.23081062301855457
+        Phi = 8.246644826523484
+        [[periods.unconditional_initial_continuum_32x40.grid]]
+        K_to_Kbar = 0.94
+        Phi_minus_K = 0.11607447668913551
+        X = -0.22988265163863578
+        Phi = 8.247577154783277
+        [[periods.unconditional_initial_continuum_32x40.grid]]
+        K_to_Kbar = 0.96
+        Phi_minus_K = 0.0066595137702094576
+        X = -0.1663466365716196
+        Phi = 8.31117288714295
+        [[periods.unconditional_initial_continuum_32x40.grid]]
+        K_to_Kbar = 0.975
+        Phi_minus_K = 3.717861653029786e-5
+        X = -0.04321586038799338
+        Phi = 8.43430857344822
+        [[periods.unconditional_initial_continuum_32x40.grid]]
+        K_to_Kbar = 0.985
+        Phi_minus_K = -3.78248665189318e-5
+        X = 0.043215258348061655
+        Phi = 8.52073891760447
+        [[periods.unconditional_initial_continuum_32x40.grid]]
+        K_to_Kbar = 0.995
+        Phi_minus_K = -0.0016413467448312957
+        X = 0.1281191264935192
+        Phi = 8.605640743365457
+        [[periods.unconditional_initial_continuum_32x40.grid]]
+        K_to_Kbar = 1.0
+        Phi_minus_K = -0.006333175234109589
+        X = 0.16668467855052857
+        Phi = 8.644201588695829
+        [[periods.unconditional_initial_continuum_32x40.grid]]
+        K_to_Kbar = 1.005
+        Phi_minus_K = -0.0180626444772507
+        X = 0.19821944720022183
+        Phi = 8.675724793272336
+        [[periods.unconditional_initial_continuum_32x40.grid]]
+        K_to_Kbar = 1.015
+        Phi_minus_K = -0.07172637402121218
+        X = 0.23109922736079114
+        Phi = 8.708566411367675
+        [[periods.unconditional_initial_continuum_32x40.grid]]
+        K_to_Kbar = 1.025
+        Phi_minus_K = -0.15230605873057534
+        X = 0.23704302208042666
+        Phi = 8.714492074297612
+        [[periods.unconditional_initial_continuum_32x40.grid]]
+        K_to_Kbar = 1.04
+        Phi_minus_K = -0.28173659631779735
+        X = 0.2373723122862924
+        Phi = 8.714819558169339
+        [[periods.unconditional_initial_continuum_32x40.grid]]
+        K_to_Kbar = 1.075
+        Phi_minus_K = -0.5845049975634975
+        X = 0.23737263072058049
+        Phi = 8.714819873661186
+        [[periods.unconditional_initial_continuum_32x40.grid]]
+        K_to_Kbar = 1.1
+        Phi_minus_K = -0.800768366661746
+        X = 0.23737263072058049
+        Phi = 8.714819873661186
+        [[periods.unconditional_initial_continuum_32x40.grid]]
+        K_to_Kbar = 1.2
+        Phi_minus_K = -1.66582184305474
+        X = 0.23737263072058049
+        Phi = 8.714819873661186
+        [[periods.unconditional_initial_continuum_32x40.grid]]
+        K_to_Kbar = 1.4
+        Phi_minus_K = -3.3959287958407263
+        X = 0.23737263072058049
+        Phi = 8.714819873661186
+
+    [periods.unconditional_initial_continuum_48x64]
+    Phi_at_expected_K = 8.644071695932281
+    tested_ratio_min = 0.55
+    Phi_at_Kbar_minus_Kbar = -0.006330377214647243
+    Phi_at_expected_K_minus_expected_K = -0.006302512712892394
+    root_investments = [-0.0001810821652959013]
+    X_at_Kbar_minus_Xbar = -0.006324767705634421
+    root_capitals_in_tested_intervals = [8.477342984934424]
+    root_residuals = [1.0658141036401503e-14]
+    X_at_expected_K_minus_expected_Xbar = -0.006457486603714285
+    tested_ratio_max = 1.4
+    difference_normal_quadrature_nodes = 64
+    lambda_quadrature_nodes = 48
+    K_expected = 8.650374208645173
+    divesting_at_Kbar = 0.00016985700202625857
+    Kbar = 8.650534763929938
+    Phi_at_Kbar = 8.644204386715291
+    root_investing_fractions = [0.10406697028679271]
+    X_at_expected_K = 0.16655475852221763
+    interpretation = "One-period continuum reaction at Appendix C initial distribution, not an invariant stationary law and not an ES1 equilibrium expectation"
+    investing_at_Kbar = 0.7138967453671498
+    X_at_Kbar = 0.1666874774202975
+
+        [[periods.unconditional_initial_continuum_48x64.grid]]
+        K_to_Kbar = 0.55
+        Phi_minus_K = 3.488850706361915
+        X = -0.23081062301855312
+        Phi = 8.246644826523381
+        [[periods.unconditional_initial_continuum_48x64.grid]]
+        K_to_Kbar = 0.65
+        Phi_minus_K = 2.623797229968921
+        X = -0.23081062301855312
+        Phi = 8.246644826523381
+        [[periods.unconditional_initial_continuum_48x64.grid]]
+        K_to_Kbar = 0.75
+        Phi_minus_K = 1.7587437535759278
+        X = -0.23081062301855312
+        Phi = 8.246644826523381
+        [[periods.unconditional_initial_continuum_48x64.grid]]
+        K_to_Kbar = 0.85
+        Phi_minus_K = 0.8936902771829338
+        X = -0.23081062301855312
+        Phi = 8.246644826523381
+        [[periods.unconditional_initial_continuum_48x64.grid]]
+        K_to_Kbar = 0.9
+        Phi_minus_K = 0.4611635389864368
+        X = -0.23081062301855296
+        Phi = 8.246644826523381
+        [[periods.unconditional_initial_continuum_48x64.grid]]
+        K_to_Kbar = 0.94
+        Phi_minus_K = 0.11607329839013047
+        X = -0.22988382542125946
+        Phi = 8.247575976484272
+        [[periods.unconditional_initial_continuum_48x64.grid]]
+        K_to_Kbar = 0.96
+        Phi_minus_K = 0.006661382250287673
+        X = -0.16634476833124723
+        Phi = 8.311174755623028
+        [[periods.unconditional_initial_continuum_48x64.grid]]
+        K_to_Kbar = 0.975
+        Phi_minus_K = 3.7269359957292636e-5
+        X = -0.04321576961043771
+        Phi = 8.434308664191647
+        [[periods.unconditional_initial_continuum_48x64.grid]]
+        K_to_Kbar = 0.985
+        Phi_minus_K = -3.7922307727811244e-5
+        X = 0.04321516093941755
+        Phi = 8.520738820163261
+        [[periods.unconditional_initial_continuum_48x64.grid]]
+        K_to_Kbar = 0.995
+        Phi_minus_K = -0.0016427106005565406
+        X = 0.12811776252083792
+        Phi = 8.605639379509732
+        [[periods.unconditional_initial_continuum_48x64.grid]]
+        K_to_Kbar = 1.0
+        Phi_minus_K = -0.006330377214647243
+        X = 0.1666874774202975
+        Phi = 8.644204386715291
+        [[periods.unconditional_initial_continuum_48x64.grid]]
+        K_to_Kbar = 1.005
+        Phi_minus_K = -0.01805582637756764
+        X = 0.1982262687998084
+        Phi = 8.675731611372019
+        [[periods.unconditional_initial_continuum_48x64.grid]]
+        K_to_Kbar = 1.015
+        Phi_minus_K = -0.0717253295975091
+        X = 0.23110027388227383
+        Phi = 8.708567455791378
+        [[periods.unconditional_initial_continuum_48x64.grid]]
+        K_to_Kbar = 1.025
+        Phi_minus_K = -0.15230437470964908
+        X = 0.2370447142122549
+        Phi = 8.714493758318538
+        [[periods.unconditional_initial_continuum_48x64.grid]]
+        K_to_Kbar = 1.04
+        Phi_minus_K = -0.2817365905509899
+        X = 0.23737231810447343
+        Phi = 8.714819563936146
+        [[periods.unconditional_initial_continuum_48x64.grid]]
+        K_to_Kbar = 1.075
+        Phi_minus_K = -0.5845049975636183
+        X = 0.23737263072057826
+        Phi = 8.714819873661066
+        [[periods.unconditional_initial_continuum_48x64.grid]]
+        K_to_Kbar = 1.1
+        Phi_minus_K = -0.8007683666618668
+        X = 0.23737263072057826
+        Phi = 8.714819873661066
+        [[periods.unconditional_initial_continuum_48x64.grid]]
+        K_to_Kbar = 1.2
+        Phi_minus_K = -1.6658218430548608
+        X = 0.23737263072057826
+        Phi = 8.714819873661066
+        [[periods.unconditional_initial_continuum_48x64.grid]]
+        K_to_Kbar = 1.4
+        Phi_minus_K = -3.395928795840847
+        X = 0.23737263072057826
+        Phi = 8.714819873661066
 
     [periods.multi_step_at_expected_K]
     n_more_than_one_divestment = 0
@@ -49,6 +306,24 @@ expected_X = 0.17301019954027186
     fraction_one_step_next_gap_below_zero = 0.030063636363636365
     mean_log_threshold_change = -5.00075128595557e-7
     fraction_cutoff_above_one = 0.17274545454545454
+
+    [periods.four_way_productivity_at_expected_K]
+    phi_C_old_threshold_new_CES = 8.650553686320466
+    residual_A = 0.00024137945469782096
+    residual_D = -0.006251329965801133
+    phi_D_new_threshold_new_CES = 8.644122878679372
+    phi_A_old_threshold_old_CES = 8.650615588099871
+    phi_B_new_threshold_old_CES = 8.644085798887797
+    threshold_effect_shapley = -0.006480298426583708
+    n_investing_old_threshold = 81866
+    is_fixed_K_counterfactual = true
+    X_B_and_D = 0.1667654599910679
+    residual_C = 0.00017947767529236103
+    residual_B = -0.006288409757376101
+    total_effect_D_minus_A = -0.006492709420498954
+    n_investing_new_threshold = 78546
+    CES_weight_effect_shapley = -1.2410993915246138e-5
+    X_A_and_C = 0.1732509142522422
 
     [periods.paper_assumption_audit_at_expected_K]
     s26_normal_difference_sd = 0.0007071067811865476
@@ -89,6 +364,40 @@ expected_X = 0.17301019954027186
     s26_analytical_expected_count_stationary_proxy = 4111.96882991796
     extra_investment_from_section21_violations = 0.006403681811170577
     q_analytical_upper_envelope = 0.5
+
+    [periods.exact_normal_continuum_48_lambda_nodes]
+    method = "exact Gaussian difference integration with normal CDF, Gauss-Legendre only for lambda"
+    Phi_at_Kbar_minus_Kbar = -0.006329509472312367
+    Kbar = 8.650534763929938
+    Phi_at_expected_K_minus_expected_K = -0.006301559122622535
+    not_a_long_run_stationary_distribution = true
+    searched_K_to_Kbar_range_min = 0.55
+    root_investments = [-0.00019100412625751555]
+    searched_K_to_Kbar_range_max = 1.4
+    X_at_expected_K = 0.16655571243212258
+    X_at_Kbar_minus_Xbar = -0.006323899665767657
+    root_capitals_in_tested_intervals = [8.47733306305662]
+    lambda_nodes = 48
+
+    [periods.initial_uniform_gap_36_nodes]
+    expected_investing_fraction = 0.7128412116633096
+    not_exact_ex_ante_expectation_of_nonlinear_K = true
+    expected_CES_power_mean = 4.748095343863667
+    expected_divesting_fraction = 0.00016555423195900937
+    quadrature_nodes = 36
+    expected_net_investment = 0.16647099352285372
+    conditional_on_initial_lambda_a0_and_fixed_candidate_K = true
+    CES_capital_of_expected_power_not_expected_capital = 8.6440886551127
+
+    [periods.initial_uniform_gap_24_nodes]
+    expected_investing_fraction = 0.7128436686938818
+    not_exact_ex_ante_expectation_of_nonlinear_K = true
+    expected_CES_power_mean = 4.748095561058781
+    expected_divesting_fraction = 0.00016562135676419343
+    quadrature_nodes = 24
+    expected_net_investment = 0.1664715411006709
+    conditional_on_initial_lambda_a0_and_fixed_candidate_K = true
+    CES_capital_of_expected_power_not_expected_capital = 8.64408920260623
 [[periods]]
 equation18_residual = -2.903282685728925e-5
 investment_no_productivity_redraw = 0.1717714853264244
@@ -140,6 +449,24 @@ expected_X = 0.17169653496947698
     fraction_one_step_next_gap_below_zero = 0.029936363636363636
     mean_log_threshold_change = -9.044254511242636e-6
     fraction_cutoff_above_one = 0.1761
+
+    [periods.four_way_productivity_at_expected_K]
+    phi_C_old_threshold_new_CES = 8.54747864016376
+    residual_A = 7.605536793064971e-5
+    residual_D = -0.006608133800764193
+    phi_D_new_threshold_new_CES = 8.54088358253141
+    phi_A_old_threshold_old_CES = 8.547567771700106
+    phi_B_new_threshold_old_CES = 8.54087491704416
+    threshold_effect_shapley = -0.006643956144147367
+    n_investing_old_threshold = 82169
+    is_fixed_K_counterfactual = true
+    X_B_and_D = 0.16512284445699033
+    residual_C = -1.3076168414727363e-5
+    residual_B = -0.006616799288014619
+    total_effect_D_minus_A = -0.006684189168694843
+    n_investing_new_threshold = 78738
+    CES_weight_effect_shapley = -4.023302454747579e-5
+    X_A_and_C = 0.17177148532642408
 
     [periods.paper_assumption_audit_at_expected_K]
     s26_normal_difference_sd = 0.0007071067811865476
@@ -232,6 +559,24 @@ expected_X = 0.1705618552824479
     mean_log_threshold_change = 1.7304014860758114e-5
     fraction_cutoff_above_one = 0.17882727272727272
 
+    [periods.four_way_productivity_at_expected_K]
+    phi_C_old_threshold_new_CES = 8.458816977948349
+    residual_A = -0.00017042825971813613
+    residual_D = -0.006465916936408078
+    phi_D_new_threshold_new_CES = 8.452523719979629
+    phi_A_old_threshold_old_CES = 8.458819208656319
+    phi_B_new_threshold_old_CES = 8.452429638996831
+    threshold_effect_shapley = -0.006341413814103802
+    n_investing_old_threshold = 82371
+    is_fixed_K_counterfactual = true
+    X_B_and_D = 0.1640453536873582
+    residual_C = -0.0001726589676884771
+    residual_B = -0.00655999791920614
+    total_effect_D_minus_A = -0.006295488676689942
+    n_investing_new_threshold = 79015
+    CES_weight_effect_shapley = 4.5925137413860284e-5
+    X_A_and_C = 0.17039162153182866
+
     [periods.paper_assumption_audit_at_expected_K]
     s26_normal_difference_sd = 0.0007071067811865476
     s26_analytical_violation_probability_stationary_proxy = 0.037381534817435995
@@ -322,6 +667,24 @@ expected_X = 0.16955996176958454
     fraction_one_step_next_gap_below_zero = 0.03101818181818182
     mean_log_threshold_change = -3.177256075026034e-5
     fraction_cutoff_above_one = 0.1793909090909091
+
+    [periods.four_way_productivity_at_expected_K]
+    phi_C_old_threshold_new_CES = 8.381076784867924
+    residual_A = 0.00011159410548877702
+    residual_D = -0.006390881669045001
+    phi_D_new_threshold_new_CES = 8.374734009732267
+    phi_A_old_threshold_old_CES = 8.3812364855068
+    phi_B_new_threshold_old_CES = 8.374800338835874
+    threshold_effect_shapley = -0.006389460903291955
+    n_investing_old_threshold = 82794
+    is_fixed_K_counterfactual = true
+    X_B_and_D = 0.1632763389544414
+    residual_C = -4.8106533387937134e-5
+    residual_B = -0.0063245525654380685
+    total_effect_D_minus_A = -0.006502475774533778
+    n_investing_new_threshold = 79414
+    CES_weight_effect_shapley = -0.0001130148712418233
+    X_A_and_C = 0.1696701322031135
 
     [periods.paper_assumption_audit_at_expected_K]
     s26_normal_difference_sd = 0.0007071067811865476
@@ -414,6 +777,24 @@ expected_X = 0.167665871370807
     mean_log_threshold_change = 1.0181814460485934e-5
     fraction_cutoff_above_one = 0.18642727272727272
 
+    [periods.four_way_productivity_at_expected_K]
+    phi_C_old_threshold_new_CES = 8.234492011618942
+    residual_A = -0.0001260446467323817
+    residual_D = -0.006581227158932279
+    phi_D_new_threshold_new_CES = 8.228060314535517
+    phi_A_old_threshold_old_CES = 8.234515497047717
+    phi_B_new_threshold_old_CES = 8.227991377326504
+    threshold_effect_shapley = -0.006477908402318988
+    n_investing_old_threshold = 83157
+    is_fixed_K_counterfactual = true
+    X_B_and_D = 0.16105876661760027
+    residual_C = -0.00014953007550744246
+    residual_B = -0.006650164367945521
+    total_effect_D_minus_A = -0.006455182512199897
+    n_investing_new_threshold = 79704
+    CES_weight_effect_shapley = 2.2725890119090764e-5
+    X_A_and_C = 0.16754125240570095
+
     [periods.paper_assumption_audit_at_expected_K]
     s26_normal_difference_sd = 0.0007071067811865476
     s26_analytical_violation_probability_stationary_proxy = 0.037381534817435995
@@ -500,6 +881,24 @@ expected_X = 0.16651918798803195
     fraction_one_step_next_gap_below_zero = 0.032818181818181816
     mean_log_threshold_change = -9.937735956920719e-6
     fraction_cutoff_above_one = 0.18943636363636362
+
+    [periods.four_way_productivity_at_expected_K]
+    phi_C_old_threshold_new_CES = 8.146137448144257
+    residual_A = -0.00019455874351059776
+    residual_D = -0.006652256356986186
+    phi_D_new_threshold_new_CES = 8.139767899470762
+    phi_A_old_threshold_old_CES = 8.146225597084237
+    phi_B_new_threshold_old_CES = 8.139763121174056
+    threshold_effect_shapley = -0.006416012291838413
+    n_investing_old_threshold = 83495
+    is_fixed_K_counterfactual = true
+    X_B_and_D = 0.15990391297029138
+    residual_C = -0.00028270768349081266
+    residual_B = -0.006657034653692051
+    total_effect_D_minus_A = -0.006457697613475588
+    n_investing_new_threshold = 79967
+    CES_weight_effect_shapley = -4.1685321637174866e-5
+    X_A_and_C = 0.16632494761334626
 
     [periods.paper_assumption_audit_at_expected_K]
     s26_normal_difference_sd = 0.0007071067811865476
