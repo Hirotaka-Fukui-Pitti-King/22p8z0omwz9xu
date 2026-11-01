@@ -1,0 +1,38 @@
+name: Stage 20 exact CES capital accounting smoke
+on:
+  push:
+    paths:
+      - '.github/workflows/julia-stage20-audit.yml'
+  workflow_dispatch:
+
+jobs:
+  test-stage20:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: Nirei-2015
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.12.6'
+      - name: Syntax gate
+        run: julia --project=. scripts/check_julia_syntax.jl
+      - name: Install and load package
+        run: julia --project=. -e 'using Pkg; Pkg.instantiate(); using Nirei2015'
+      - name: Analytical CES accounting and homogeneity independent regression
+        run: julia --project=. scripts/stage20_capital_accounting.jl --smoke
+      - name: Same seed original two-choice 20-period capital decomposition
+        run: |
+          julia --project=. scripts/stage20_capital_accounting.jl 20 110000 20261101
+          julia --project=. -e 'using TOML; x=TOML.parsefile("results/stage20_capital_accounting_T20_summary.toml"); @assert x["completed"] && x["completed_periods"]==20 && x["maximum_growth_identity_error"] < 1e-10'
+      - name: Archive audit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nirei-stage20-capital-20
+          if-no-files-found: warn
+          path: |
+            Nirei-2015/results/stage20_capital_accounting_T20.csv
+            Nirei-2015/results/stage20_capital_accounting_T20_summary.toml
