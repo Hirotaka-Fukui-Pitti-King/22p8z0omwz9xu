@@ -19,11 +19,13 @@ export threshold_coefficient, realized_initial_gap_summary
 export EquilibriumWorkspace, FixedPointEnumeration, ES1Selection, EquilibriumResult
 export initialize_equilibrium_workspace, enumerate_fixed_points!, select_es1, solve_equilibrium!
 export SimulationState, PeriodRecord, SimulationFailure, initialize_simulation, simulate_period!, simulate_path!
+export exact_static_levels, simulate_exact_level_period!
 
 include("calibration.jl")
 include("expectations.jl")
 include("firms.jl")
 include("equilibrium.jl")
 include("simulation.jl")
+include("exact_levels.jl")
 
 end # module Nirei2015
