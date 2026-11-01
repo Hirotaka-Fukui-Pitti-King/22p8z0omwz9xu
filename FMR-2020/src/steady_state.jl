@@ -95,12 +95,11 @@ end
 function stationary_candidate(p::ModelParams{T},ref::ReferenceCalibration{T},
                               chain::ProductivityChain{T},gr::AssetGrids{T},
                               beta::T,r::T,B::T;
-                              name::String="candidate",
-                              fine_method::Symbol=:coarse_savings) where {T}
+                              name::String="candidate") where {T}
     aggregate = aggregate_prices(p,ref,r,B)
     prices = HouseholdPrices(r,aggregate.wage,aggregate.terms,
                              aggregate.L,aggregate.profits)
-    hh = solve_household(p,gr,chain,prices,beta;fine_method=fine_method)
+    hh = solve_household(p,gr,chain,prices,beta)
     mu_result = stationary_distribution(p,gr,chain,hh)
     mu = mu_result.distribution
     assets = sum(mu .* hh.savings_fine)

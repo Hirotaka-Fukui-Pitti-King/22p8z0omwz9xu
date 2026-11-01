@@ -28,10 +28,7 @@ Shape-preserving Hermite interpolation is used on endogenous asset knots.
 """
 function solve_household(p::ModelParams{T}, gr::AssetGrids{T},
                          chain::ProductivityChain{T}, pr::HouseholdPrices{T},
-                         beta::T;
-                         fine_method::Symbol=:coarse_savings) where {T<:AbstractFloat}
-    fine_method in (:coarse_savings,:direct_endogenous) ||
-        throw(ArgumentError("fine_method must be :coarse_savings or :direct_endogenous"))
+                         beta::T) where {T<:AbstractFloat}
     0 < beta < 1 || throw(ArgumentError("beta must lie in (0,1)"))
     pr.r > -1 || throw(ArgumentError("gross real return must be positive"))
     pr.terms > 0 && pr.labor > 0 || throw(ArgumentError("terms and labor must be positive"))
@@ -111,63 +108,50 @@ function solve_household(p::ModelParams{T}, gr::AssetGrids{T},
     nf = length(gr.fine)
     cf = Matrix{T}(undef,nf,ns)
     gf = similar(cf)
-    # Two explicitly named, numerically distinct evaluations of the
-    # CONVERGED coarse-grid EGM policy on the fine distribution grid:
+
+    # Author's stationary EGM: evaluate fine-grid consumption DIRECTLY
+    # from the endogenous current-asset and consumption knots, as in
+    # solve_R.m and solve_EGM_EL_open_tg.m (not a second interpolation
+    # of a coarse-grid saving policy). Keep Julia-native array kernels.
     #
-    # :coarse_savings (established baseline): interpolate the saving
-    # policy at coarse current-asset knots. This avoids a spurious borrowing
-    # violation from interpolating consumption, but inserts a second layer
-    # of approximation around the borrowing kink.
-    #
-    # :direct_endogenous (accuracy experiment): reconstruct the endogenous
-    # current-asset knots from the final coarse-grid consumption policy,
-    # then interpolate the choice a' directly as a function of endogenous
-    # current assets. On the constrained side, impose a'=borrowing_limit.
-    # The EGM continuation policies are unchanged; this comparison isolates
-    # the off-grid policy evaluation rather than changing equilibrium theory.
-    #
-    # In both methods, derive consumption from the EXACT household budget.
-    # Never silently clip infeasible savings or loosen error tolerances.
+    # At a <= endogenous asset knot for post-decision a_min, the borrowing
+    # constraint binds and consumption comes directly from the budget.
+    # Nonbinding consumption is PCHIP-interpolated on endogenous knots.
+    # All saving decisions follow from the same household budget identity.
     @inbounds for j in 1:ns
         income = labor_income(pr,chain.levels[j]) + pr.profits
-        current_knots = gr.coarse
-        next_asset_knots = view(savings,:,j)
-        if fine_method === :direct_endogenous
-            for i in 1:n
-                expected_mu = zero(T)
-                for jp in 1:ns
-                    expected_mu += chain.transition[j,jp]*c[i,jp]^(-p.gamma)
-                end
-                endo_consumption[i] = (beta*gross*expected_mu)^(-inv(p.gamma))
-                endo_asset[i] = (m*endo_consumption[i]+gr.coarse[i]-income)/gross
+        for i in 1:n
+            expected_mu = zero(T)
+            for jp in 1:ns
+                expected_mu += chain.transition[j,jp]*c[i,jp]^(-p.gamma)
             end
-            all(diff(endo_asset) .> 0) ||
-                throw(ArgumentError("final endogenous asset grid is not increasing"))
-            current_knots = endo_asset
-            next_asset_knots = gr.coarse
+            endo_consumption[i] = (beta*gross*expected_mu)^(-inv(p.gamma))
+            endo_asset[i] = (m*endo_consumption[i]+gr.coarse[i]-income)/gross
         end
-        pchip_slopes!(derivatives,current_knots,next_asset_knots)
+        all(diff(endo_asset) .> 0) ||
+            throw(ArgumentError("EGM endogenous asset grid is not increasing"))
+        pchip_slopes!(derivatives,endo_asset,endo_consumption)
         for i in 1:nf
             a = gr.fine[i]
-            sav = if fine_method === :direct_endogenous && a <= endo_asset[1]
-                gr.borrowing_limit
+            if a <= endo_asset[1]
+                sav = gr.borrowing_limit
+                consum = (gross*a+income-sav)/m
             else
-                pchip_evaluate(current_knots,next_asset_knots,derivatives,a)
+                consum = pchip_evaluate(endo_asset,endo_consumption,
+                                       derivatives,a)
+                sav = gross*a+income-m*consum
             end
-            if sav < gr.borrowing_limit
-                throw(DomainError(sav,
-                    "shape-preserving fine-grid savings violate borrowing constraint"))
-            end
-            if sav > gr.fine[end]
-                throw(DomainError(sav,
-                    "fine-grid policy exceeds distribution grid upper bound"))
-            end
-            consum = (gross*a+income-sav)/m
             isfinite(consum) && consum > zero(T) ||
                 throw(DomainError(consum,
-                    "nonpositive consumption implied by fine-grid policy"))
-            gf[i,j] = sav
+                    "EGM direct fine-grid consumption must be positive"))
+            isfinite(sav) && sav >= gr.borrowing_limit ||
+                throw(DomainError(sav,
+                    "EGM direct fine-grid savings below borrowing limit"))
+            sav <= gr.fine[end] ||
+                throw(DomainError(sav,
+                    "fine-grid policy exceeds distribution grid upper bound"))
             cf[i,j] = consum
+            gf[i,j] = sav
         end
     end
     return HouseholdSolution(c,savings,cf,gf,n_iter,last_error)

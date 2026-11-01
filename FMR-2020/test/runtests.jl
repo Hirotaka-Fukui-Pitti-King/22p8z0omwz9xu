@@ -113,25 +113,40 @@ using FMR2020
         end
     end
 
-    @testset "Direct endogenous-grid fine policy (experimental)" begin
-        # Separate evaluation of the SAME converged coarse-grid policy.
-        # The established :coarse_savings method remains the default.
-        direct = solve_household(p,grids,chain,household_prices,0.9832;
-                                 fine_method=:direct_endogenous)
-        @test maximum(abs.(direct.consumption_coarse .-
-                            hh.consumption_coarse)) < 1e-10
-        @test maximum(abs.(direct.savings_coarse .-
-                            hh.savings_coarse)) < 1e-10
-        @test minimum(direct.savings_fine) >= grids.borrowing_limit
-        @test minimum(direct.consumption_fine) > 0
-        check = household_diagnostics(p,grids,chain,household_prices,0.9832,direct)
-        @test check.max_fine_budget_error < 1e-8
-        @test_throws ArgumentError solve_household(
-            p,grids,chain,household_prices,0.9832;fine_method=:unknown)
-        direct_mu = stationary_distribution(p,grids,chain,direct)
-        @test abs(sum(direct_mu.distribution)-1) < 1e-10
-        @test distribution_invariance(direct_mu.distribution,direct,
-                                      grids,chain).invariance_error < 1e-8
+
+    @testset "Author direct endogenous EGM fine-grid evaluation" begin
+        # Regression on the author's numerical algorithm, not on an alternative.
+        ng = length(grids.coarse)
+        ns = length(chain.levels)
+        asset_knots = Vector{Float64}(undef,ng)
+        consumption_knots = similar(asset_knots)
+        deriv = similar(asset_knots)
+        gross = 1+household_prices.r
+        price = FMR2020.consumption_cost(household_prices.terms,p)
+        for j in 1:ns
+            income = FMR2020.labor_income(household_prices,chain.levels[j]) +
+                     household_prices.profits
+            for i in 1:ng
+                expected_mu = sum(chain.transition[j,k] *
+                                  hh.consumption_coarse[i,k]^(-p.gamma)
+                                  for k in 1:ns)
+                consumption_knots[i] = (0.9832*gross*expected_mu)^(-inv(p.gamma))
+                asset_knots[i] =
+                    (price*consumption_knots[i]+grids.coarse[i]-income)/gross
+            end
+            FMR2020.pchip_slopes!(deriv,asset_knots,consumption_knots)
+            for i in eachindex(grids.fine)
+                a=grids.fine[i]
+                expected_c = if a <= asset_knots[1]
+                    (gross*a+income-grids.borrowing_limit)/price
+                else
+                    FMR2020.pchip_evaluate(asset_knots,consumption_knots,deriv,a)
+                end
+                @test isapprox(hh.consumption_fine[i,j],expected_c;atol=1e-10,rtol=1e-10)
+            end
+        end
+        @test minimum(hh.savings_fine) >= grids.borrowing_limit
+        @test diag.max_fine_budget_error < 1e-8
     end
 
     @testset "Matrix-free distribution and mass conservation" begin
