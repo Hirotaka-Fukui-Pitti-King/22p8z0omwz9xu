@@ -198,3 +198,24 @@ The correction follows author EGM: every consumption stays strictly positive and
 The parser now rejects error/incomplete AST nodes, the test replaces invalid end by explicit size(...,3), and the stationary-limit smoke calibrates a true stationary GE before constructing a constant-B path. The known author labor exponent inconsistency is preserved, not silently altered.
 
 PATCH STATUS: committed but Julia syntax, full tests, eight-quarter true-stationary test, 399-variable nonlinear convergence and generated SVGs remain UNVERIFIED on the owner's PC.
+
+
+### 2026-11-02: Windows 200-quarter nonlinear solve succeeded; terminal goods check isolated
+
+Windows 11 / Julia 1.12.6 **owner-provided local execution log** for the previous commit:
+
+- 26 Julia files passed improved Meta.parseall syntax checks.
+- 2,420/2,420 stationary tests and 30/30 Stage 2 transition tests passed.
+- True stationary GE constant-B eight-quarter limit: max scaled GE residual 1.2327219356400576e-7, max asset 6.362651475204854e-8, max labor 1.2327219356400576e-7, distribution mass deviation 7.327471962526033e-15.
+- Full T=200, 399-variable nonlinear root **converged** in 7 iterations with 409 residual evaluations, max scaled 399-equation residual 3.642975265893966e-7.
+- Independent asset market maximum level gap 9.364358355412605e-7; labor maximum 3.642975265893966e-7; capital accumulation gap 0; maximum household budget gap 1.3304388854170658e-16; maximum distribution-mass error 1.2212453270876722e-14.
+- Existing independent goods-market maximum reported **0.2633831568791398**, but it pooled **all t=1:200** rather than only the interior dates for which individual household savings and consumption are part of the original author's transition closure.
+- Maximum dynamic Euler/KKT violation 0.005496693743120638 (mass weighted mean 1.9816793256669015e-5). This does not meet the former strict 1e-6 maximum accuracy target.
+- Terminal capital discrepancy abs(K[200]-K_final)=0.42899657754234255, terminal labor discrepancy 0.0071350035667030465. Both must be explicitly reported; they are finite-horizon approximations, not hidden by the root solver.
+- CSV and SVG files were emitted before the original script discovered a failing goods diagnostic. Those files are **unaccepted provisional outputs**, not verified replications.
+
+**Confirmed source-level endpoint mismatch:** the original author `backsolve_egm.m` aggregates household consumption and saving at dates 1:TT-1 and the original `solve_transition_bis.m` sets `c_t=[c_t';c_t(end)]`, reusing consumption of TT-1 for the last labor FOC. The T-th consumption policy and distribution are terminal evaluation objects, not an additional independent market-clearing equation. The Julia diagnostic mistakenly included T-th household consumption in the maximum independent goods-market residual, imposing a condition beyond the authors' 399 equations.
+
+**Correction committed:** preserve the independent household-consumption goods check for **interior dates 1:199 only**; separately output `terminal_goods_gap_unconstrained`, `terminal_home_budget_gap_unconstrained`, and `terminal_wealth_gap_unconstrained`. Record `max_goods_market_period` and `max_interior_home_budget_gap` to determine if the 0.263383 gap was all at the endpoint. Do NOT loosen any tolerance, adjust the labor FOC, or change household EGM. Generate new CSV/SVG only after the independent interior GE acceptance gate passes. Regression test deliberately corrupts the T-th reported aggregate consumption and confirms the interior goods residual is unchanged, while the terminal diagnostic responds.
+
+**Verification status:** this newest diagnostic patch is not yet syntax-checked or executed on the owner's Windows PC. It is still unknown whether the maximum interior goods residual meets 1e-4; the new code will report its period. The T=200 root convergence reported above is established for the previous commit, not the patched diagnostic.

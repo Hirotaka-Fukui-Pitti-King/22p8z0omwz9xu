@@ -46,7 +46,7 @@
     }
   ],
   "current_status": {
-    "phase": "stage2_first_windows_run_failed_targeted_patch_waiting_pc_rerun",
+    "phase": "stage2_399_root_converged_owner_pc_independent_interior_goods_audit_pending",
     "files_written": [
       "README.md",
       "ALGORITHM.md",
@@ -140,10 +140,13 @@
     "latest_local_evidence_context": "Existing local GE and Euler numbers refer to previous coarse-saving interpolation, not the latest algorithm",
     "stage2_source_created": true,
     "stage2_syntax_verified": false,
-    "stage2_runtime_verified": false,
+    "stage2_runtime_verified": true,
     "stage2_equilibrium_verified": false,
-    "stage2_figures_generated": false,
-    "stage2_paper_replication_verified": false
+    "stage2_figures_generated": true,
+    "stage2_paper_replication_verified": false,
+    "stage2_latest_patch_locally_verified": false,
+    "stage2_julia_syntax_verified_scope": "26 Julia files before interior-goods diagnostic patch",
+    "stage2_julia_runtime_verified_scope": "2450 tests, 8-quarter stationary limit, full 399-dimensional root before patch"
   },
   "scope": {
     "first_milestone": "Figures 1–5",
@@ -462,9 +465,9 @@
     "solver": "damped dense finite-difference Broyden/Newton, nonconvergent results rejected",
     "user_pc_only_execution": true,
     "syntax_verified": false,
-    "runtime_verified": false,
-    "root_converged": false,
-    "figures_generated": false,
+    "runtime_verified": true,
+    "root_converged": true,
+    "figures_generated": true,
     "figure1_partial": true,
     "author_code_labor_exponent_mismatch": "Author transition omits exponent 1/varphi; retained for source reproduction, not hidden",
     "root_tol_scaled": 0.000001,
@@ -503,6 +506,37 @@
     "author_algorithm_upper_asset_policy": "Backward EGM applies borrowing bound only; forward distribution strictly enforces upper grid on positive-mass states. No clipping.",
     "stationary_limit_test": "Calibrated true GE rather than hardcoded beta=0.9832 candidate.",
     "syntax_checker": "Recursive Meta.parseall AST error/incomplete detection",
-    "verification": "fixed source committed; fresh PC logs pending; full nonlinear GE not yet solved"
+    "verification": "399-equation root converged on owner PC, independent goods audit previously failed; correction unverified",
+    "figures_accepted": false,
+    "source_comparison_verified": false,
+    "latest_owner_pc_evidence": {
+      "julia_version": "1.12.6",
+      "syntax_files_passed_previous_commit": 26,
+      "stationary_tests_passed": 2420,
+      "stage2_tests_passed": 30,
+      "constant_B_limit_max_scaled_residual": 1.2327219356400576e-7,
+      "constant_B_limit_max_distribution_mass_deviation": 7.327471962526033e-15,
+      "nonlinear_dimension": 399,
+      "horizon": 200,
+      "nonlinear_root_converged": true,
+      "nonlinear_iterations": 7,
+      "residual_evaluations": 409,
+      "maximum_scaled_399_equation_residual": 3.642975265893966e-7,
+      "max_asset_market_level": 9.364358355412605e-7,
+      "max_labor_market_level": 3.642975265893966e-7,
+      "max_goods_market_level_all_dates": 0.2633831568791398,
+      "max_capital_accumulation": 0,
+      "max_household_budget": 1.3304388854170658e-16,
+      "max_distribution_mass_error": 1.2212453270876722e-14,
+      "max_dynamic_euler": 0.005496693743120638,
+      "weighted_mean_dynamic_euler": 0.000019816793256669015,
+      "terminal_capital_gap": 0.42899657754234255,
+      "terminal_labor_gap": 0.0071350035667030465,
+      "previously_generated_csv_svg_provisional": true,
+      "new_patch_owner_pc_untested": true
+    },
+    "author_endpoint_audit": "Author's backsolve_egm aggregates consumption only for dates 1:T-1; solve_transition_bis duplicates last interior C for terminal labor. Distinct T-th goods condition is absent.",
+    "goods_acceptance": "Only independent household-aggregated goods residual for dates 1:T-1. T-th unclosed household consumption/wealth budget gaps logged separately.",
+    "next_test": "rerun syntax, unit tests, transition, inspect max_goods_market_period and terminal_goods_gap_unconstrained"
   }
 }
