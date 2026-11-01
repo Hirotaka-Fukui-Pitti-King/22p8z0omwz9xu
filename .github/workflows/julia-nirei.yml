@@ -34,6 +34,12 @@ jobs:
           julia --project=. scripts/run_expectations.jl
       - name: Independent small-N fixed-point oracle
         run: julia --project=. scripts/check_equilibrium_oracle.jl
+      - name: Stage 12 independent small-N multi-step oracle and J=1 regression
+        timeout-minutes: 15
+        run: julia --project=. scripts/diagnostic_multistep_equilibrium.jl small
+      - name: Stage 12 original t5 full multi-step equilibrium sweep J=1..4
+        timeout-minutes: 60
+        run: julia --project=. scripts/diagnostic_multistep_equilibrium.jl benchmark 110000 20261101
       - name: Stage 10 original t5 fixed-point and feasibility diagnostic (benchmark N)
         timeout-minutes: 30
         run: julia --project=. scripts/diagnostic_equilibrium_feasibility.jl 110000 20261101 32
@@ -69,3 +75,5 @@ jobs:
             Nirei-2015/results/diagnostic_investment_wedge_*.toml
             Nirei-2015/results/diagnostic_equilibrium_feasibility_*.csv
             Nirei-2015/results/diagnostic_equilibrium_feasibility_*.toml
+            Nirei-2015/results/diagnostic_multistep_equilibrium_*.csv
+            Nirei-2015/results/diagnostic_multistep_equilibrium_*.toml
