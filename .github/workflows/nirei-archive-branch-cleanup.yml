@@ -38,7 +38,7 @@ research/issue5-stage12-multistep-equilibrium d351c52342c95704cd79afea3d8dbb0208
 research/issue5-stage13-dynamic-multistep eb76c3449e6aa308ad9829dc2a37b9a6e0e77510
 research/issue5-stage17-dynamic-re-equilibrium 6174d1f83f45fd556df09321c00f3e8bb3c425c7
 research/issue5-stage18-original-implementation-repair a5f159ca1b16545a1b2a31e3d3540bc9fc56ae15
-ARCHIVED
+          ARCHIVED
           echo 'Preflight: verify every remote work branch SHA and merged ancestry.'
           while read -r branch expected_sha; do
             current_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${branch}" --jq '.object.sha')"
