@@ -219,3 +219,48 @@ Windows 11 / Julia 1.12.6 **owner-provided local execution log** for the previou
 **Correction committed:** preserve the independent household-consumption goods check for **interior dates 1:199 only**; separately output `terminal_goods_gap_unconstrained`, `terminal_home_budget_gap_unconstrained`, and `terminal_wealth_gap_unconstrained`. Record `max_goods_market_period` and `max_interior_home_budget_gap` to determine if the 0.263383 gap was all at the endpoint. Do NOT loosen any tolerance, adjust the labor FOC, or change household EGM. Generate new CSV/SVG only after the independent interior GE acceptance gate passes. Regression test deliberately corrupts the T-th reported aggregate consumption and confirms the interior goods residual is unchanged, while the terminal diagnostic responds.
 
 **Verification status:** this newest diagnostic patch is not yet syntax-checked or executed on the owner's Windows PC. It is still unknown whether the maximum interior goods residual meets 1e-4; the new code will report its period. The T=200 root convergence reported above is established for the previous commit, not the patched diagnostic.
+
+
+### 2026-11-02: full Stage 2 independent aggregate GE validation PASSED on owner PC
+
+**Evidence**: Owner-provided Windows 11 / Julia 1.12.6 PowerShell output from commit `15a443508eddadcc30512b89310d74e006d3e061`.
+
+| Item | Observed PC result |
+|---|---:|
+| Recursive Julia syntax check | 26/26 passed |
+| Stage 1 tests | 2420/2420 passed |
+| Stage 2 tests | 37/37 passed |
+| 8-quarter constant-B stationary limit, scaled GE residual | 1.2327219356400576e-7 |
+| 8-quarter interior goods-market discrepancy | 1.797111210954938e-7 |
+| Nonlinear unknowns / transition periods | 399 / 200 |
+| Nonlinear iterations / function evaluations | 7 / 409 |
+| Maximum normalized 399-equation residual | 3.642975265893966e-7 |
+| Maximum independent asset-market level discrepancy | 9.364358355412605e-7 |
+| Maximum independent labor-market level discrepancy | 3.642975265893966e-7 |
+| Maximum interior (t=1,...,199) goods-market discrepancy | 5.52355026384177e-7 (t=1) |
+| Maximum capital accumulation discrepancy | 0 |
+| Maximum household budget discrepancy | 1.3304388854170658e-16 |
+| Maximum probability mass discrepancy | 1.2212453270876722e-14 |
+| Maximum dynamic Euler/KKT violation | 0.005496693743120638 |
+| Probability-weighted mean dynamic Euler/KKT violation | 1.9816793256669015e-5 |
+| Terminal capital discrepancy | 0.42899657754234255 (approximately 1.33% of final K) |
+| Terminal labor discrepancy | 0.0071350035667030465 (approximately 0.70% of final L) |
+| Terminal goods discrepancy (not an additional market equation) | -0.2633831568791398 |
+| Terminal home-budget discrepancy (not an additional market equation) | -0.2633831568791398 |
+| Terminal wealth discrepancy (not an additional market equation) | -0.4294718146260834 |
+
+**Decision**: The full 200-quarter, 399-variable nonlinear transition root and independent **interior** asset, labor, and goods-market checks have passed the implemented acceptance criteria. The earlier maximum goods discrepancy of 0.263383 was entirely in the T=200 terminal diagnostic, not the interior markets: max interior goods discrepancy is only 5.52e-7. Terminal conditions remain approximation diagnostics; they must not be described as exactly reached. The dynamic maximum Euler residual exceeds the earlier 1e-6 policy target and remains an accuracy limitation.
+
+Owner's PC successfully generated `results/stage2_transition_expansion.csv`, `results/stage2_equilibrium_diagnostics.csv`, `results/stage2_solver_log.txt` and the three SVG files. **Their new bytes are on the owner's local PC and are NOT yet in the GitHub branch.** Previous GitHub `results/stage2_solver_log.txt` is a stale failure log until explicitly replaced.
+
+### Original Figure 1–3 source mapping audit
+
+Authors' `Figures.m` (public GitHub source, lines 21–195) was re-read after the accepted Windows run:
+
+- Figure 1 plots `-0.25*shock_b_agg/aggregates_initial.y` for the expansion plus an unanticipated contraction path. Current Stage 2 SVG correctly limits its scope to the expansion component; it is **not** a complete Figure 1 replication.
+- Figure 2 plots home and foreign consumption, output as `100*(log(variable)-log(initial))`; investment uses `100*(I-Iinitial)/Iinitial`. The current SVG plot formulas follow these transformations.
+- Figure 3 plots terms of trade, real wage, inverse terms of trade as the nominal exchange rate in log percentage deviations, and the quarterly real interest rate in percentage **levels** with an initial-SS point. The current SVG plot formulas follow these definitions.
+- The author source fixes panel axis ranges and adds vertical markers at the shock date. The Julia SVG currently uses automatic axis ranges, so visual presentation is not an exact typographical copy.
+- The author's root repository includes `transition_start.mat` but no committed `solution_figures.mat`. This inspection does not establish quantitative equality of Julia trajectories to the author's MATLAB trajectories. Generated SVG content has not yet been visually inspected by the assistant (local files not uploaded).
+
+**Stage 2 aggregate-equilibrium implementation: locally validated. Figure 1 complete replication: not done (later unexpected contraction is outside Stage 2). Figure 2–3 source variable/normalization correspondence: audited. Quantitative author-series agreement: not verified. Full household Euler precision target: not met.**
