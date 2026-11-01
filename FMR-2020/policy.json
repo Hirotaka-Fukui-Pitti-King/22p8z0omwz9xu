@@ -57,7 +57,8 @@
       "scripts/check_syntax.jl",
       "scripts/smoke_test.jl",
       "scripts/run_steady_states.jl",
-      "docs/STAGE1_AUDIT.md"
+      "docs/STAGE1_AUDIT.md",
+      "scripts/grid_refinement.jl"
     ],
     "julia_source_created": true,
     "julia_project_created": true,
@@ -359,6 +360,7 @@
     "julia --project=. scripts/check_syntax.jl",
     "julia --project=. scripts/smoke_test.jl",
     "julia --project=. test/runtests.jl",
-    "julia --project=. scripts/run_steady_states.jl"
+    "julia --project=. scripts/run_steady_states.jl",
+    "julia --project=. scripts/grid_refinement.jl"
   ]
 }

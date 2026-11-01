@@ -83,6 +83,7 @@ julia --project=. scripts/check_syntax.jl
 julia --project=. scripts/smoke_test.jl
 julia --project=. test/runtests.jl
 julia --project=. scripts/run_steady_states.jl
+julia --project=. scripts/grid_refinement.jl
 ```
 
 最初に構文検査を実行し、失敗した場合はそこで止めてログを共有してください。パッケージ依存を含む実行環境を確定する場合は`julia --project=. -e 'using Pkg; Pkg.instantiate()'`を別途実行します。Stage 1のホットパスはBaseのみを利用し、外部パッケージのAPI・UUIDを推測して導入していません。実際のProject/Manifestは本人の実行環境で確定し、Manifestを生成した場合は記録してください。
