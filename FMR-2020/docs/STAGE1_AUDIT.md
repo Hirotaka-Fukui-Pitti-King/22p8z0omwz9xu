@@ -64,3 +64,36 @@ Windows Julia 1.12.6 result supplied by the user:
 - **Correction committed**: interpolate the *coarse savings policy* with shape-preserving Hermite instead; derive fine-grid consumption exactly from budget, and fail on any remaining infeasible saving/consumption (no tolerance relaxation, no clipping). Report max fine budget error and minimum fine saving. Add direct regression on (61,241) and (193,769) grids at beta=0.980.
 - **Status**: patch is NOT YET verified on the owner's PC. EGM solution, distribution, beta calibration and all three steady-state equilibrium outcomes remain unverified after the patch. The new savings interpolation differs from author code's consumption interpolation, so its numerical effect on asset demand and the original paper's calibration must be checked by grid refinement and comparison.
 
+
+## 2026-11-02: second user-PC run, rate-bracketing failure
+
+The borrowing-limit interpolation repair was verified on the owner's Windows
+PC with Julia 1.12.6:
+- Meta.parseall: 14/14 files successful.
+- Smoke EGM/distribution: successful, 1436 and 1565 iterations respectively.
+- Unit tests: 157/157 passed.
+- Grid refinement: completed without violating borrowing constraints.
+  Asset demands: 61/241=25.64759695956763; 97/385=25.401319414404544;
+  193/769=25.246929207836487. These are fixed-beta/price evaluations,
+  **not equilibria**, and convergence to a grid limit has not been established.
+- Full three-steady-state run: beta calibration progressed, but the first
+  interest-rate root solve failed with "fine-grid policy exceeds distribution
+  grid upper bound"; reported chosen savings 29688.016202460338.
+- Source-level cause: the current bisection evaluated the fixed high endpoint
+  near 1/beta−1, where high-wealth households can prefer savings outside
+  the finite asset grid. This is not evidence that an interior equilibrium root
+  does not exist. Artificially truncating their policy would distort asset
+  market residuals.
+
+**Committed repair**: root bracketing anchored at ref.r, scanning nearby
+candidate rates for a genuine sign change and only skipping the specifically
+identified non-feasible *upper-grid* exploratory points. Other economic and
+numerical failures propagate. Root computation uses ordinary bracketed
+bisection only after a valid pair has been found. If none is feasible, raise
+an error reporting the explored interval and number of excluded candidates.
+No savings clipping and no looser tolerances. Add mock-root regression and
+stage-by-stage progress diagnostics.
+
+**Status**: latest patch syntax and execution UNVERIFIED pending Windows-PC
+rerun; the accepted 157 tests refer to the previous commit. No claim about
+the existence or values of the three stationary equilibria is made yet.

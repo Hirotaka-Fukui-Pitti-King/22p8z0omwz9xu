@@ -36,6 +36,28 @@ using FMR2020
         end
     end
 
+    @testset "Feasible interior interest-rate bracketing" begin
+        # Regression: a fixed upper endpoint fails for an unrelated rate even
+        # when a root exists at a perfectly feasible interior value.
+        function restricted_residual(r::Float64)
+            r > 0.014 && throw(DomainError(r,
+                "fine-grid policy exceeds distribution grid upper bound"))
+            return r-0.011
+        end
+        bracket = FMR2020.equilibrium_rate_bracket(restricted_residual,
+                                                    0.010,0.0,0.017;
+                                                    tolerance=1e-12)
+        @test bracket.lower <= 0.011 <= bracket.upper
+        result = FMR2020.bracketed_root(restricted_residual,
+                                        bracket.lower,bracket.upper;
+                                        tol=1e-12)
+        @test abs(result.root-0.011) < 1e-9
+        @test_throws ArgumentError FMR2020.equilibrium_rate_bracket(
+            r->r+1.0,0.01,0.0,0.017;maximum_steps=4)
+        @test_throws DomainError FMR2020.equilibrium_rate_bracket(
+            r->throw(DomainError(r,"unexpected economic error")),0.01,0.0,0.017)
+    end
+
     @testset "Scalar root and labor closure" begin
         result = FMR2020.bracketed_root(x->x^2-2,1.0,2.0;tol=1e-10)
         @test abs(result.root-sqrt(2)) < 1e-9

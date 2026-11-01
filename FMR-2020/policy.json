@@ -46,7 +46,7 @@
     }
   ],
   "current_status": {
-    "phase": "stage1_fix_fine_grid_borrowing_pending_local_verification",
+    "phase": "stage1_fixed_rate_bracketing_pending_windows_local_retest",
     "files_written": [
       "README.md",
       "ALGORITHM.md",
@@ -74,23 +74,25 @@
     "full_stage1_acceptance_pending": true,
     "latest_local_evidence": {
       "julia_version": "1.12.6",
-      "syntax_parse_files": 14,
-      "syntax_passed": true,
-      "smoke_passed": true,
-      "unit_test_passed": 68,
-      "unit_test_total": 68,
-      "full_three_steady_states_passed": false,
-      "grid_refinement_passed": false,
-      "full_three_steady_states_failure": "DomainError: fine-grid savings -9.862788178216508e-6 below borrowing limit",
-      "grid_refinement_failure": "DomainError: fine-grid savings -1.0261942101019716e-5 below borrowing limit"
+      "syntax_verified_previous_commit": true,
+      "syntax_files": 14,
+      "smoke_passed_previous_commit": true,
+      "tests_passed_previous_commit": 157,
+      "tests_total_previous_commit": 157,
+      "steady_states": "FAILED during GE interest-rate bracketing due to top asset grid at 29688.016202460338",
+      "grid_refinement": "PASS; grid sensitivity not converged",
+      "asset_supply_fixed_beta_prices_61_241": 25.64759695956763,
+      "asset_supply_fixed_beta_prices_97_385": 25.401319414404544,
+      "asset_supply_fixed_beta_prices_193_769": 25.246929207836487
     },
     "latest_patch_locally_verified": false,
-    "syntax_verified_scope": "previous commit; latest patch not yet parsed locally",
-    "runtime_verified_scope": "previous commit smoke/unit tests; latest patch not yet executed locally",
+    "syntax_verified_scope": "Previous (157-test) version only; new branch commit untested",
+    "runtime_verified_scope": "Previous (157-test) version only; GE remains unverified",
     "bugfix_pending": [
-      "fine-grid household policy now interpolates savings not consumption",
-      "new regression tests beta=0.980 at coarse/fine sizes 61/241 and 193/769",
-      "record fine-budget and savings-min diagnostics"
+      "safeguarded GE rate bracket begins at reference r",
+      "do not evaluate invalid full high endpoint prematurely",
+      "root failure reports tested feasible interval",
+      "no savings clipping/no tolerance relaxation"
     ]
   },
   "scope": {
