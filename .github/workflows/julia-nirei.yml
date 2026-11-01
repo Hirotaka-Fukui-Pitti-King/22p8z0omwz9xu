@@ -47,6 +47,9 @@ jobs:
       - name: Stage 8 conditional investment wedge (benchmark N, five states)
         timeout-minutes: 90
         run: julia --project=. scripts/diagnostic_investment_wedge.jl 501 110000 20261101 32 100
+      - name: Stage 10 original t5 fixed-point and feasibility diagnostic (benchmark N)
+        timeout-minutes: 30
+        run: julia --project=. scripts/diagnostic_equilibrium_feasibility.jl 110000 20261101 32
       - name: Firm simulation integration smoke (benchmark N, 20 periods)
         run: |
           julia --project=. scripts/run_benchmark.jl 20 110000 20261101
@@ -64,3 +67,5 @@ jobs:
             Nirei-2015/results/diagnostic_capital_closure_*.toml
             Nirei-2015/results/diagnostic_investment_wedge_*.csv
             Nirei-2015/results/diagnostic_investment_wedge_*.toml
+            Nirei-2015/results/diagnostic_equilibrium_feasibility_*.csv
+            Nirei-2015/results/diagnostic_equilibrium_feasibility_*.toml
