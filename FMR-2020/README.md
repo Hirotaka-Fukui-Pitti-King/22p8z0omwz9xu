@@ -134,6 +134,35 @@ julia --project=. scripts/stage1_recalibrated_grid.jl
 
 [Stage 1 数式・較正監査](docs/STAGE1_AUDIT.md) を参照してください。
 
+
+## Stage 2: Nonlinear transition implementation (source committed; PC test pending)
+
+Stage 2 branch: research/fmr-2020-stage2-flexible-transition, based on Stage 1 branch.
+
+The implementation contains the complete Julia source for the original nonlinear foreign-borrowing expansion with T=200 quarters and 399 K/L unknowns: transition_prices.jl, transition_household.jl, transition_distribution.jl, transition_equilibrium.jl, transition_diagnostics.jl. It reconstructs all prices and investment, performs backward EGM, moves household distributions forward for each aggregate guess, solves the full nonlinear market-clearing system, independently verifies residuals, and exports Figures 1–3 as SVG.
+
+Official numerical reference: authors' Main.m, MIT_transition.m, Transition/solve_transition_bis.m, Transition/backsolve_egm.m, Figures.m. Refer to docs/STAGE2_AUDIT.md for exact indexing and departures in numerical optimizer. Stage 1 steady-state code was not modified.
+
+**Critical source discrepancy:** The authors' transition labor condition omits the 1/varphi power present in the stationary model's union FOC (varphi=0.5). The Julia implementation follows the published author transition code to enable numerical comparison, but explicitly reports the implied stationary-limit mismatch. Do not silently correct the original author result or call a failed stationary-limit test a pass.
+
+**Trade price:** With theta=1, the scalar trade-price equation used by the authors has an exact positive analytical root. The implementation solves this same economic equation directly; the general-equilibrium unknown vector remains the authors' K/L path.
+
+**Figure 1 caveat:** The published Figure 1 includes both the credit expansion and a later unexpected credit contraction. Stage 2 only implements the expansion, and the resulting SVG is explicitly labeled partial; Figures 2 and 3 cover the expansion.
+
+Windows PowerShell run order (execution must take place only on the owner's PC):
+
+    Set-Location C:\github\22p8z0omwz9xu
+    git fetch origin
+    git switch research/fmr-2020-stage2-flexible-transition
+    git pull --ff-only
+    Set-Location FMR-2020
+    julia --project=. scripts/check_syntax.jl
+    julia --project=. test/runtests.jl
+    julia --project=. scripts/validate_transition.jl
+    julia --project=. scripts/run_transition_expansion.jl
+
+Source, syntax, tests, 200-quarter convergence, and SVG output of these new Julia files are **not yet verified on the owner's PC**. A successful Stage 1 run must not be represented as Stage 2 validation. The full run writes stage2_transition_expansion.csv, stage2_equilibrium_diagnostics.csv, stage2_solver_log.txt, and figure_1.svg through figure_3.svg under results/ only after convergence; an unsuccessful root writes a failure log and raises an exception.
+
 ## 成功基準と公開物
 
 次をすべて満たす場合のみ「Figure 1–5再現成功」と記録します。

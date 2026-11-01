@@ -46,7 +46,7 @@
     }
   ],
   "current_status": {
-    "phase": "stage1_author_egm_three_steady_states_solved_euler_accuracy_pending",
+    "phase": "stage2_transition_source_authored_pending_owner_pc_validation",
     "files_written": [
       "README.md",
       "ALGORITHM.md",
@@ -137,7 +137,13 @@
       "recalibrated GE grid sensitivity under author-only EGM not yet rerun"
     ],
     "methodology_decision": "Only author stationary EGM: direct fine-grid interpolation of endogenous consumption knots; constrained next-period savings at borrowing floor; no optional alternate interpolation.",
-    "latest_local_evidence_context": "Existing local GE and Euler numbers refer to previous coarse-saving interpolation, not the latest algorithm"
+    "latest_local_evidence_context": "Existing local GE and Euler numbers refer to previous coarse-saving interpolation, not the latest algorithm",
+    "stage2_source_created": true,
+    "stage2_syntax_verified": false,
+    "stage2_runtime_verified": false,
+    "stage2_equilibrium_verified": false,
+    "stage2_figures_generated": false,
+    "stage2_paper_replication_verified": false
   },
   "scope": {
     "first_milestone": "Figures 1–5",
@@ -268,7 +274,7 @@
     {
       "id": "credit_expansion",
       "target": "nonlinear transition and Figures 1–3",
-      "status": "planned"
+      "status": "julia_source_committed_pending_windows_pc"
     },
     {
       "id": "surprise_stop",
@@ -320,7 +326,7 @@
         "terminal sensitivity",
         "IRF comparison"
       ],
-      "state": "not_started"
+      "state": "julia_source_authored_unverified"
     },
     {
       "id": "G4",
@@ -430,5 +436,53 @@
     "julia --project=. test/runtests.jl",
     "julia --project=. scripts/run_steady_states.jl",
     "julia --project=. scripts/grid_refinement.jl"
-  ]
+  ],
+  "stage2": {
+    "branch": "research/fmr-2020-stage2-flexible-transition",
+    "base_branch": "research/fmr-2020-stage1-steady-state",
+    "scope": "first unexpected borrowing expansion only",
+    "nonlinear_unknowns": 399,
+    "horizon_quarters": 200,
+    "source_modules": [
+      "transition_prices.jl",
+      "transition_household.jl",
+      "transition_distribution.jl",
+      "transition_equilibrium.jl",
+      "transition_diagnostics.jl"
+    ],
+    "scripts": [
+      "scripts/validate_transition.jl",
+      "scripts/run_transition_expansion.jl",
+      "scripts/plot_figures_1_3.jl"
+    ],
+    "test": "test/test_stage2.jl",
+    "required_julia_standard_library": {
+      "LinearAlgebra": "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+    },
+    "solver": "damped dense finite-difference Broyden/Newton, nonconvergent results rejected",
+    "user_pc_only_execution": true,
+    "syntax_verified": false,
+    "runtime_verified": false,
+    "root_converged": false,
+    "figures_generated": false,
+    "figure1_partial": true,
+    "author_code_labor_exponent_mismatch": "Author transition omits exponent 1/varphi; retained for source reproduction, not hidden",
+    "root_tol_scaled": 0.000001,
+    "diagnostic_level_tolerances": {
+      "asset": 0.0001,
+      "labor": 0.0001,
+      "goods": 0.0001,
+      "probability_mass": 1e-8,
+      "terminal_relative": 0.02
+    },
+    "expected_outputs": [
+      "results/stage2_transition_expansion.csv",
+      "results/stage2_equilibrium_diagnostics.csv",
+      "results/stage2_solver_log.txt",
+      "results/figure_1.svg",
+      "results/figure_2.svg",
+      "results/figure_3.svg"
+    ],
+    "author_source_audit": "docs/STAGE2_AUDIT.md"
+  }
 }

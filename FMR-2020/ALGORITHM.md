@@ -250,6 +250,21 @@ Section 7は定常経済から22%の外国信用収縮、半減期5四半期で�
 
 各Gateは、利用したコミットSHA、Julia実行環境（Project/Manifest）、実行ログ、数値残差、原著比較表、画像ファイル名、既知の不一致、未確認点を保存する。論文との差分を説明できないまま「再現済み」と書かない。
 
+
+## Stage 2 implemented timing and numerical workflow
+
+The code maps authors' TT=200 and XX to K[1]=initial.K, K[2:T]=XX[1:T-1], L[1:T]=XX[T:2T-1], with unknown dimension 2T−1=399. The exogenous B[t] is the end-period foreign bond supply. q[t]=1+phi_ac*(I[t]/K[t]−delta) for t<T, q[T]=1, and r[t]=(rK[t]+(1−delta)*q[t])/q[t−1]−1 with q[0]=1. Financial wealth ends each interior period at q[t]*K[t+1]+B[t]; the terminal period uses K_final+B[T]. Firms distribute profits Y/epsilon_f plus investment-firm profits (q−1)*I−Psi.
+
+The trade-price scalar condition equates home consumption implied by the aggregate budget with Y−I−Psi−D*x^(−theta_star). Under calibrated theta=1 it has a closed-form positive root and need not be solved with a separate scalar iterative solver. The terminal goods equation follows the author's special penultimate-investment convention.
+
+Backward EGM starts from the final stationary consumption policy, uses r[t+1] in Euler and r[t] in the current budget, and interpolates consumption directly from endogenous EGM asset nodes. Forward household simulation begins from the initial stationary distribution and updates both individual wealth and productivity.
+
+The 399-equation residual consists of T−1 capital/asset clearing equations and T union-labor equations. A damped Newton/Broyden solver with finite-difference Jacobian and periodic refresh solves the full nonlinear system; each residual call recomputes the household policies and distribution. Independent residuals are reported in economic units, not merely normalized units. Full convergence and source figure agreement are not yet verified.
+
+The author transition labor residual does not include the 1/varphi power implied by the steady-state labor FOC. It is kept for author-code numerical replication, but stationary-limit discrepancies are explicitly diagnosed. See docs/STAGE2_AUDIT.md.
+
+No Julia execution has been run in the assistant environment; new Stage 2 syntax and numeric results are unverified until owner Windows logs are provided.
+
 ## 19. 後続の論文・アルゴリズム参考文献
 
 - de Ferra, Mitman, Romei (2020), JIE 124, 103303, Sections 2–7, Figures 1–14（研究対象）。
