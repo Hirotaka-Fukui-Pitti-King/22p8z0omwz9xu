@@ -46,7 +46,7 @@
     }
   ],
   "current_status": {
-    "phase": "stage2_399_nonlin_ge_and_independent_interior_markets_passed_author_figures_unverified",
+    "phase": "stage3_foreign_debt_sudden_stop_and_fixed_exchange_source_authored_pending_windows_pc",
     "files_written": [
       "README.md",
       "ALGORITHM.md",
@@ -146,7 +146,14 @@
     "stage2_paper_replication_verified": false,
     "stage2_latest_patch_locally_verified": true,
     "stage2_julia_syntax_verified_scope": "26/26 Julia files on owner Windows Julia 1.12.6 after terminal-vs-interior audit",
-    "stage2_julia_runtime_verified_scope": "2420 Stage1 + 37 Stage2 unit tests, calibrated shock-free limit, full 200-quarter 399-variable nonlinear GE, independent market tests and SVG generation"
+    "stage2_julia_runtime_verified_scope": "2420 Stage1 + 37 Stage2 unit tests, calibrated shock-free limit, full 200-quarter 399-variable nonlinear GE, independent market tests and SVG generation",
+    "stage3_source_committed": true,
+    "stage3_syntax_verified": false,
+    "stage3_runtime_verified": false,
+    "stage3_399_flexible_ge_solved": false,
+    "stage3_599_fixed_ge_solved": false,
+    "stage3_figures_generated": false,
+    "stage3_author_numeric_match_verified": false
   },
   "scope": {
     "first_milestone": "Figures 1–5",
@@ -588,5 +595,62 @@
       "figure_source_matched_transformations": true,
       "figure_numerical_author_series_matched": false
     }
+  },
+  "stage3": {
+    "branch": "research/fmr-2020-stage3-sudden-stop-exchange-regimes",
+    "base": "research/fmr-2020-stage2-flexible-transition",
+    "objective": "unexpected credit reversal at author shock_start_t=41 with foreign-currency household debt and fixed-vs-flexible exchange rates",
+    "horizon": 200,
+    "dimensions": {
+      "flexible": 399,
+      "fixed": 599
+    },
+    "shock_quarter": 41,
+    "leverage_hat": 0.0625,
+    "theta_nr": 100,
+    "original_source_audit": [
+      "Main.m",
+      "MIT_transition.m",
+      "Transition/solve_transition_bis.m",
+      "Transition/solve_transition_fixed.m",
+      "Transition/backsolve_egm.m",
+      "Figures.m"
+    ],
+    "implementation_modules": [
+      "src/foreign_debt_revaluation.jl",
+      "src/sudden_stop_equilibrium.jl",
+      "src/transition_fixed_exchange.jl",
+      "src/stage3_figures.jl"
+    ],
+    "runnable_scripts": [
+      "scripts/run_sudden_stop.jl",
+      "scripts/validate_sudden_stop.jl",
+      "scripts/plot_figures_1_4_5.jl"
+    ],
+    "tests": [
+      "test/test_stage3.jl"
+    ],
+    "stage2_baseline_correction": "recompute credit expansion foreign=true even with B_initial=0; negative wealth households may have foreign debt",
+    "revaluation_method": "source leverage and household gross capital/bond mapping, valuation via terms_pre/terms_new, full fine wealth grid, no positive-mass clipping",
+    "fixed_equilibrium": "399 macro K/L plus 200 endogenous terms of trade, backward Rotemberg NKPC, all goods constraints",
+    "source_discrepancy": "original solve_transition_fixed.m has stale capital-adjustment indexing and double-negative nominal resource cost; Julia uses economically consistent signs/indexing, explicitly not exact source-line match",
+    "owner_windows_julia_only": true,
+    "runtime_checked": false,
+    "syntax_checked": false,
+    "full_equilibria_solved": false,
+    "figures_generated": false,
+    "comparison_with_author_series_verified": false,
+    "results_expected": [
+      "stage3_credit_reversal.csv",
+      "stage3_corrected_expansion.csv",
+      "stage3_flexible_transition.csv",
+      "stage3_fixed_transition.csv",
+      "stage3_household_revaluation.csv",
+      "stage3_equilibrium_diagnostics.csv",
+      "stage3_solver_log.txt",
+      "figure_1.svg",
+      "figure_4.svg",
+      "figure_5.svg"
+    ]
   }
 }
