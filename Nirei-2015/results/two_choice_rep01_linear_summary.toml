@@ -1,0 +1,51 @@
+[first_period]
+K_next = 8.590419357387953
+n_positive = 17
+X = 0.11305740191076478
+capital_residual = 4.849454171562684e-13
+expected_X = 0.1730148671197381
+stable_gap = 0.0
+max_linear_macro_residual = 2.7755575615628914e-17
+n_fixed = 17
+n_investing = 53576
+
+[status]
+requested_periods = 1100
+completed_periods = 1100
+failure = "none"
+completed = true
+
+[diagnostics]
+maximum_abs_stable_gap = 0.0
+maximum_abs_capital_linear_gap = 0.0026674439139583034
+maximum_macro_linear_residual = 1.7763568394002505e-15
+last_capital = 0.0028847244615743776
+
+[moments]
+sd_logL_pct = 106.98621389745031
+corr_Y_C = 0.9999916271928645
+sd_logY_pct = 133.7917933250021
+corr_Y_L = 0.9999877613407671
+corr_Y_K = 0.999976081906568
+sd_logC_pct = 119.55180963792165
+sd_logX_pct = 210.24698180299802
+corr_Y_X = 0.9999220014481424
+sd_logK_pct = 210.09512350239126
+
+[last_period]
+K_next = 0.0028847244615743776
+X = 3.636627996982054e-5
+stable_gap = 0.0
+n_fixed = 3
+mu = 241.22898418315862
+
+[configuration]
+firms = 110000
+selection = "original Section 3.4 ES1 over X>0"
+not_published_2015_replication = true
+model = "book-motivated two-choice kappa in {0,1}"
+macro_variant = "linear"
+burnin = 100
+seed = 20261101
+replication = 1
+continuation = "realized K reanchored to local saddle; log-linear Appendix A variables"
