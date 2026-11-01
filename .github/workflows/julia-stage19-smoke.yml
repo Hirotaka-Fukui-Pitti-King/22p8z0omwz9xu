@@ -1,0 +1,42 @@
+name: Stage 19 two-choice macro comparison (short smoke)
+on:
+  push:
+    paths:
+      - '.github/workflows/julia-stage19-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  julia-stage19-short:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: Nirei-2015
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.12.6'
+      - name: Install and load declared package dependencies
+        run: julia --project=. -e 'using Pkg; Pkg.instantiate(); using Nirei2015'
+      - name: Syntax gate with reserved-word regression
+        run: julia --project=. scripts/check_julia_syntax.jl
+      - name: Independent 2-choice small-N and Appendix A oracle
+        run: julia --project=. scripts/run_two_choice.jl --smoke
+      - name: Hybrid six-period regression
+        run: julia --project=. scripts/run_two_choice.jl 6 110000 20261101 1 hybrid
+      - name: Linear continuation 20-period test
+        run: |
+          julia --project=. scripts/run_two_choice.jl 20 110000 20261101 1 linear
+          julia --project=. -e 'using TOML; x=TOML.parsefile("results/two_choice_rep01_linear_summary.toml"); @assert x["status"]["completed"] && x["status"]["completed_periods"] == 20; @assert x["diagnostics"]["maximum_macro_linear_residual"] < 1e-10; @assert x["diagnostics"]["maximum_abs_stable_gap"] < 1e-10'
+      - name: Preserve short-run comparison results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nirei-stage19-two-choice-short
+          if-no-files-found: warn
+          path: |
+            Nirei-2015/results/two_choice_rep01_hybrid.csv
+            Nirei-2015/results/two_choice_rep01_hybrid_summary.toml
+            Nirei-2015/results/two_choice_rep01_linear.csv
+            Nirei-2015/results/two_choice_rep01_linear_summary.toml
