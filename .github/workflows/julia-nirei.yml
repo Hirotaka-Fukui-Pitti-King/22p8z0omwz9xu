@@ -44,6 +44,9 @@ jobs:
       - name: Exact CES capital and rational expectations closure audit (benchmark N)
         timeout-minutes: 90
         run: julia --project=. scripts/diagnostic_capital_closure.jl 1100 110000 20261101 100
+      - name: Stage 8 conditional investment wedge (benchmark N, five states)
+        timeout-minutes: 90
+        run: julia --project=. scripts/diagnostic_investment_wedge.jl 501 110000 20261101 32 100
       - name: Firm simulation integration smoke (benchmark N, 20 periods)
         run: |
           julia --project=. scripts/run_benchmark.jl 20 110000 20261101
@@ -59,3 +62,5 @@ jobs:
             Nirei-2015/results/diagnostic_shock_rejection_counterfactual_*.toml
             Nirei-2015/results/diagnostic_capital_closure_*.csv
             Nirei-2015/results/diagnostic_capital_closure_*.toml
+            Nirei-2015/results/diagnostic_investment_wedge_*.csv
+            Nirei-2015/results/diagnostic_investment_wedge_*.toml
