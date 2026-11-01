@@ -264,3 +264,32 @@ Authors' `Figures.m` (public GitHub source, lines 21–195) was re-read after th
 - The author's root repository includes `transition_start.mat` but no committed `solution_figures.mat`. This inspection does not establish quantitative equality of Julia trajectories to the author's MATLAB trajectories. Generated SVG content has not yet been visually inspected by the assistant (local files not uploaded).
 
 **Stage 2 aggregate-equilibrium implementation: locally validated. Figure 1 complete replication: not done (later unexpected contraction is outside Stage 2). Figure 2–3 source variable/normalization correspondence: audited. Quantitative author-series agreement: not verified. Full household Euler precision target: not met.**
+
+
+### Actual Stage 2 artifacts inspected on GitHub (after owner push)
+
+The owner pushed the successful Windows-run result files to the branch, which were incorporated through merge commit `948d88cd85fdb9f2113f40e0eb8852701b67ddf9`. This **supersedes the earlier claim** that the updated CSV/SVG files were only on the user's PC. Verified public branch files now include:
+
+- `results/stage2_transition_expansion.csv` (200 quarterly observations; 23 columns)
+- `results/stage2_equilibrium_diagnostics.csv`
+- `results/stage2_solver_log.txt` (updated successful solver log)
+- `results/figure_1.svg`, `results/figure_2.svg`, `results/figure_3.svg`.
+
+Independent CSV inspection confirmed the logged market residuals, as well as the source-derived Figure 2–3 transformations. Initial stationary values from `results/stage1_steady_states.csv` were used as denominators. The **first simulated quarter** (CSV quarter=0; the plotted image places it at horizontal tick=1 after the initial steady-state anchor) has:
+
+| Series, original figure's definition | First simulated quarter |
+|---|---:|
+| Home-good consumption, 100 × log ratio to initial SS | +4.96294% |
+| Foreign-good consumption, 100 × log ratio to initial SS | +11.72675% |
+| Output, 100 × log ratio to initial SS | -2.09740% |
+| Investment, 100 × level percentage difference | +7.29389% |
+| Terms of trade, 100 × log ratio | +6.76381% |
+| Real wage, 100 × log ratio | +1.03305% |
+| Nominal exchange rate, 100 × log ratio | -6.76381% |
+| Real interest rate, quarterly percentage level | 3.49331% |
+
+At CSV quarter=99 (outside the first 100 *plotted* points because the image inserts the initial stationary point), domestic consumption is +0.48385%, foreign consumption -1.76878%, output +4.74383%, investment +12.39952% relative to initial SS; terms of trade -2.25263%; wage +2.21410%; nominal exchange +2.25263%; interest 0.95469% per quarter.
+
+**Terminal caution from the actual CSV**: between quarters 198 and 199, terms of trade jump from 0.9821022495 to 0.9131088404, whereas capital remains near 31.837. This is a T-th boundary approximation associated with the reported terminal goods and wealth gaps, not a regular interior market-clearing outcome. The first 100 plotting points do not include this terminal observation.
+
+Original `Figures.m` panel definitions and scaling agree with the plotted Julia formulas. The original Figure 1 includes a later surprise contraction, which Stage 2 does not implement. The original `Figures.m` uses fixed y-axis ranges while the Julia SVG uses dynamic ranges. The **exact original numerical response paths are not supplied in the author's public repository** (the main branch has `transition_start.mat` but not `solution_figures.mat`), so matching the source panel variables is **not** confirmation of numerical equality to the paper. The SVG files were fetched and verified as files/XML, but no graphical rendering inspection was completed in the assistant environment. Keep quantitative paper-figure replication marked as unverified.

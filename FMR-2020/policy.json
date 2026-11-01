@@ -542,7 +542,7 @@
       "terminal_labor_relative_percent": 0.6979510722794766,
       "independent_interior_asset_labor_goods_pass": true,
       "local_outputs_created": true,
-      "current_output_bytes_not_pushed_to_github": true,
+      "current_output_bytes_not_pushed_to_github": false,
       "original_figures_quantitative_match_unverified": true
     },
     "author_endpoint_audit": "Author's backsolve_egm aggregates consumption only for dates 1:T-1; solve_transition_bis duplicates last interior C for terminal labor. Distinct T-th goods condition is absent.",
@@ -557,6 +557,36 @@
       "author_numeric_data": "solution_figures.mat not committed in author root repository",
       "local_svg_visual_inspection": "not performed; source mapping only"
     },
-    "expected_outputs_ownership": "generated on owner PC; GitHub branch still has old stage2_solver_log.txt until owner pushes new output files"
+    "expected_outputs_ownership": "successfully pushed to GitHub branch in owner local commit and merged; verified stage2 CSV and three SVG now present",
+    "actual_github_outputs_verified": true,
+    "actual_github_output_files": [
+      "results/stage2_transition_expansion.csv",
+      "results/stage2_equilibrium_diagnostics.csv",
+      "results/stage2_solver_log.txt",
+      "results/figure_1.svg",
+      "results/figure_2.svg",
+      "results/figure_3.svg"
+    ],
+    "actual_csv_review": {
+      "rows": 200,
+      "first_simulated_quarter": {
+        "home_consumption_log_percent": 4.962940772368715,
+        "foreign_consumption_log_percent": 11.726751131800382,
+        "output_log_percent": -2.097401901584485,
+        "investment_percent": 7.293890104720591,
+        "terms_log_percent": 6.763810359431699,
+        "real_wage_log_percent": 1.0330486977953555,
+        "nominal_exchange_log_percent": -6.763810359431681,
+        "real_interest_rate_quarterly_percent": 3.4933071948056504
+      },
+      "terminal": {
+        "terms_prev": 0.9821022495012824,
+        "terms_final": 0.9131088404327626,
+        "goods_gap_unconstrained": -0.2633831568791398,
+        "wealth_gap_unconstrained": -0.4294718146260834
+      },
+      "figure_source_matched_transformations": true,
+      "figure_numerical_author_series_matched": false
+    }
   }
 }
