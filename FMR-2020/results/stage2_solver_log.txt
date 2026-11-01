@@ -1,0 +1,28 @@
+Stage 2 nonlinear solver
+Julia version: 1.12.6
+Project: C:\github\22p8z0omwz9xu\FMR-2020\Project.toml
+Root converged: true
+Independent interior GE accepted: true
+Iterations: 7
+Residual evaluations: 409
+Maximum scaled 399-equation residual: 3.642975265893966e-7
+Authors' terminal consumption and wealth are boundary approximations, not extra T-th market equations.
+The terminal goods/budget gaps are REPORTED but not used in the 1:T-1 goods market gate.
+max_asset_market_level = 9.364358355412605e-7
+max_labor_market_level = 3.642975265893966e-7
+max_goods_market_level = 5.52355026384177e-7
+max_goods_market_period = 1
+max_interior_home_budget_gap = 5.523550266062216e-7
+terminal_goods_gap_unconstrained = -0.2633831568791398
+terminal_home_budget_gap_unconstrained = -0.2633831568791398
+terminal_wealth_gap_unconstrained = -0.4294718146260834
+max_capital_accumulation = 0.0
+max_household_budget = 1.3304388854170658e-16
+max_probability_mass_deviation = 1.2212453270876722e-14
+max_dynamic_euler = 0.005496693743120638
+weighted_mean_dynamic_euler = 1.9816793256669015e-5
+terminal_capital_gap = 0.42899657754234255
+terminal_labor_gap = 0.0071350035667030465
+max_scaled_solver_residual = 3.642975265893966e-7
+iterations = 7
+evaluations = 409

@@ -205,3 +205,6 @@ using FMR2020
         end
     end
 end
+
+# Stage 2: live price, backward EGM, forward distribution and asset/labor residuals
+include("test_stage2.jl")
