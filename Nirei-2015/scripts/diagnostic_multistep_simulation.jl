@@ -40,7 +40,8 @@ function stage13_period_row(rec::PeriodRecord, n::Int)
     )
 end
 
-function stage13_multistep_step!(state::SimulationState, J::Int)
+function stage13_multistep_step!(state::SimulationState, J::Int;
+                                  require_original_t5::Bool=false)
     J>=2 || error("Stage 13 multi-step step requires J>=2")
     t=state.period
     kp=state.K
@@ -85,7 +86,7 @@ function stage13_multistep_step!(state::SimulationState, J::Int)
 
     # Regression: original J=1 path through t=4 and the UNCHANGED t=5
     # productivity profile must reproduce Stage12's exact J=2 equilibrium.
-    if J==2 && t==5 && state.base_seed==20261101 &&
+    if require_original_t5 && J==2 && t==5 && state.base_seed==20261101 &&
        state.replication==1 && length(state.firms.capital)==110000
         isapprox(root.K,STAGE13_REFERENCE_K5;atol=2e-9,rtol=1e-10) ||
             error("original t5 Stage12 J=2 capital regression failed")
@@ -197,7 +198,8 @@ function stage13_single_experiment(experiment::String,T::Int,N::Int,seed::Int)
                 period=simulate_period!(state)
                 stage13_period_row(period,N)
             else
-                stage13_multistep_step!(state,2)
+                stage13_multistep_step!(state,2;
+                    require_original_t5=(experiment=="A" && t==5))
             end
             row["experiment"]=experiment
             push!(rows,row)
