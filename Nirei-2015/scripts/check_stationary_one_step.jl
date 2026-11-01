@@ -1,3 +1,5 @@
+using Nirei2015
+
 """
 Single, deliberately exogenous-K one-period test of the stationary-gap
 assumption in Nirei (2015), Section 2.6 and Appendix C.
@@ -6,8 +8,6 @@ Keep both firm policies and productivity draws exactly as in the original
 three-choice code. This does NOT solve a finite-N GE fixed point or ES1.
 Run locally: julia --project=. scripts/check_stationary_one_step.jl 110000 20261101
 """
-using Nirei2015
-
 function check_stationary_one_step(N::Int, seed::Int)
     N > 0 || throw(ArgumentError("N must be positive"))
     seed >= 0 || throw(ArgumentError("seed must be nonnegative"))
