@@ -61,3 +61,34 @@ julia --project=. scripts/run_benchmark.jl 6 110000 20261101 capital_fallback
 ## Model choices not made
 
 No changes to the **published three investment choices** `κ∈{-1,0,+1}`; no change to productivity/λ distributions, initial firms, aggregate capital fixed-point solver, investment floors, or seeds. The new capital rule is an explicit **opt-in fallback**, not a silent rewrite of §3.4.
+
+## New experiment: ALL-capital fixed-point selection (requested change)
+
+An explicit `selection_mode=:capital_all` now applies Nirei (2015), §2.3 Definition 1, **at every period**, not just when X<=0. Given the originally enumerated set of all self-consistent three-choice finite-N capital fixed points `{(K_j,X_j)}`, the selected index is
+
+```text
+j* = argmin_j abs(log(K_j) - log(Kstar)),
+Kstar = (1-delta)*K_prior + (A^(rho-1)/rho)*X_expected.
+```
+
+The physical signed X_j remains unchanged; X<=0 is not a rejection condition. This is unlike `:capital_fallback`, which first tries the §3.4 investment-log choice when a positive-X root exists. It also differs from `:original`, which *always* applies §3.4 on positive-X roots and aborts if none exists.
+
+**Important**: All three selectors share the identical original investment choices `{-1,0,+1}`, input productivity, finite-N CES fixed-point enumeration, and investment accounting. A `capital_all` full path may differ from the original path **before** its previously observed t=5 event. Do not extrapolate the frozen original t=5 root directly to the t=5 state of a newly started `capital_all` simulation.
+
+In `:capital_all`, the recorded `epsilon` is always the capital-projection approximation `log(K_selected/Kstar)/delta`, not the original §3.4 log-investment surprise. When X<=0, literal `logX` is `NaN` in the output and the realized macro equations instead receive the first-order relative level deviation `(X-Xbar)/Xbar`. This continuation is not an exact nonlinear equilibrium and can leave the household utility domain or create large nonlinear resource-clearing gaps. Thus **completion of T6 or T20 by itself is not a replication**.
+
+Run with PowerShell from `Nirei-2015/` after pulling the current branch:
+
+```powershell
+julia --project=. scripts/check_julia_syntax.jl
+julia --project=. -e 'using Nirei2015'
+julia --project=. scripts/check_published_table1.jl
+julia --project=. scripts/check_equilibrium_oracle.jl
+julia --project=. scripts/check_capital_fallback.jl
+julia --project=. scripts/run_benchmark.jl 6 110000 20261101 capital_all
+```
+
+If and only if T6 finishes correctly, run `julia --project=. scripts/run_benchmark.jl 20 110000 20261101 capital_all`. Files are `results/simulation_rep01_capital_all.csv` and `results/simulation_summary_capital_all.toml`, isolated from prior baseline/fallback results.
+
+The new `check_capital_fallback.jl` regression covers selection differences when positive and negative-X roots coexist, zero-X capital roots, and baseline/fallback preservation. **None of these Julia regression or benchmark commands have been executed in the assistant's environment.** This is source-level work pending local Julia validation.
+
