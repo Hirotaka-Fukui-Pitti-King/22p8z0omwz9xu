@@ -28,7 +28,11 @@ function transition_diagnostics(sol::TransitionSolveResult{T};
             supply=w.Y[t]-w.I[t-1]-cost-
                    input.reference.export_shift*w.terms[t]^(-input.params.theta_star)
         end
-        Gerror=max(Gerror,abs(supply-w.home_budget[t]))
+        # Independent goods check uses household consumption from the
+        # forward distribution, NOT the aggregate budget quantity used
+        # to solve the period's trade price. Otherwise the goods
+        # residual is mechanically zero even when markets do not clear.
+        Gerror=max(Gerror,abs(supply-w.aggregate_home[t]))
         Lerror=max(Lerror,abs(w.labor_implied[t]-w.L[t]))
         if t<n
             m=consumption_cost(w.terms[t],input.params)
