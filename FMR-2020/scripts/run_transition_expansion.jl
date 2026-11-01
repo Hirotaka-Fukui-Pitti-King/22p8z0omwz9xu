@@ -13,12 +13,24 @@ function main()
             " | terminal B: ",inputs.B[end])
     println("Author original algorithm: aggregate K and L root, backward EGM, forward distribution")
     println("Author labor-supply exponent discrepancy: see docs/STAGE2_AUDIT.md")
-    result = solve_flexible_transition(inputs;
-                                      tolerance=1e-6,maxiter=70,
-                                      refresh_every=15,verbose=true)
-    diagnostic = transition_diagnostics(result;compute_euler=true)
     outdir=normpath(joinpath(@__DIR__,"..","results"))
     mkpath(outdir)
+    result = try
+        solve_flexible_transition(inputs;
+                                  tolerance=1e-6,maxiter=70,
+                                  refresh_every=15,verbose=true)
+    catch err
+        path=joinpath(outdir,"stage2_solver_log.txt")
+        open(path,"w") do io
+            println(io,"Stage 2 nonlinear equilibrium FAILED")
+            println(io,"Julia: ",VERSION)
+            println(io,"Error: ",sprint(showerror,err))
+            println(io,"Do not report an unconverged path or plot guessed IRFs.")
+        end
+        println("Wrote failure log: ",path)
+        rethrow()
+    end
+    diagnostic = transition_diagnostics(result;compute_euler=true)
     csv = export_transition_csv(result,joinpath(outdir,"stage2_transition_expansion.csv"))
     figs = write_transition_svg(result,outdir)
     diagnostic_file=joinpath(outdir,"stage2_equilibrium_diagnostics.csv")
@@ -54,7 +66,9 @@ function main()
     if diagnostic.max_asset_market_level > 1e-4 ||
        diagnostic.max_labor_market_level > 1e-4 ||
        diagnostic.max_goods_market_level > 1e-4 ||
-       diagnostic.max_probability_mass_deviation > 1e-8
+       diagnostic.max_probability_mass_deviation > 1e-8 ||
+       diagnostic.terminal_capital_gap/max(1.0,abs(inputs.terminal.K)) > 0.02 ||
+       diagnostic.terminal_labor_gap/max(1.0,abs(inputs.terminal.L)) > 0.02
         error("Independent GE residual test failed; inspect the exported diagnostics")
     end
     println("STAGE2: numerical equilibrium residuals passed preliminary level checks; compare the actual SVG/CSV with author Figures 1-3")

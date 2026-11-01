@@ -19,14 +19,14 @@ using FMR2020
                          fill(B,Tperiods),ones(Float64,Tperiods),
                          17.0,1.0,B)
     x=vcat(fill(st.K,Tperiods-1),fill(st.L,Tperiods))
-    @test length(x)==2Tperiods-1
+    @test length(x)==2*Tperiods-1
     @testset "Credit expansion path and time indexing" begin
         boom=credit_expansion_path(p,ref.Y;periods=12)
         @test length(boom)==12
-        @test isapprox(boom[1],-0.074ref.Y;rtol=1e-12)
-        @test isapprox(boom[2]-boom[1],-0.074ref.Y*0.98;rtol=1e-12)
+        @test isapprox(boom[1],-0.074*ref.Y;rtol=1e-12)
+        @test isapprox(boom[2]-boom[1],-0.074*ref.Y*0.98;rtol=1e-12)
         @test all(diff(boom) .< 0)
-        @test isapprox(boom[end],-0.074ref.Y*(1-0.98^12)/(1-0.98);rtol=1e-12)
+        @test isapprox(boom[end],-0.074*ref.Y*(1-0.98^12)/(1-0.98);rtol=1e-12)
     end
     @testset "Prices and period bounds" begin
         workspace=TransitionWorkspace(inp)

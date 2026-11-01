@@ -74,7 +74,7 @@ function solve_flexible_transition(input::TransitionInputs{T};
                                    maxiter::Int=70,
                                    refresh_every::Int=15,
                                    verbose::Bool=true) where {T}
-    n=2length(input.B)-1
+    n=2*length(input.B)-1
     length(x0)==n || throw(DimensionMismatch("2T-1 starting vector required"))
     x=Vector{T}(x0)
     w=TransitionWorkspace(input)

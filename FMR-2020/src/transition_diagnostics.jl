@@ -130,8 +130,15 @@ function export_transition_csv(sol::TransitionSolveResult{T},
             foreign=(1-p.chi)/p.chi*w.terms[t]^p.theta*home
             # Cobb-Douglas aggregate (multiplicative constant immaterial for IRFs).
             consum=home^p.chi*foreign^(1-p.chi)
-            goods=w.Y[t]-w.I[t]-w.adjustment[t]-
-                  input.reference.export_shift*w.terms[t]^(-p.theta_star)-home
+            goods=if t<n
+                w.Y[t]-w.I[t]-w.adjustment[t]-
+                input.reference.export_shift*w.terms[t]^(-p.theta_star)-home
+            else
+                gap=w.I[t-1]/w.K[t]-p.delta
+                terminal_cost=input.phi_ac/2*w.K[t]*gap^2
+                w.Y[t]-w.I[t-1]-terminal_cost-
+                input.reference.export_shift*w.terms[t]^(-p.theta_star)-home
+            end
             capital=t<n ? (w.aggregate_savings[t]-input.B[t])/w.q[t]-w.K[t+1] : T(NaN)
             labor=w.labor_implied[t]-w.L[t]
             println(io,join((t-1,input.B[t],w.K[t],w.L[t],w.Y[t],w.I[t],
@@ -253,8 +260,8 @@ function write_transition_svg(sol::TransitionSolveResult{T},destination::Abstrac
         ("Nominal exchange rate 1/x","100 × log deviation (%)",
           pct(inv.(w.terms),inv(input.initial.terms)),0.0),
         ("Real interest rate r","Quarterly percentage rate",
-          vcat(100input.initial.r,[100w.rate[t] for t in states]),
-          100input.initial.r)
+          vcat(100*input.initial.r,[100*w.rate[t] for t in states]),
+          100*input.initial.r)
     ])
     return (joinpath(destination,"figure_1.svg"),
             joinpath(destination,"figure_2.svg"),
