@@ -39,17 +39,79 @@ function stage3_flexible_prices!(w::TransitionWorkspace{T},
                                  ctx::Stage3Context{T},
                                  x::AbstractVector{T}) where {T}
     inp=ctx.economy
-    transition_prices!(w,inp,x)
-    if ctx.foreign && inp.B_initial!=zero(T)
-        price=stage3_positive_trade_root(w,ctx)
-        w.terms[1]=price
-        beginwealth=inp.q_initial*w.K[1]+
-                    inp.B_initial*ctx.terms_pre/price
-        endwealth=inp.B[1]+w.q[1]*w.K[2]
-        w.home_budget[1]=inp.params.chi*
-            (beginwealth*(one(T)+w.rate[1])-endwealth+
-             w.wage[1]*w.L[1]+w.profits[1])
-        w.home_supply[1]=w.home_budget[1]
+    p=inp.params
+    n=length(inp.B)
+    length(x)==2*n-1 ||
+        throw(DimensionMismatch("flexible-rate transition needs 2T-1 unknowns"))
+    w.K[1]=inp.initial.K
+    @inbounds for t in 2:n
+        w.K[t]=x[t-1]
+    end
+    @inbounds for t in 1:n
+        w.L[t]=x[n-1+t]
+        w.K[t]>0 && w.L[t]>0 ||
+            throw(DomainError((w.K[t],w.L[t]),"positive capital/labor needed"))
+        K=w.K[t]
+        w.Y[t]=inp.z[t]*K^p.alpha*w.L[t]^(one(T)-p.alpha)
+        mc=(p.epsilon_f-one(T))/p.epsilon_f
+        w.rental[t]=mc*p.alpha*w.Y[t]/K
+        w.wage[t]=mc*(one(T)-p.alpha)*w.Y[t]/w.L[t]
+        w.profits[t]=w.Y[t]/p.epsilon_f
+        w.I[t]=t<n ? w.K[t+1]-(one(T)-p.delta)*K : p.delta*K
+        if t<n
+            gap=w.I[t]/K-p.delta
+            w.q[t]=one(T)+inp.phi_ac*gap
+            w.adjustment[t]=inp.phi_ac/T(2)*K*gap^2
+            w.profits[t]+=(w.q[t]-one(T))*w.I[t]-w.adjustment[t]
+        else
+            w.q[t]=one(T)
+            w.adjustment[t]=zero(T)
+        end
+        w.q[t]>0 || throw(DomainError(w.q[t],"negative capital shadow price"))
+    end
+    @inbounds for t in 1:n
+        prevq=t==1 ? inp.q_initial : w.q[t-1]
+        w.rate[t]=(w.rental[t]+(one(T)-p.delta)*w.q[t])/prevq-one(T)
+        one(T)+w.rate[t]>0 ||
+            throw(DomainError(w.rate[t],"nonpositive gross return"))
+        if t==1 && ctx.foreign && inp.B_initial!=zero(T)
+            # Solve the initial trade price with the ACTUAL foreign bond
+            # revaluation. Do not first evaluate an unrelated domestic-
+            # debt price equation: it may have no feasible positive root.
+            w.terms[t]=stage3_positive_trade_root(w,ctx)
+            startassets=inp.q_initial*w.K[t]+
+                        inp.B_initial*ctx.terms_pre/w.terms[t]
+        else
+            startassets=t==1 ?
+                inp.q_initial*w.K[t]+inp.B_initial :
+                inp.B[t-1]+w.q[t-1]*w.K[t]
+        end
+        endassets=t<n ? inp.B[t]+w.q[t]*w.K[t+1] :
+                        inp.B[t]+inp.terminal.K
+        w.home_budget[t]=p.chi*
+            (startassets*(one(T)+w.rate[t])-endassets+
+             w.wage[t]*w.L[t]+w.profits[t])
+        available=if t<n
+            w.Y[t]-w.I[t]-w.adjustment[t]-w.home_budget[t]
+        else
+            terminalgap=w.I[t-1]/w.K[t]-p.delta
+            cost=inp.phi_ac/T(2)*w.K[t]*terminalgap^2
+            w.Y[t]-w.I[t-1]-cost-w.home_budget[t]
+        end
+        if t==1 && ctx.foreign && inp.B_initial!=zero(T)
+            price_error=available-inp.reference.export_shift*
+                        w.terms[t]^(-p.theta_star)
+            abs(price_error)<T(1e-8) ||
+                throw(DomainError(price_error,"initial FX trade root mismatch"))
+        else
+            available>0 ||
+                throw(DomainError(available,"no positive trade-price root"))
+            w.terms[t]=(inp.reference.export_shift/available)^
+                       (inv(p.theta_star))
+        end
+        w.home_supply[t]=w.home_budget[t]
+        isfinite(w.terms[t]) && w.terms[t]>0 ||
+            throw(DomainError(w.terms[t],"invalid terms of trade"))
     end
     return w
 end
