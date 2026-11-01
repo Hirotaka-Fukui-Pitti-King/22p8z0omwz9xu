@@ -61,6 +61,20 @@ Computed independently from the published policy, 2,000,000 IID sampled firms (N
 
 Baseline Monte Carlo `K0/Kbar=1.0000011088`. The within-draw capital difference due to the productivity shock is `K1_shock-K1_control=-0.00072984` in Kbar-normalized units. This **isolates the one-period failure of the stationary approximation** and suggests a channel for negative investment drift, but does **not** establish that it causes the observed t=5 full-GE collapse, since endogenous K/ES1 is not solved in this experiment.
 
+## Continuum one-period **expected capital drift** — independent deterministic quadrature
+
+To distinguish systematic drift from Monte Carlo noise, I independently integrated the *continuous-firm* one-period CES map with the **same exact published Appendix C distributions and unchanged one-notch policy**, holding the target aggregate threshold at the stationary Kbar. For each λ and iid log-productivity pair, the investment action partitions the uniform prior gap s into at most three intervals. The factor `λ^(rho*s)` is integrated **analytically** on each interval. The remaining λ integral uses 200-point Gauss–Legendre quadrature and the iid log-normal pair uses Gaussian Gauss–Hermite quadrature.
+
+| Approximation order, iid Gaussian quadrature nodes per axis | K0/Kbar | K1/Kbar, iid productivity | K1/K0 − 1 |
+| --- | ---: | ---: | ---: |
+| 20 × 20 | 1.0000000000 | 0.9992684885 | −0.07315115% |
+| 40 × 40 | 1.0000000000 | 0.9992683954 | −0.07316046% |
+| 64 × 64 | 1.0000000000 | 0.9992683583 | **−0.07316417%** |
+
+The corresponding 64×64 deterministic-quadrature candidate signed investment is `X=0.0192691860` when Kbar=1. The no-productivity-shock continuum control gives `K1/Kbar≈0.9999987634` (−0.00012366%), the tiny discrepancy coming from published λ support violations.
+
+Therefore a **negative expected one-step CES capital drift under the fixed-Kbar threshold operator is established independently of Monte Carlo noise**. It results from the restricted policy not wrapping all productivity-induced gap shifts back into [0,1). It does **not** yet establish the sign or size of drift in the *endogenous* finite-N K fixed point/ES1 selected equilibrium, where K_next enters the firm policy and can amplify or offset this deviation.
+
 ### Reproduce on the user's actual original Julia code
 
 The committed `scripts/check_stationary_one_step.jl` uses the existing Julia `initialize_firms`, `threshold_coefficient`, `draw_productivity!`, and `aggregate_capital`. It holds the threshold's target K at Kbar, compares matched no-shock and shock outcomes, and verifies the exact gap transition algebra. It does not touch model source, stochastic draws, 3-choice policy, ES1, or the fixed-point enumerator.
