@@ -390,9 +390,9 @@ function run_experiment()
         ),
         "rejection_blocks"=>Dict(
             "initial_100_rejections"=>
-                sum(x["rejected_count"] for x in period_rows if x["t"]<100),
+                sum((x["rejected_count"] for x in period_rows if x["t"]<100);init=0),
             "subsequent_rejections"=>
-                sum(x["rejected_count"] for x in period_rows if x["t"]>=100)
+                sum((x["rejected_count"] for x in period_rows if x["t"]>=100);init=0)
         ),
         "output"=>Dict(
             "period_csv"=>csv,"attempt_csv"=>attempts_csv,
