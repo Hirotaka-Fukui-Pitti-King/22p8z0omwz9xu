@@ -46,7 +46,7 @@
     }
   ],
   "current_status": {
-    "phase": "stage1_aggregate_converged_household_accuracy_fine_policy_experiment_pending",
+    "phase": "stage1_author_endogenous_egm_only_pending_windows_validation",
     "files_written": [
       "README.md",
       "ALGORITHM.md",
@@ -61,8 +61,7 @@
       "scripts/grid_refinement.jl",
       "src/accuracy.jl",
       "scripts/stage1_accuracy_audit.jl",
-      "scripts/stage1_recalibrated_grid.jl",
-      "scripts/stage1_fine_policy_comparison.jl"
+      "scripts/stage1_recalibrated_grid.jl"
     ],
     "julia_source_created": true,
     "julia_project_created": true,
@@ -126,12 +125,15 @@
       "stage1_accuracy_gate_passed": false
     },
     "latest_patch_locally_verified": false,
-    "syntax_verified_scope": "14 files in commit 4ba084bb8a02e53017f704b87c2a8ae9be9714f5; latest audit code not verified",
-    "runtime_verified_scope": "161 tests + three equilibria in commit 4ba084bb8a02e53017f704b87c2a8ae9be9714f5; latest audit code unverified",
+    "syntax_verified_scope": "previous commit only; canonical-author EGM patch awaits PC",
+    "runtime_verified_scope": "previous coarse-savings method only; canonical-author EGM patch awaits PC",
     "bugfix_pending": [
-      "compare direct EGM endogenous fine policy with two-stage savings interpolation on same prices and beta",
-      "do not change baseline method before measuring Euler and asset supply outcomes"
-    ]
+      "run canonical EGM PC syntax and unit tests",
+      "recalibrate beta and three GE under canonical EGM",
+      "re-evaluate fine-grid Euler residual and grid refinement"
+    ],
+    "methodology_decision": "Only author stationary EGM: direct fine-grid interpolation of endogenous consumption knots; constrained next-period savings at borrowing floor; no optional alternate interpolation.",
+    "latest_local_evidence_context": "Existing local GE and Euler numbers refer to previous coarse-saving interpolation, not the latest algorithm"
   },
   "scope": {
     "first_milestone": "Figures 1–5",
@@ -207,7 +209,9 @@
       }
     ],
     "version_and_uuid_policy": "Do not invent. Check official project and installed Julia version before Project.toml.",
-    "current_stage1_dependencies": "Base only; no external Julia packages"
+    "current_stage1_dependencies": "Base only; no external Julia packages",
+    "stationary_fine_grid_method": "direct PCHIP on endogenous EGM asset/consumption knots, as in solve_R.m",
+    "forbid_unmotivated_algorithm_substitution": true
   },
   "author_code_reference_settings": {
     "state_count": 7,
@@ -421,7 +425,6 @@
     "julia --project=. scripts/smoke_test.jl",
     "julia --project=. test/runtests.jl",
     "julia --project=. scripts/run_steady_states.jl",
-    "julia --project=. scripts/grid_refinement.jl",
-    "julia --project=. scripts/stage1_fine_policy_comparison.jl"
+    "julia --project=. scripts/grid_refinement.jl"
   ]
 }
