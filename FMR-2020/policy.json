@@ -1,0 +1,311 @@
+{
+  "schema_version": "1.0.0",
+  "project_id": "FMR-2020",
+  "updated_on": "2026-11-01",
+  "repository": "https://github.com/Hirotaka-Fukui-Pitti-King/22p8z0omwz9xu",
+  "directory": "FMR-2020",
+  "title": "Household Heterogeneity and the Transmission of Foreign Shocks — Julia replication",
+  "paper": {
+    "authors": [
+      "Sergio de Ferra",
+      "Kurt Mitman",
+      "Federica Romei"
+    ],
+    "year": 2020,
+    "journal": "Journal of International Economics",
+    "volume": 124,
+    "article": "103303",
+    "doi": "10.1016/j.jinteco.2020.103303",
+    "url": "https://doi.org/10.1016/j.jinteco.2020.103303"
+  },
+  "authoritative_sources": [
+    {
+      "kind": "paper",
+      "url": "https://doi.org/10.1016/j.jinteco.2020.103303",
+      "role": "economic equations, calibration targets and paper figures"
+    },
+    {
+      "kind": "author_code",
+      "url": "https://github.com/kurtmitman/HANKSOME",
+      "role": "reference algorithm and MATLAB output comparison, not code translation"
+    },
+    {
+      "kind": "julia",
+      "url": "https://julialang.org/",
+      "role": "language design"
+    },
+    {
+      "kind": "julia_performance",
+      "url": "https://docs.julialang.org/en/v1/manual/performance-tips/",
+      "role": "type stability, allocation, loops"
+    },
+    {
+      "kind": "julia_pkg",
+      "url": "https://pkgdocs.julialang.org/v1/environments/",
+      "role": "reproducible Julia environment"
+    }
+  ],
+  "current_status": {
+    "phase": "documentation_and_design",
+    "files_written": [
+      "README.md",
+      "ALGORITHM.md",
+      "policy.json"
+    ],
+    "julia_source_created": false,
+    "julia_project_created": false,
+    "syntax_verified": false,
+    "runtime_verified": false,
+    "author_matlab_executed": false,
+    "model_equilibrium_verified": false,
+    "figures_replicated": [],
+    "successful_replication_claim": false
+  },
+  "scope": {
+    "first_milestone": "Figures 1–5",
+    "full_scope": "Figures 1–14 and CEV/welfare",
+    "method": "nonlinear perfect-foresight MIT-shock transition with stationary and transition EGM",
+    "not_default_method": "linearized SSJ or representative-agent approximation",
+    "distinguish": "author code numerical replication versus paper-equation-consistent independent solution"
+  },
+  "implementation_policy": {
+    "language": "Julia",
+    "only_implementation_language": true,
+    "prohibit_translation_from": [
+      "Python",
+      "MATLAB",
+      "R",
+      "other languages"
+    ],
+    "author_code_usage": "read-only specification and numerical benchmark; no mechanical line-by-line port",
+    "native_design": [
+      "multiple dispatch",
+      "typed structs",
+      "type-stable function barriers",
+      "preallocation",
+      "in-place kernels",
+      "column-major iteration",
+      "sparse or matrix-free distribution dynamics",
+      "reusable caches",
+      "Julia Pkg environments"
+    ],
+    "prohibit": [
+      "untyped global state in hot loops",
+      "silent clipping of invalid economic states",
+      "undocumented time indexing",
+      "inventing UUIDs or dependencies",
+      "describing unrun code as tested"
+    ],
+    "julia_parser_required": "Meta.parseall after Julia code is created",
+    "syntax_smoke_and_ci_required": true,
+    "windows_powershell_pkg_add_quoting": "Pkg.add(string(:Package))",
+    "environment_files_when_code_exists": [
+      "Project.toml",
+      "Manifest.toml"
+    ],
+    "candidate_standard_libraries": [
+      "LinearAlgebra",
+      "SparseArrays",
+      "Statistics",
+      "Random",
+      "Test",
+      "Pkg",
+      "Printf"
+    ],
+    "candidate_external_packages": [
+      {
+        "name": "NonlinearSolve.jl",
+        "documentation": "https://docs.sciml.ai/NonlinearSolve/stable/",
+        "state": "candidate_unvalidated_in_local_environment"
+      },
+      {
+        "name": "LinearSolve.jl",
+        "documentation": "https://docs.sciml.ai/LinearSolve/stable/",
+        "state": "candidate_unvalidated_in_local_environment"
+      },
+      {
+        "name": "Roots.jl",
+        "documentation": "https://juliamath.github.io/Roots.jl/stable/",
+        "state": "candidate_unvalidated_in_local_environment"
+      },
+      {
+        "name": "Interpolations.jl",
+        "documentation": "https://juliamath.github.io/Interpolations.jl/stable/",
+        "state": "candidate_unvalidated_for_shape_preserving_interpolation"
+      }
+    ],
+    "version_and_uuid_policy": "Do not invent. Check official project and installed Julia version before Project.toml."
+  },
+  "author_code_reference_settings": {
+    "state_count": 7,
+    "rho_idiosyncratic": 0.97,
+    "coarse_asset_grid_points": 193,
+    "fine_asset_grid_points": 769,
+    "asset_grid_power": 3,
+    "asset_grid_parameter_min": -0.2,
+    "transition_horizon_quarters": 200,
+    "first_shock_credit_flow_share_of_quarterly_gdp": 0.074,
+    "first_shock_persistence": 0.98,
+    "shock_start_matlab_index": 41,
+    "initial_beta_guess": 0.9832,
+    "egm_tolerance": 1e-12,
+    "egm_max_iter": 5000,
+    "nonlinear_unknowns_flexible": 399,
+    "nonlinear_unknowns_fixed": 599,
+    "label": "source-code configuration; not verified Julia results"
+  },
+  "model_equilibrium_constraints": [
+    "household Euler equation with borrowing complementarity",
+    "household period budget identity",
+    "distribution probability nonnegative and sum one",
+    "capital accumulation and investment adjustment",
+    "capital-bond no-arbitrage",
+    "asset market A_(t+1)=q_t K_(t+1)+B_(t+1)",
+    "union wage/labor supply condition",
+    "goods market home goods and foreign demand",
+    "Rotemberg NKPC under fixed exchange rates",
+    "terminal consistency with steady state",
+    "unexpected gross foreign-currency liability revaluation at MIT shock"
+  ],
+  "numerical_acceptance": {
+    "note": "Suggested independent validation thresholds; NOT author solver tolerances and NOT achieved results. Normalize residuals by economically relevant scales.",
+    "distribution_mass_absolute": 1e-10,
+    "distribution_invariance_inf": 1e-9,
+    "scaled_asset_labor_goods_nkpc_inf": 1e-7,
+    "scaled_euler_unconstrained_inf": 0.000001,
+    "terminal_distance_and_horizon_sensitivity": "report, do not declare a numerical target until stationary comparison and trajectory scales are recorded",
+    "grid_refinement": "compare coarse/fine, report max deviation for early 30-quarter IRFs",
+    "performance": "benchmark after mathematical tests pass; record memory allocations and Julia version",
+    "solver_success": "requires independent post-solve equilibrium validation; return code alone insufficient"
+  },
+  "experiment_design": [
+    {
+      "id": "baseline_stationary",
+      "target": "EGM and stationary distribution; calibrate beta and three steady states",
+      "status": "planned"
+    },
+    {
+      "id": "credit_expansion",
+      "target": "nonlinear transition and Figures 1–3",
+      "status": "planned"
+    },
+    {
+      "id": "surprise_stop",
+      "target": "inherit boom distribution at quarter 40; portfolio revaluation; floating regime Figures 4–5",
+      "status": "planned"
+    },
+    {
+      "id": "fixed_exchange",
+      "target": "Rotemberg NKPC and floating versus fixed Figures 4–5",
+      "status": "planned"
+    },
+    {
+      "id": "section7",
+      "target": "22% credit contraction and five-quarter half-life, denominations, leverage, Figures 6–14",
+      "status": "planned"
+    },
+    {
+      "id": "welfare",
+      "target": "value functions, CEV and heterogeneous welfare",
+      "status": "planned"
+    }
+  ],
+  "verification_gates": [
+    {
+      "id": "G1",
+      "deliverable": "Rouwenhorst and household EGM, distribution",
+      "requirements": [
+        "Euler and KKT conditions",
+        "probability invariance",
+        "grid and constraint bounds"
+      ],
+      "state": "not_started"
+    },
+    {
+      "id": "G2",
+      "deliverable": "three stationary general equilibria",
+      "requirements": [
+        "beta/r roots",
+        "asset-market clearing",
+        "calibration table"
+      ],
+      "state": "not_started"
+    },
+    {
+      "id": "G3",
+      "deliverable": "initial transition Figures 1–3",
+      "requirements": [
+        "all-date asset/labor clearing",
+        "terminal sensitivity",
+        "IRF comparison"
+      ],
+      "state": "not_started"
+    },
+    {
+      "id": "G4",
+      "deliverable": "foreign-debt revaluation and floating sudden stop",
+      "requirements": [
+        "quarter-40 inheritance",
+        "mass-preserving portfolio revaluation",
+        "Figures 4–5"
+      ],
+      "state": "not_started"
+    },
+    {
+      "id": "G5",
+      "deliverable": "fixed-regime sudden stop",
+      "requirements": [
+        "Rotemberg NKPC",
+        "goods/labor/asset clearing",
+        "Figures 4–5"
+      ],
+      "state": "not_started"
+    },
+    {
+      "id": "G6",
+      "deliverable": "entire-paper replication",
+      "requirements": [
+        "Figures 6–14",
+        "leverage/denomination scenarios",
+        "welfare and CEV"
+      ],
+      "state": "not_started"
+    }
+  ],
+  "source_audit_open_questions": [
+    "Stationary labor supply with varphi=0.5 versus transition lab_prime exponent",
+    "fixed transition net_c price adjustment cost double negative",
+    "fixed transition net_c investment cost time index",
+    "fixed transition household wage income versus NKPC-implied wage",
+    "shock_start_t 41 inheritance of mu, K, q, terms of trade and plotting baseline",
+    "negative a state and borrowing floor after debt revaluation",
+    "paper Table 1 B=-2 versus Main.m quarterly-GDP normalization",
+    "pchip shape preservation compared with any Julia interpolation candidate",
+    "author's terminal and asset-return time conventions"
+  ],
+  "reproducibility": {
+    "log_required": [
+      "repository SHA",
+      "Julia version",
+      "Project.toml",
+      "Manifest.toml",
+      "OS and architecture",
+      "command and seeds",
+      "unit test status",
+      "per-equation errors",
+      "runtime and allocation",
+      "reference figure comparisons",
+      "unresolved issues"
+    ],
+    "docs_status_independent_of_code": true,
+    "record_failures_and_negative_results": true,
+    "no_unsupported_claims": true,
+    "expected_research_tree": [
+      "src/",
+      "test/",
+      "scripts/",
+      "results/"
+    ],
+    "root_repository_files_unchanged": true
+  }
+}
