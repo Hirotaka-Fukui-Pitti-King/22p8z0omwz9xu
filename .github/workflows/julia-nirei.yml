@@ -36,6 +36,8 @@ jobs:
         run: julia --project=. scripts/check_equilibrium_oracle.jl
       - name: Initial collapse attribution (benchmark N)
         run: julia --project=. scripts/audit_investment_dynamics.jl
+      - name: Diagnostic shock-rejection 20-period smoke (benchmark N)
+        run: julia --project=. scripts/diagnostic_shock_rejection.jl 20 110000 20261101 100
       - name: Firm simulation integration smoke (benchmark N, 20 periods)
         run: |
           julia --project=. scripts/run_benchmark.jl 20 110000 20261101
