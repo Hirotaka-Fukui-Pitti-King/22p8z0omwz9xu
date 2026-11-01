@@ -202,3 +202,12 @@ New files/test:
 **At the moment of commit, this newly authored Julia patch is not yet
 syntax/runtime/numerically validated on owner's PC. The 171/171 tests and all
 reported numerical values refer to the prior commit.**
+
+
+## 2026-11-02: Restore author EGM as the only stationary household algorithm
+
+The author MATLAB code (`solve_R.m` and `solve_EGM_EL_open_tg.m`) **directly interpolates endogenous EGM consumption** onto the fine distribution grid, while choosing the borrowing-limit saving in constrained states. Earlier Julia code instead applied a second savings interpolation, which differs from the author's calculation. That was an unjustified methodological departure for a replication and has been corrected.
+
+The new Julia solver recomputes the endogenous current-asset grid from the converged consumption policy, evaluates fine-grid nonbinding consumption using the endogenous consumption–asset PCHIP, and calculates savings with the household budget. It sets borrowing-bound savings exactly in the constrained region. Both the experimental option and its comparison script were deleted. The previous numerical values and 171-test result are historical observations of the **old algorithm**; they are not validation of the corrected author-consistent algorithm.
+
+Status: source committed; Julia syntax, smoke, GE and numerical Euler accuracy for this new commit **not yet checked on user's Windows PC**. The repository must not merge this change or claim complete replication before that validation.

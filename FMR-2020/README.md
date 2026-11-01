@@ -88,13 +88,11 @@ Windows 11 / Julia 1.12.6で14ファイルの`Meta.parseall`、スモークテ�
 - `scripts/stage1_recalibrated_grid.jl` は97×385点と193×769点でそれぞれ割引因子と3定常均衡の利子率を**再較正**します。固定価格下の資産供給の比較（`grid_refinement.jl`）とは別実験です。385×1537点も実行する場合はPowerShellで`$env:FMR_LARGE_GRID = '1'`と指定します（大規模計算は任意）。
 - 両スクリプトは今後の実行で正しく動作するか未検証です。既存の数値結果を変更するものではなく、検証用の追加計算です。
 
-## 細グリッドEGM補間の独立比較（実験的）
+## 原著EGMの計算順序に統一（2026-11-02）
 
-Windows 11 / Julia 1.12.6で再較正した定常均衡のグリッド差は小さい一方、細グリッド上の最大Euler残差は0.0055–0.0085でした。最大誤差は正の確率質量を持つ低資産・低生産性家計で発生しており、無視できる仮想的な資産上限近傍の問題ではありません。
+Replicationでは、原著の数値アルゴリズムを優先します。著者の`solve_R.m`および`solve_EGM_EL_open_tg.m`と同様、収束したEGMの内生資産ノット `a_today` と内生消費 `c_s` から、細グリッドの消費を直接PCHIP評価します。借入制約がbindingの領域は翌期資産を借入下限に置き、予算制約で消費を計算します。非制約領域の貯蓄も予算制約から計算します。粗グリッド貯蓄政策の再補間と方法選択オプションは廃止しました。
 
-原著`Steady_State_Ayagari/solve_R.m`は細グリッドの消費政策をEGMの`a_today`内生グリッドから直接計算しています。Juliaの既存実装では粗い現在資産グリッド上の貯蓄政策を再補間していました。この**二段階の補間**が借入制約の折れ曲がり近くのEuler誤差を増やしている可能性があります。
-
-実験的に`solve_household(...;fine_method=:direct_endogenous)`を追加しました。収束後のEGM内生グリッドから翌期資産選択を直接形状保持補間し、binding領域では`a'=a_min`、消費は予算制約で逆算します。**既定の`:coarse_savings`は変更していません**。比較スクリプト`scripts/stage1_fine_policy_comparison.jl`は同一の\(\beta,r,B\)の下で両手法のEuler残差と資産需要を比較します。新手法が精度を改善するかはPC実行で確かめる必要があります。結果を見ずに本番均衡計算の既定値を切り替えてはいけません。
+この変更は**アルゴリズムを著者に合わせたもの**であり、以前の均衡値をこの新方式で確認したことを意味しません。新コードの構文・実行・定常均衡結果はWindows PCで再検証します。Juliaコード自体はJuliaで独立設計しており、MATLABコードの機械的翻訳ではありません。
 
 ## Stage 1 — PC実行コマンド（Windows PowerShell）
 
@@ -114,7 +112,6 @@ julia --project=. scripts/run_steady_states.jl
 julia --project=. scripts/grid_refinement.jl
 julia --project=. scripts/stage1_accuracy_audit.jl
 julia --project=. scripts/stage1_recalibrated_grid.jl
-julia --project=. scripts/stage1_fine_policy_comparison.jl
 ```
 
 最初に構文検査を実行し、失敗した場合はそこで止めてログを共有してください。パッケージ依存を含む実行環境を確定する場合は`julia --project=. -e 'using Pkg; Pkg.instantiate()'`を別途実行します。Stage 1のホットパスはBaseのみを利用し、外部パッケージのAPI・UUIDを推測して導入していません。実際のProject/Manifestは本人の実行環境で確定し、Manifestを生成した場合は記録してください。
