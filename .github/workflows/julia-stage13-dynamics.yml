@@ -1,0 +1,53 @@
+name: Stage 13 J2 dynamic path experiments
+
+on:
+  push:
+    paths:
+      - 'Nirei-2015/scripts/diagnostic_multistep_simulation.jl'
+      - '.github/workflows/julia-stage13-dynamics.yml'
+  workflow_dispatch:
+
+jobs:
+  dynamic-stage13:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Nirei-2015
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.12.6'
+      - name: Parse all Julia source and scripts
+        run: julia --project=. scripts/check_julia_syntax.jl
+      - name: Resolve and load Julia package
+        run: julia --project=. -e 'using Pkg; Pkg.instantiate(); using Nirei2015'
+      - name: Independent Stage12 and Stage13 small-N dynamic smoke
+        run: julia --project=. scripts/diagnostic_multistep_simulation.jl smoke
+      - name: Stage13 original N=110000 no-rejection A/B paths to T20
+        timeout-minutes: 35
+        run: julia --project=. scripts/diagnostic_multistep_simulation.jl run 20 110000 20261101
+      - name: Gate Stage13 T20 accounting and completion
+        run: |
+          julia --project=. -e 'using TOML; for e in ("A","B"); d=TOML.parsefile("results/diagnostic_multistep_simulation_$(e)_T20_N110000_seed20261101.toml"); @assert d["status"]=="completed" "20 periods incomplete for $(e): $(d["failure_reason"])"; @assert d["max_CES_residual"]<1e-8; @assert d["max_X_residual"]<1e-8; end'
+      - name: Stage13 original N=110000 no-rejection A/B paths to T100
+        timeout-minutes: 50
+        run: julia --project=. scripts/diagnostic_multistep_simulation.jl run 100 110000 20261101
+      - name: Gate Stage13 T100 accounting and completion
+        run: |
+          julia --project=. -e 'using TOML; for e in ("A","B"); d=TOML.parsefile("results/diagnostic_multistep_simulation_$(e)_T100_N110000_seed20261101.toml"); @assert d["status"]=="completed" "100 periods incomplete for $(e): $(d["failure_reason"])"; @assert d["max_CES_residual"]<1e-8; @assert d["max_X_residual"]<1e-8; end'
+      - name: Stage13 original N=110000 no-rejection A/B paths to T1100
+        timeout-minutes: 120
+        run: julia --project=. scripts/diagnostic_multistep_simulation.jl run 1100 110000 20261101
+      - name: Gate Stage13 T1100 accounting and completion
+        run: |
+          julia --project=. -e 'using TOML; for e in ("A","B"); d=TOML.parsefile("results/diagnostic_multistep_simulation_$(e)_T1100_N110000_seed20261101.toml"); @assert d["status"]=="completed" "1100 periods incomplete for $(e): $(d["failure_reason"])"; @assert d["max_CES_residual"]<1e-8; @assert d["max_X_residual"]<1e-8; end'
+      - name: Upload Stage13 diagnostic paths, including partial failure evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nirei-stage13-dynamics
+          if-no-files-found: warn
+          path: |
+            Nirei-2015/results/diagnostic_multistep_simulation_*.csv
+            Nirei-2015/results/diagnostic_multistep_simulation_*.toml

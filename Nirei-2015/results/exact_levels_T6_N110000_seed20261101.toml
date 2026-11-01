@@ -1,0 +1,12 @@
+max_abs_resource_residual = 5.180031206301111e-17
+model = "2015 original 3-choice finite-N firms, exact ex-post household levels, APPROXIMATE Appendix A forecasts; NOT fully solved stochastic RE"
+N = 110000
+completed = false
+requested_periods = 6
+failure = """DomainError with (fixed_points = 7, minimum_investment = -0.05255400953590001, maximum_investment = -0.052433814428993995, minimum_capital = 7.922102396169277, maximum_capital = 7.922222590173365, expected_investment = 0.09420780861133835, expected_capital = 8.068892617129817):\nNo equilibrium has X>0, so the Section 3.4 ES1 log shock is undefined; the capital-based ES1 of Definition 1 is not a valid substitute for log(X/X_expected)"""
+max_abs_labor_residual = 6.661338147750939e-16
+max_abs_investment_residual = 3.760880495917718e-15
+max_abs_stable_gap = 0.20613444348243323
+completed_periods = 5
+seed = 20261101
+max_abs_capital_residual = 3.801403636316536e-13

@@ -1,0 +1,747 @@
+interpretation = "Frozen-state iid Monte Carlo. ES1 outcomes conditional on positive-investment equilibrium existence. Path reconstruction after t=5 uses diagnostic shock rejection."
+experiment = "issue5_stage8_frozen_state_investment_wedge"
+not_published_replication = true
+
+[configuration]
+max_attempts = 100
+julia_version = "1.12.6"
+T = 501
+draws_per_state = 32
+N = 110000
+seed = 20261101
+
+[status]
+total_rejections_on_reconstructed_path = 103
+completed_periods = 501
+n_frozen_states = 5
+
+[[conditional_MC]]
+covariance_forecast_equilibrium_wedges = 1.5941507900562471e-6
+X_expected_AppendixA = 0.17301019954027186
+K_expected_AppendixA = 8.650374208641166
+forecast_Eq18_signed_share = 0.06046700069832807
+feasibility_probability_MC = 0.71875
+draws = 32
+forecast_signed_share = 0.06046700069832807
+equilibrium_signed_share = 0.9395329993016719
+t = 0
+max_abs_wedge_identity_residual = 0.0
+mean_wedge_Eq18_additivity_residual = 0.0
+K_reference_Eq18_for_ES1 = 8.650374208645173
+max_abs_threshold_CES_power_residual = 2.612215999064915e-13
+fixed_K_response_is_not_equilibrium = true
+equilibrium_Eq18_signed_share = 0.9395329993016719
+max_abs_reference_CES_residual = 0.0
+mean_ES1_rank = 244.7826086956522
+share_ES1_is_max_positive_X = 1.0
+mean_wedge_additivity_residual = 0.0
+n_feasible = 23
+n_infeasible = 9
+max_abs_reference_X_residual = 0.0
+conditioning = "All three wedge means condition on identical iid draws with at least one positive-X fixed point; nonexistence is not zero investment."
+original_iid_unconditional_epsilon_undefined_on_failures = true
+max_abs_threshold_X_residual = 2.6922908347160046e-15
+
+    [conditional_MC.equilibrium_wedge_conditional_Eq18]
+    median = -0.09007514557550571
+    p95 = -0.06877259180925749
+    SE = 0.004699707447691826
+    p05 = -0.13794746095782986
+    p_negative = 1.0
+    mean = -0.09580763293461311
+    sd = 0.022539005127988024
+    n = 23
+
+    [conditional_MC.forecast_wedge_conditional]
+    median = -0.006138944769551985
+    p95 = -0.0058495799840564385
+    SE = 4.762013716816616e-5
+    p05 = -0.006501078218047662
+    p_negative = 1.0
+    mean = -0.006166042291083263
+    sd = 0.00022837815497556694
+    n = 23
+
+    [conditional_MC.X_fixed_unconditional_iid]
+    median = 0.16680833084864727
+    p95 = 0.1671551557080172
+    SE = 4.0743195598883505e-5
+    p05 = 0.1664062578079591
+    p_negative = 0.0
+    mean = 0.16679303722009028
+    sd = 0.00023047831916144342
+    n = 32
+
+    [conditional_MC.X_ES1_conditional_feasible]
+    median = 0.07670315192019463
+    p95 = 0.09834297742859627
+    SE = 0.004714672796619604
+    p05 = 0.028611170220472774
+    p_negative = 0.0
+    mean = 0.07103652431457548
+    sd = 0.022610776420133233
+    n = 23
+
+    [conditional_MC.X_fixed_Eq18_conditional_feasible]
+    median = 0.16687125477071987
+    p95 = 0.16716061955621542
+    SE = 4.7620137168166163e-5
+    p05 = 0.1665091213222242
+    p_negative = 0.0
+    mean = 0.16684415724918858
+    sd = 0.00022837815497556697
+    n = 23
+
+    [conditional_MC.total_wedge_conditional]
+    median = -0.09630704762007723
+    p95 = -0.0746672221116756
+    SE = 0.004714672796619604
+    p05 = -0.1443990293197991
+    p_negative = 1.0
+    mean = -0.10197367522569638
+    sd = 0.022610776420133233
+    n = 23
+
+    [conditional_MC.X_fixed_conditional_feasible]
+    median = 0.16687125477071987
+    p95 = 0.16716061955621542
+    SE = 4.7620137168166163e-5
+    p05 = 0.1665091213222242
+    p_negative = 0.0
+    mean = 0.16684415724918858
+    sd = 0.00022837815497556697
+    n = 23
+
+    [conditional_MC.X_fixed_Eq18_unconditional_iid]
+    median = 0.16680833084864727
+    p95 = 0.1671551557080172
+    SE = 4.0743195598883505e-5
+    p05 = 0.1664062578079591
+    p_negative = 0.0
+    mean = 0.16679303722009028
+    sd = 0.00023047831916144342
+    n = 32
+
+    [conditional_MC.paired_equilibrium_minus_forecast_wedge]
+    median = -0.08384324353093418
+    p95 = -0.06287796150683937
+    SE = 0.004685178327825203
+    p05 = -0.13149589259586064
+    p_negative = 1.0
+    mean = -0.08964159064352985
+    sd = 0.02246932591692568
+    n = 23
+
+    [conditional_MC.equilibrium_wedge_conditional]
+    median = -0.09007514557550571
+    p95 = -0.06877259180925749
+    SE = 0.004699707447691826
+    p05 = -0.13794746095782986
+    p_negative = 1.0
+    mean = -0.09580763293461311
+    sd = 0.022539005127988024
+    n = 23
+
+    [conditional_MC.forecast_wedge_conditional_Eq18]
+    median = -0.006138944769551985
+    p95 = -0.0058495799840564385
+    SE = 4.762013716816616e-5
+    p05 = -0.006501078218047662
+    p_negative = 1.0
+    mean = -0.006166042291083263
+    sd = 0.00022837815497556694
+    n = 23
+
+    [conditional_MC.epsilon_conditional_feasible]
+    median = -0.8134077479756818
+    p95 = -0.5650193265019408
+    SE = 0.08222725554392965
+    p05 = -1.8049951530549346
+    p_negative = 1.0
+    mean = -0.9540946290408876
+    sd = 0.39434806421306834
+    n = 23
+[[conditional_MC]]
+covariance_forecast_equilibrium_wedges = -5.719210191842638e-7
+X_expected_AppendixA = 0.167665871370807
+K_expected_AppendixA = 8.23461450505965
+forecast_Eq18_signed_share = 0.06107377842502825
+feasibility_probability_MC = 0.90625
+draws = 32
+forecast_signed_share = 0.06129414641793535
+equilibrium_signed_share = 0.9387058535820647
+t = 4
+max_abs_wedge_identity_residual = 0.0
+mean_wedge_Eq18_additivity_residual = 0.0
+K_reference_Eq18_for_ES1 = 8.23464154169445
+max_abs_threshold_CES_power_residual = 2.605068938343891e-13
+fixed_K_response_is_not_equilibrium = true
+equilibrium_Eq18_signed_share = 0.9389262215749717
+max_abs_reference_CES_residual = 1.5561985768487545e-15
+mean_ES1_rank = 274.0344827586207
+share_ES1_is_max_positive_X = 1.0
+mean_wedge_additivity_residual = 0.0
+n_feasible = 29
+n_infeasible = 3
+max_abs_reference_X_residual = 7.747302148766733e-17
+conditioning = "All three wedge means condition on identical iid draws with at least one positive-X fixed point; nonexistence is not zero investment."
+original_iid_unconditional_epsilon_undefined_on_failures = true
+max_abs_threshold_X_residual = 3.9968028886505635e-15
+
+    [conditional_MC.equilibrium_wedge_conditional_Eq18]
+    median = -0.09505764303313295
+    p95 = -0.06896332413382542
+    SE = 0.004361520490077158
+    p05 = -0.14040049367505214
+    p_negative = 1.0
+    mean = -0.09886391061844907
+    sd = 0.023487506648759544
+    n = 29
+
+    [conditional_MC.forecast_wedge_conditional]
+    median = -0.006455258129638153
+    p95 = -0.006066947477592977
+    SE = 4.3058920464678965e-5
+    p05 = -0.0068496684587116274
+    p_negative = 1.0
+    mean = -0.006453945873118878
+    sd = 0.00023187938311959282
+    n = 29
+
+    [conditional_MC.X_fixed_unconditional_iid]
+    median = 0.1611967155172609
+    p95 = 0.16159006030332954
+    SE = 3.987869496983572e-5
+    p05 = 0.16084638561351566
+    p_negative = 0.0
+    mean = 0.16119852301300786
+    sd = 0.0002255879651043256
+    n = 32
+
+    [conditional_MC.X_ES1_conditional_feasible]
+    median = 0.06615800413950003
+    p95 = 0.09213911499057958
+    SE = 0.004357055496749295
+    p05 = 0.020702945733295883
+    p_negative = 0.0
+    mean = 0.062371218450566916
+    sd = 0.023463461923826246
+    n = 29
+
+    [conditional_MC.X_fixed_Eq18_conditional_feasible]
+    median = 0.1612399543527564
+    p95 = 0.16161992915796813
+    SE = 4.304027653237764e-5
+    p05 = 0.16084092123752725
+    p_negative = 0.0
+    mean = 0.16123512906901602
+    sd = 0.00023177898247149712
+    n = 29
+
+    [conditional_MC.total_wedge_conditional]
+    median = -0.10150786723130696
+    p95 = -0.0755267563802274
+    SE = 0.004357055496749295
+    p05 = -0.1469629256375111
+    p_negative = 1.0
+    mean = -0.10529465292024007
+    sd = 0.023463461923826246
+    n = 29
+
+    [conditional_MC.X_fixed_conditional_feasible]
+    median = 0.16121061324116884
+    p95 = 0.161598923893214
+    SE = 4.305892046467896e-5
+    p05 = 0.16081620291209536
+    p_negative = 0.0
+    mean = 0.16121192549768812
+    sd = 0.0002318793831195928
+    n = 29
+
+    [conditional_MC.X_fixed_Eq18_unconditional_iid]
+    median = 0.16122525993887493
+    p95 = 0.16161072267275528
+    SE = 3.983677745776885e-5
+    p05 = 0.16086929725607174
+    p_negative = 0.0
+    mean = 0.16122156928487724
+    sd = 0.00022535084384806199
+    n = 32
+
+    [conditional_MC.paired_equilibrium_minus_forecast_wedge]
+    median = -0.08863887686854036
+    p95 = -0.06236102660140503
+    SE = 0.004366098745971255
+    p05 = -0.13378873186957224
+    p_negative = 1.0
+    mean = -0.09238676117400232
+    sd = 0.023512161311278493
+    n = 29
+
+    [conditional_MC.equilibrium_wedge_conditional]
+    median = -0.09502691213030363
+    p95 = -0.06894389149081621
+    SE = 0.004361366914171625
+    p05 = -0.14036668690750506
+    p_negative = 1.0
+    mean = -0.0988407070471212
+    sd = 0.023486679617197845
+    n = 29
+
+    [conditional_MC.forecast_wedge_conditional_Eq18]
+    median = -0.006425917018050592
+    p95 = -0.006045942212838856
+    SE = 4.304027653237764e-5
+    p05 = -0.006824950133279756
+    p_negative = 1.0
+    mean = -0.0064307423017909955
+    sd = 0.00023177898247149714
+    n = 29
+
+    [conditional_MC.epsilon_conditional_feasible]
+    median = -0.9299272550227689
+    p95 = -0.5987972823871484
+    SE = 0.10701222125839673
+    p05 = -2.28556664629748
+    p_negative = 1.0
+    mean = -1.1031841446596553
+    sd = 0.5762784478540088
+    n = 29
+[[conditional_MC]]
+covariance_forecast_equilibrium_wedges = 2.7268628580587573e-7
+X_expected_AppendixA = 0.14655762822164103
+K_expected_AppendixA = 6.666693495657713
+forecast_Eq18_signed_share = 0.07847488433770383
+feasibility_probability_MC = 0.78125
+draws = 32
+forecast_signed_share = 0.08342007727750878
+equilibrium_signed_share = 0.9165799227224912
+t = 20
+max_abs_wedge_identity_residual = 0.0
+mean_wedge_Eq18_additivity_residual = 1.3877787807814457e-17
+K_reference_Eq18_for_ES1 = 6.66732091608585
+max_abs_threshold_CES_power_residual = 1.0438871989038034e-13
+fixed_K_response_is_not_equilibrium = true
+equilibrium_Eq18_signed_share = 0.921525115662296
+max_abs_reference_CES_residual = 5.5372915454265925e-15
+mean_ES1_rank = 269.88
+share_ES1_is_max_positive_X = 1.0
+mean_wedge_additivity_residual = 0.0
+n_feasible = 25
+n_infeasible = 7
+max_abs_reference_X_residual = 2.70833702686879e-16
+conditioning = "All three wedge means condition on identical iid draws with at least one positive-X fixed point; nonexistence is not zero investment."
+original_iid_unconditional_epsilon_undefined_on_failures = true
+max_abs_threshold_X_residual = 4.8433479449272454e-15
+
+    [conditional_MC.equilibrium_wedge_conditional_Eq18]
+    median = -0.08703303725514644
+    p95 = -0.07086682923813453
+    SE = 0.0036751416904713743
+    p05 = -0.12309522461182745
+    p_negative = 1.0
+    mean = -0.08890874905946912
+    sd = 0.01837570845235687
+    n = 25
+
+    [conditional_MC.forecast_wedge_conditional]
+    median = -0.00806836018634044
+    p95 = -0.007822064126597056
+    SE = 2.607697151590453e-5
+    p05 = -0.008229814506484367
+    p_negative = 1.0
+    mean = -0.008048369589858814
+    sd = 0.00013038485757952266
+    n = 25
+
+    [conditional_MC.X_fixed_unconditional_iid]
+    median = 0.1384623450144582
+    p95 = 0.13873240192326508
+    SE = 2.4065932592193907e-5
+    p05 = 0.13829136138110681
+    p_negative = 0.0
+    mean = 0.1384830663255626
+    sd = 0.00013613747305214928
+    n = 32
+
+    [conditional_MC.X_ES1_conditional_feasible]
+    median = 0.05199153356457586
+    p95 = 0.06809847814422011
+    SE = 0.003678998302663175
+    p05 = 0.01585598662513665
+    p_negative = 0.0
+    mean = 0.050077621818808725
+    sd = 0.018394991513315875
+    n = 25
+
+    [conditional_MC.X_fixed_Eq18_conditional_feasible]
+    median = 0.13899490224750727
+    p95 = 0.13924624172391958
+    SE = 2.9477338797879013e-5
+    p05 = 0.13876381577129485
+    p_negative = 0.0
+    mean = 0.13898637087827784
+    sd = 0.00014738669398939506
+    n = 25
+
+    [conditional_MC.total_wedge_conditional]
+    median = -0.09456609465706517
+    p95 = -0.07845915007742092
+    SE = 0.003678998302663175
+    p05 = -0.13070164159650438
+    p_negative = 1.0
+    mean = -0.09648000640283233
+    sd = 0.018394991513315875
+    n = 25
+
+    [conditional_MC.X_fixed_conditional_feasible]
+    median = 0.1384892680353006
+    p95 = 0.13873556409504398
+    SE = 2.607697151590453e-5
+    p05 = 0.13832781371515668
+    p_negative = 0.0
+    mean = 0.1385092586317822
+    sd = 0.00013038485757952266
+    n = 25
+
+    [conditional_MC.X_fixed_Eq18_unconditional_iid]
+    median = 0.13896714978375346
+    p95 = 0.13922600309767608
+    SE = 2.6153328334914177e-5
+    p05 = 0.1387655645975548
+    p_negative = 0.0
+    mean = 0.13895982969988396
+    sd = 0.00014794556652972875
+    n = 32
+
+    [conditional_MC.paired_equilibrium_minus_forecast_wedge]
+    median = -0.07853591572810348
+    p95 = -0.06229812657344008
+    SE = 0.003673063939719752
+    p05 = -0.11458323608020216
+    p_negative = 1.0
+    mean = -0.08038326722311469
+    sd = 0.01836531969859876
+    n = 25
+
+    [conditional_MC.equilibrium_wedge_conditional]
+    median = -0.08655100519258432
+    p95 = -0.07039199533766209
+    SE = 0.003675939825363115
+    p05 = -0.12263518204299266
+    p_negative = 1.0
+    mean = -0.08843163681297352
+    sd = 0.018379699126815575
+    n = 25
+
+    [conditional_MC.forecast_wedge_conditional_Eq18]
+    median = -0.007562725974133766
+    p95 = -0.007311386497721468
+    SE = 2.9477338797879013e-5
+    p05 = -0.007793812450346177
+    p_negative = 1.0
+    mean = -0.007571257343363192
+    sd = 0.00014738669398939506
+    n = 25
+
+    [conditional_MC.epsilon_conditional_feasible]
+    median = -1.0363378285497424
+    p95 = -0.7664638864780734
+    SE = 0.11506472039841772
+    p05 = -2.223871769816783
+    p_negative = 1.0
+    mean = -1.1882840482826427
+    sd = 0.5753236019920887
+    n = 25
+[[conditional_MC]]
+covariance_forecast_equilibrium_wedges = -5.6705352797728366e-9
+X_expected_AppendixA = 0.07805573952498365
+K_expected_AppendixA = 2.4797596458592386
+forecast_Eq18_signed_share = 0.24035466630138422
+feasibility_probability_MC = 0.96875
+draws = 32
+forecast_signed_share = 0.27636264449380576
+equilibrium_signed_share = 0.7236373555061945
+t = 100
+max_abs_wedge_identity_residual = 1.3877787807814457e-17
+mean_wedge_Eq18_additivity_residual = -6.938893903907228e-18
+K_reference_Eq18_for_ES1 = 2.4858308350666687
+max_abs_threshold_CES_power_residual = 7.853093175747006e-14
+fixed_K_response_is_not_equilibrium = true
+equilibrium_Eq18_signed_share = 0.7596453336986159
+max_abs_reference_CES_residual = 1.3905543383430086e-14
+mean_ES1_rank = 298.61290322580646
+share_ES1_is_max_positive_X = 1.0
+mean_wedge_additivity_residual = -1.3877787807814457e-17
+n_feasible = 31
+n_infeasible = 1
+max_abs_reference_X_residual = 7.407269242420966e-16
+conditioning = "All three wedge means condition on identical iid draws with at least one positive-X fixed point; nonexistence is not zero investment."
+original_iid_unconditional_epsilon_undefined_on_failures = true
+max_abs_threshold_X_residual = 8.326672684688674e-16
+
+    [conditional_MC.equilibrium_wedge_conditional_Eq18]
+    median = -0.04428105355179876
+    p95 = -0.03705880170716046
+    SE = 0.0010404375004647835
+    p05 = -0.05524333541637899
+    p_negative = 1.0
+    mean = -0.0450439200914013
+    sd = 0.005792910836839766
+    n = 31
+
+    [conditional_MC.forecast_wedge_conditional]
+    median = -0.01638741170272421
+    p95 = -0.0163358840197641
+    SE = 6.765248213368084e-6
+    p05 = -0.016448426608972798
+    p_negative = 1.0
+    mean = -0.01638719586970592
+    sd = 3.766730790809029e-5
+    n = 31
+
+    [conditional_MC.X_fixed_unconditional_iid]
+    median = 0.06166967008438776
+    p95 = 0.06171963624738512
+    SE = 6.6330308675709435e-6
+    p05 = 0.06160746679538659
+    p_negative = 0.0
+    mean = 0.06166958723161107
+    sd = 3.7522088850232826e-5
+    n = 32
+
+    [conditional_MC.X_ES1_conditional_feasible]
+    median = 0.019567818559033764
+    p95 = 0.026754669537870368
+    SE = 0.0010398498763409324
+    p05 = 0.008567071035298884
+    p_negative = 0.0
+    mean = 0.018759752182985215
+    sd = 0.005789639084184247
+    n = 31
+
+    [conditional_MC.X_fixed_Eq18_conditional_feasible]
+    median = 0.06380567671674427
+    p95 = 0.06385832513083528
+    SE = 7.047596762984339e-6
+    p05 = 0.06375330766891833
+    p_negative = 0.0
+    mean = 0.06380367227438652
+    sd = 3.923935810054042e-5
+    n = 31
+
+    [conditional_MC.total_wedge_conditional]
+    median = -0.05848792096594989
+    p95 = -0.051301069987113285
+    SE = 0.0010398498763409321
+    p05 = -0.06948866848968477
+    p_negative = 1.0
+    mean = -0.059295987341998424
+    sd = 0.0057896390841842464
+    n = 31
+
+    [conditional_MC.X_fixed_conditional_feasible]
+    median = 0.06166832782225944
+    p95 = 0.06171985550521955
+    SE = 6.765248213368083e-6
+    p05 = 0.061607312916010855
+    p_negative = 0.0
+    mean = 0.061668543655277755
+    sd = 3.7667307908090284e-5
+    n = 31
+
+    [conditional_MC.X_fixed_Eq18_unconditional_iid]
+    median = 0.06380606987226473
+    p95 = 0.06385781845355339
+    SE = 6.886809961802707e-6
+    p05 = 0.0637537027719103
+    p_negative = 0.0
+    mean = 0.06380460169360018
+    sd = 3.89576801978701e-5
+    n = 32
+
+    [conditional_MC.paired_equilibrium_minus_forecast_wedge]
+    median = -0.025768028000563686
+    p95 = -0.018476972240790222
+    SE = 0.0010402016378077068
+    p05 = -0.03668686497285533
+    p_negative = 1.0
+    mean = -0.026521595602586604
+    sd = 0.005791597609143171
+    n = 31
+
+    [conditional_MC.equilibrium_wedge_conditional]
+    median = -0.04212797448325679
+    p95 = -0.03488902111395176
+    SE = 0.0010400037681319503
+    p05 = -0.05308776673127005
+    p_negative = 1.0
+    mean = -0.04290879147229252
+    sd = 0.005790495917414009
+    n = 31
+
+    [conditional_MC.forecast_wedge_conditional_Eq18]
+    median = -0.014250062808239386
+    p95 = -0.014197414394148379
+    SE = 7.047596762984339e-6
+    p05 = -0.01430243185606532
+    p_negative = 1.0
+    mean = -0.014252067250597134
+    sd = 3.923935810054042e-5
+    n = 31
+
+    [conditional_MC.epsilon_conditional_feasible]
+    median = -1.3835368742014347
+    p95 = -1.070735954379148
+    SE = 0.06870772351586305
+    p05 = -2.210958504272746
+    p_negative = 1.0
+    mean = -1.4861460636251427
+    sd = 0.3825484144428005
+    n = 31
+[[conditional_MC]]
+covariance_forecast_equilibrium_wedges = -1.221255070117194e-14
+X_expected_AppendixA = 0.003042941542847118
+K_expected_AppendixA = 0.015219385407354456
+forecast_Eq18_signed_share = 0.9038433812350422
+feasibility_probability_MC = 0.6875
+draws = 32
+forecast_signed_share = 0.9038434552096388
+equilibrium_signed_share = 0.0961565447903612
+t = 500
+max_abs_wedge_identity_residual = 4.336808689942018e-19
+mean_wedge_Eq18_additivity_residual = 0.0
+K_reference_Eq18_for_ES1 = 0.017273337993585058
+max_abs_threshold_CES_power_residual = 2.4231918555051024e-15
+fixed_K_response_is_not_equilibrium = true
+equilibrium_Eq18_signed_share = 0.09615661876495789
+max_abs_reference_CES_residual = 3.3046212887350728e-18
+mean_ES1_rank = 235.0909090909091
+share_ES1_is_max_positive_X = 1.0
+mean_wedge_additivity_residual = 0.0
+n_feasible = 22
+n_infeasible = 10
+max_abs_reference_X_residual = 2.0595142891345283e-20
+conditioning = "All three wedge means condition on identical iid draws with at least one positive-X fixed point; nonexistence is not zero investment."
+original_iid_unconditional_epsilon_undefined_on_failures = true
+max_abs_threshold_X_residual = 1.4040418133687282e-17
+
+    [conditional_MC.equilibrium_wedge_conditional_Eq18]
+    median = -0.00028053442471491854
+    p95 = -0.00023276258150074723
+    SE = 9.195539143184898e-6
+    p05 = -0.00036622493153827995
+    p_negative = 1.0
+    mean = -0.00028133474629511495
+    sd = 4.313090171726768e-5
+    n = 22
+
+    [conditional_MC.forecast_wedge_conditional]
+    median = -0.002644462249362568
+    p95 = -0.002644462249362568
+    SE = 2.1643465273237715e-10
+    p05 = -0.002644462249362568
+    p_negative = 1.0
+    mean = -0.0026444624657972204
+    sd = 1.0151685061478529e-9
+    n = 22
+
+    [conditional_MC.X_fixed_unconditional_iid]
+    median = 0.00039847929348454985
+    p95 = 0.00039847929348454985
+    SE = 1.487988237501211e-10
+    p05 = 0.00039847929348454985
+    p_negative = 0.0
+    mean = 0.00039847914468572594
+    sd = 8.417332584503404e-10
+    n = 32
+
+    [conditional_MC.X_ES1_conditional_feasible]
+    median = 0.00011794486876963128
+    p95 = 0.00016571671198380261
+    SE = 9.195539143184896e-6
+    p05 = 3.225436194626991e-5
+    p_negative = 0.0
+    mean = 0.00011714454718943492
+    sd = 4.3130901717267676e-5
+    n = 22
+
+    [conditional_MC.X_fixed_Eq18_conditional_feasible]
+    median = 0.00039847929348454985
+    p95 = 0.00039847929348454985
+    SE = 0.0
+    p05 = 0.00039847929348454985
+    p_negative = 0.0
+    mean = 0.00039847929348454985
+    sd = 0.0
+    n = 22
+
+    [conditional_MC.total_wedge_conditional]
+    median = -0.0029249966740774866
+    p95 = -0.0028772248308633155
+    SE = 9.19553914318489e-6
+    p05 = -0.003010687180900848
+    p_negative = 1.0
+    mean = -0.0029257969956576826
+    sd = 4.313090171726764e-5
+    n = 22
+
+    [conditional_MC.X_fixed_conditional_feasible]
+    median = 0.00039847929348454985
+    p95 = 0.00039847929348454985
+    SE = 2.1643465272744896e-10
+    p05 = 0.00039847929348454985
+    p_negative = 0.0
+    mean = 0.0003984790770498971
+    sd = 1.0151685061247377e-9
+    n = 22
+
+    [conditional_MC.X_fixed_Eq18_unconditional_iid]
+    median = 0.00039847929348454985
+    p95 = 0.00039847929348454985
+    SE = 2.920926879710167e-20
+    p05 = 0.00039847929348454985
+    p_negative = 0.0
+    mean = 0.0003984792934845497
+    sd = 1.652325763194498e-19
+    n = 32
+
+    [conditional_MC.paired_equilibrium_minus_forecast_wedge]
+    median = 0.0023639278246476497
+    p95 = 0.0024116996678618208
+    SE = 9.195659878312665e-6
+    p05 = 0.0022782373178242884
+    p_negative = 0.0
+    mean = 0.0023631279359367587
+    sd = 4.3131468015213726e-5
+    n = 22
+
+    [conditional_MC.equilibrium_wedge_conditional]
+    median = -0.00028053442471491854
+    p95 = -0.00023276258150074723
+    SE = 9.19559950839985e-6
+    p05 = -0.00036622493153827995
+    p_negative = 1.0
+    mean = -0.0002813345298604622
+    sd = 4.313118485522324e-5
+    n = 22
+
+    [conditional_MC.forecast_wedge_conditional_Eq18]
+    median = -0.002644462249362568
+    p95 = -0.002644462249362568
+    SE = 9.46369242676265e-20
+    p05 = -0.002644462249362568
+    p_negative = 1.0
+    mean = -0.0026444622493625677
+    sd = 4.438865210460918e-19
+    n = 22
+
+    [conditional_MC.epsilon_conditional_feasible]
+    median = -3.2506081880547106
+    p95 = -2.910312691052549
+    SE = 0.11622765240929411
+    p05 = -4.561762892829913
+    p_negative = 1.0
+    mean = -3.3629028923623308
+    sd = 0.5451560125878328
+    n = 22

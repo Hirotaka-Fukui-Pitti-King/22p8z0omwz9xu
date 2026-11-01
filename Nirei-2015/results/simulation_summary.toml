@@ -1,17 +1,17 @@
 [integrity]
 max_abs_production_linear_residual = 0.0
-max_abs_resources_linear_residual = 1.1102230246251565e-16
+max_abs_resources_linear_residual = 5.761479404820138e-17
 max_abs_fixed_point_residual = 3.801403636316536e-13
 max_abs_investment_residual = 3.760880495917718e-15
-max_abs_stable_jump_residual = 1.0061396160665481e-16
-max_abs_marginal_utility_linear_residual = 7.105427357601002e-15
+max_abs_stable_jump_residual = 0.016004056988291764
+max_abs_marginal_utility_linear_residual = 3.3306690738754696e-16
 
 [status]
-requested_periods = 20
+requested_periods = 6
 completed_periods = 5
-failure = """Nirei2015 simulation failed at t=5 (K_prior=8.142757611757252, mu_prior=398.7913043898348): DomainError with (fixed_points = 3, minimum_investment = -0.05758656336226558, maximum_investment = -0.057398135458978324, minimum_capital = 7.922286680029842, maximum_capital = 7.922475106160655, expected_investment = 0.16651918798803195, expected_capital = 8.146420155827748):\nNo equilibrium has X>0, so the Section 3.4 ES1 log shock is undefined; the capital-based ES1 of Definition 1 is not a valid substitute for log(X/X_expected)"""
+failure = """Nirei2015 simulation failed at t=5 (K_prior=8.142757611757252, mu_prior=1.4170866788037861): DomainError with (fixed_points = 3, minimum_investment = -0.05758656336226558, maximum_investment = -0.057398135458978324, minimum_capital = 7.922286680029842, maximum_capital = 7.922475106160655, expected_investment = 0.20822924713663557, expected_capital = 8.188129841336766):\nNo equilibrium has X>0, so the Section 3.4 ES1 log shock is undefined; the capital-based ES1 of Definition 1 is not a valid substitute for log(X/X_expected)"""
 completed = false
-elapsed_seconds = 0.244258
+elapsed_seconds = 0.3303255
 
 [environment]
 julia_version = "1.12.6"
@@ -26,14 +26,14 @@ active_project = "C:\\github\\22p8z0omwz9xu\\Nirei-2015\\Project.toml"
 
 [initial_period]
 K_next = 8.546731346350889
-epsilon = -0.9139209899123457
+epsilon = -0.913947968185981
 realized_X = 0.06936827009543808
-expected_X = 0.17301019954027186
+expected_X = 0.1730148671197381
 
 [configuration]
 price_setting = "Predetermined price equations imposed in expectations, not realized macro identities"
-burnin = 19
-periods = 20
+burnin = 5
+periods = 6
 initial_K = 8.650373019320316
 conditional_expectations = "Appendix A B^-1D two-state forecast of log deviations"
 moment_calculation = "Not part of Issue #5. Diagnostic summary only."
@@ -41,6 +41,6 @@ firms = 110000
 rng = "Random.Xoshiro"
 base_seed = 20261101
 macro_closure = "First-order bounded-continuation mu_t = h*log(K_{t+1}^firm/Kbar); finite-N forecast drift is measured"
-initial_mu = 334.0744642540467
+initial_mu = 1.3217303915840555
 capital = "Firm aggregation is exact; Appendix A linear capital is a separate diagnostic"
 replication = 1

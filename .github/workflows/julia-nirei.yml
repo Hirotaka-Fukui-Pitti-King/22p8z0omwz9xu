@@ -34,6 +34,21 @@ jobs:
           julia --project=. scripts/run_expectations.jl
       - name: Independent small-N fixed-point oracle
         run: julia --project=. scripts/check_equilibrium_oracle.jl
+      - name: Stage 12 independent small-N multi-step oracle and J=1 regression
+        timeout-minutes: 15
+        run: julia --project=. scripts/diagnostic_multistep_equilibrium.jl small
+      - name: Stage 13 small-N dynamic J2 smoke
+        timeout-minutes: 15
+        run: julia --project=. scripts/diagnostic_multistep_simulation.jl smoke
+      - name: Stage 13 dynamic A/B 20-period benchmark N (no shock rejection)
+        timeout-minutes: 45
+        run: julia --project=. scripts/diagnostic_multistep_simulation.jl run 20 110000 20261101
+      - name: Stage 12 original t5 full multi-step equilibrium sweep J=1..4
+        timeout-minutes: 60
+        run: julia --project=. scripts/diagnostic_multistep_equilibrium.jl benchmark 110000 20261101
+      - name: Stage 10 original t5 fixed-point and feasibility diagnostic (benchmark N)
+        timeout-minutes: 30
+        run: julia --project=. scripts/diagnostic_equilibrium_feasibility.jl 110000 20261101 32
       - name: Initial collapse attribution (benchmark N)
         run: julia --project=. scripts/audit_investment_dynamics.jl
       - name: Diagnostic shock-rejection 20-period smoke (benchmark N)
@@ -44,6 +59,9 @@ jobs:
       - name: Exact CES capital and rational expectations closure audit (benchmark N)
         timeout-minutes: 90
         run: julia --project=. scripts/diagnostic_capital_closure.jl 1100 110000 20261101 100
+      - name: Stage 8 conditional investment wedge (benchmark N, five states)
+        timeout-minutes: 90
+        run: julia --project=. scripts/diagnostic_investment_wedge.jl 501 110000 20261101 32 100
       - name: Firm simulation integration smoke (benchmark N, 20 periods)
         run: |
           julia --project=. scripts/run_benchmark.jl 20 110000 20261101
@@ -59,3 +77,11 @@ jobs:
             Nirei-2015/results/diagnostic_shock_rejection_counterfactual_*.toml
             Nirei-2015/results/diagnostic_capital_closure_*.csv
             Nirei-2015/results/diagnostic_capital_closure_*.toml
+            Nirei-2015/results/diagnostic_investment_wedge_*.csv
+            Nirei-2015/results/diagnostic_investment_wedge_*.toml
+            Nirei-2015/results/diagnostic_equilibrium_feasibility_*.csv
+            Nirei-2015/results/diagnostic_equilibrium_feasibility_*.toml
+            Nirei-2015/results/diagnostic_multistep_equilibrium_*.csv
+            Nirei-2015/results/diagnostic_multistep_equilibrium_*.toml
+            Nirei-2015/results/diagnostic_multistep_simulation_*.csv
+            Nirei-2015/results/diagnostic_multistep_simulation_*.toml

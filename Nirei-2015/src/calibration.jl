@@ -9,7 +9,7 @@ Base.@kwdef struct BenchmarkParameters
     alpha::Float64 = 0.26
     delta::Float64 = 0.02
     beta::Float64 = 0.99
-    sigma::Float64 = 15.0
+    sigma::Float64 = 1.5
     eta::Float64 = 11.0
     psi::Float64 = 1.0
     zeta::Float64 = 2.0

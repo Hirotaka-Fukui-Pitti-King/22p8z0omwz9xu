@@ -1,0 +1,52 @@
+name: Nirei 2015 original Table 1 sigma correction and benchmark
+on:
+  push:
+    branches:
+      - research/issue5-original-sigma-correction
+    paths:
+      - 'Nirei-2015/src/calibration.jl'
+      - 'Nirei-2015/scripts/check_published_table1.jl'
+      - '.github/workflows/julia-sigma-benchmark.yml'
+  workflow_dispatch:
+
+jobs:
+  original-three-choice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    defaults:
+      run:
+        working-directory: Nirei-2015
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.12.6'
+      - name: Parse source and scripts
+        run: julia --project=. scripts/check_julia_syntax.jl
+      - name: Instantiate and import
+        run: julia --project=. -e 'using Pkg; Pkg.instantiate(); using Nirei2015'
+      - name: Regression against actual published Table 1 (sigma=1.5)
+        run: julia --project=. scripts/check_published_table1.jl
+      - name: Independent firm fixed-point oracle
+        run: julia --project=. scripts/check_equilibrium_oracle.jl
+      - name: Original published 2015 three-choice T20, no shock rejection
+        timeout-minutes: 45
+        run: julia --project=. scripts/run_benchmark.jl 20 110000 20261101
+      - name: Gate original T20
+        run: |
+          julia --project=. -e 'using TOML; d=TOML.parsefile("results/simulation_summary.toml"); @assert d["status"]["completed"] && d["status"]["completed_periods"]==20'
+      - name: Original published 2015 three-choice T1100, no shock rejection
+        timeout-minutes: 90
+        run: julia --project=. scripts/run_benchmark.jl 1100 110000 20261101
+      - name: Gate original T1100
+        run: |
+          julia --project=. -e 'using TOML; d=TOML.parsefile("results/simulation_summary.toml"); @assert d["status"]["completed"] && d["status"]["completed_periods"]==1100'
+      - name: Upload original three-choice results, including partial failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: original-published-sigma-corrected-benchmark
+          if-no-files-found: warn
+          path: |
+            Nirei-2015/results/simulation_rep01.csv
+            Nirei-2015/results/simulation_summary.toml

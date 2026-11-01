@@ -1,0 +1,40 @@
+[first_period]
+K_next = 8.590419357387953
+n_positive = 17
+X = 0.11305740191076478
+capital_residual = 4.849454171562684e-13
+expected_X = 0.1730148671197381
+n_fixed = 17
+n_investing = 53576
+
+[status]
+requested_periods = 1100
+completed_periods = 140
+failure = "Nirei2015 simulation failed at t=140 (K_prior=3.1387408929990417, mu_prior=4.868312801534069e11): exact level household/market equations failed"
+completed = false
+
+[moments]
+sd_logL_pct = 36.603839945646925
+corr_Y_C = 0.7982101648688126
+sd_logY_pct = 29.065458226306735
+corr_Y_L = 0.999442296619375
+corr_Y_K = 0.9113425637654645
+sd_logC_pct = 440.53906327055944
+sd_logX_pct = 9.76120449410768
+corr_Y_X = 0.8809800189298816
+sd_logK_pct = 8.427275281495112
+
+[last_period]
+K_next = 3.1387408929990417
+X = 0.038886963432626036
+n_fixed = 2
+
+[configuration]
+firms = 110000
+selection = "original Section 3.4 ES1 over X>0"
+not_published_2015_replication = true
+model = "book-motivated two-choice kappa in {0,1}"
+burnin = 100
+seed = 20261101
+replication = 1
+continuation = "current first-order Appendix A mu innovation"

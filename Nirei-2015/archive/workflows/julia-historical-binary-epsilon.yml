@@ -1,0 +1,57 @@
+name: Historical 2013 binary and epsilon combined computational protocol
+on:
+  push:
+    branches:
+      - research/issue5-author-epsilon-protocol
+    paths:
+      - 'Nirei-2015/scripts/historical_binary_epsilon.jl'
+      - '.github/workflows/julia-historical-binary-epsilon.yml'
+  workflow_dispatch:
+
+jobs:
+  historical-combination:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    defaults:
+      run:
+        working-directory: Nirei-2015
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.12.6'
+      - name: Parse all source and scripts
+        run: julia --project=. scripts/check_julia_syntax.jl
+      - name: Instantiate and load Nirei2015, confirm published risk-aversion fix
+        run: |
+          julia --project=. -e 'using Pkg; Pkg.instantiate(); using Nirei2015'
+          julia --project=. scripts/check_published_table1.jl
+      - name: Binary plus continuum epsilon small-N T3 smoke
+        run: julia --project=. scripts/historical_binary_epsilon.jl 3 48 20261101
+      - name: Historical 2013 binary epsilon N350000 T20
+        timeout-minutes: 30
+        run: julia --project=. scripts/historical_binary_epsilon.jl 20 350000 20261101
+      - name: Gate historical T20 completion and direct investment
+        run: |
+          julia --project=. -e 'using TOML; d=TOML.parsefile("results/historical_binary_epsilon_T20_N350000_seed20261101.toml"); @assert d["completed"] && d["completed_periods"]==20 && d["max_abs_X_gap"]<1e-8'
+      - name: Historical 2013 binary epsilon N350000 T1100
+        timeout-minutes: 70
+        run: julia --project=. scripts/historical_binary_epsilon.jl 1100 350000 20261101
+      - name: Gate historical T1100 completion and direct investment
+        run: |
+          julia --project=. -e 'using TOML; d=TOML.parsefile("results/historical_binary_epsilon_T1100_N350000_seed20261101.toml"); @assert d["completed"] && d["completed_periods"]==1100 && d["max_abs_X_gap"]<1e-8'
+      - name: Historical binary epsilon at 2015 N110000 T1100
+        timeout-minutes: 70
+        run: julia --project=. scripts/historical_binary_epsilon.jl 1100 110000 20261101
+      - name: Gate N110000 T1100 completion and direct investment
+        run: |
+          julia --project=. -e 'using TOML; d=TOML.parsefile("results/historical_binary_epsilon_T1100_N110000_seed20261101.toml"); @assert d["completed"] && d["completed_periods"]==1100 && d["max_abs_X_gap"]<1e-8'
+      - name: Archive exact CES inconsistencies and moments
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: historical-2013-binary-epsilon-results
+          if-no-files-found: warn
+          path: |
+            Nirei-2015/results/historical_binary_epsilon_*.toml
+            Nirei-2015/results/historical_binary_epsilon_*.csv

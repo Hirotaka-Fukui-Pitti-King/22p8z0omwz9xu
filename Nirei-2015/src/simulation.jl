@@ -9,14 +9,15 @@ forecasts (K_{t+1}, mu_t, X_t, ...) from (K_t, mu_{t-1}). New a_{i,t+1}
 are drawn, ES1 realizes X_t and K_{t+1}, then macro variables for date t
 are reconstructed. The new state has (K_{t+1}, mu_t).
 
-CLOSURE (not an independently estimated finite-N rational-expectations
-solution): imposing the bounded/stable continuation on the forward-looking
-marginal utility gives tilde(mu)_t = h*tilde(K)_{t+1}.
-This is the saddle-path terminal/transversality restriction, not an
-equation of predetermined prices at realized outcomes. It agrees with
-the conditional RE system *to first order* when investment innovations
-have zero conditional mean. Finite-N ES1 need not have that property:
-the resulting forecast errors and their drift are recorded, NOT removed.
+FIRST-ORDER CONTINUATION (not a solved nonlinear finite-N RE equilibrium):
+Appendix A forecasts log(mu_t) conditionally and gives the capital innovation
+delta*epsilon_t. The local stable eigenvector slope h maps that innovation
+to the current marginal-utility surprise. The realized exact finite-N K
+may differ from the first-order predicted K; this discrepancy is recorded.
+Realized Y,C,L,w and R satisfy exact equations (7),(8),(11),(12) and the
+marginal-utility definition, on the locally continuous household branch.
+This fixes erroneous exponentiation of the linearized resource equation.
+Neither step asserts global nonlinear rational-expectations consistency.
 """
 
 """
@@ -55,8 +56,12 @@ end
 
 Log columns are log *levels* (suitable for later Table 2), while
 logdev_* columns are deviations from the fixed calibration steady state.
-All realized C,L,Y,w,mu,R levels are exp-transforms of the FIRST-ORDER
-macro system, not solutions of its nonlinear levels counterpart.
+Realized Y,C,L,w,R are exact level allocations conditional on the first-order
+marginal-utility continuation. For backward-compatible CSV field names, the
+five *_linear_residual columns now store NORMALIZED EXACT LEVEL residuals,
+not Appendix A log-linear residuals. Their values are zero at a valid root.
+The mismatch between realized finite-N capital and Appendix A linear capital
+is recorded separately.
 """
 struct PeriodRecord
     t::Int
@@ -136,53 +141,149 @@ function initialize_simulation(;
                            K, mu_prior, 0, base_seed, replication)
 end
 
-# Return log deviations of realized C,L,Y,w and their linear-equation
-# residuals. eqs (27),(28),(30),(33) are contemporaneous conditions.
-# Price-setting conditions (29),(31) are NOT imposed on realizations.
+# Conditional on the (first-order) marginal utility realization, solve the
+# EXACT contemporaneous household/production/market-clearing equations.
+# Use the low-labor branch, which contains the published deterministic steady
+# state; the second (high-labor) root is not silently selected. Neither the
+# predetermined firm-price expectation equations (9),(17) nor a realized
+# constant labor-share FOC are imposed as false ex-post identities.
+#
+# For X>0 and sigma>1 the log marginal-utility function in L has ONE
+# minimum: L*derivative(log mu)= -sigma*(1-alpha)*Y/C
+#   + (sigma-1)*psi*zeta*L^zeta/(1-psi*L^zeta).
+# Both terms are monotone increasing in L, and have opposite infinite
+# endpoint signs. Thus the low-L root is unique whenever it exists.
 function _realized_macroeconomy(
     calibration::CalibrationResult,
-    re::LinearRESolution,
-    logK_prior::Float64,
-    logX::Float64,
+    K_prior::Float64,
+    X::Float64,
     logmu::Float64,
     logmu_prior::Float64,
 )
     p = calibration.parameters
     s = calibration.steady_state
-    c = calibration.constants
-    A1 = re.coefficients.A1
-    abs(A1) > 1e-12 || throw(DomainError(A1, "singular macro closure"))
-    logL = (s.a_x * logX - p.alpha * logK_prior -
-            (s.a_c / p.sigma) * logmu) / A1
-    logY = p.alpha * logK_prior + (1.0 - p.alpha) * logL
-    logC = (logY - s.a_x * logX) / s.a_c
-    logw = logC + (p.zeta - 1.0 + c.c_L / s.a_c) * logL
-    # The realized inverse stochastic-discount-factor identity (7)/(32).
-    # This is not an ex-ante interest-rate forecasting equation.
-    logR = logmu_prior - logmu
+    isfinite(K_prior) && K_prior > 0.0 ||
+        throw(DomainError(K_prior, "K_prior must be positive"))
+    isfinite(X) && X > 0.0 ||
+        throw(DomainError(X, "original Section 3.4 ES1 requires X>0"))
+    p.sigma > 1.0 ||
+        throw(DomainError(p.sigma, "low-labor branch proof requires sigma>1"))
+    isfinite(logmu) && isfinite(logmu_prior) ||
+        throw(DomainError((logmu, logmu_prior), "nonfinite marginal utility state"))
 
-    production_res = logY - p.alpha * logK_prior -
-                     (1.0 - p.alpha) * logL
-    resources_res = logY - s.a_c * logC - s.a_x * logX
-    mu_res = logmu + p.sigma * logC -
-             (p.sigma - 1.0) * (c.c_L / s.a_c) * logL
-    labor_res = logw - logC -
-                (p.zeta - 1.0 + c.c_L / s.a_c) * logL
-    euler_res = logR - logmu_prior + logmu
-    maxres = maximum(abs, (production_res, resources_res, mu_res,
-                           labor_res, euler_res))
-    maxres <= 1e-9 ||
-        throw(ErrorException("realized linearized macro conditions failed: $maxres"))
+    capital_factor = K_prior^p.alpha
+    labor_exponent = 1.0 - p.alpha
+    Lmax = p.psi^(-inv(p.zeta))
+    Lmin = (X / capital_factor)^(inv(labor_exponent))
+    isfinite(Lmin) && Lmin < Lmax ||
+        throw(DomainError((K_prior, X), "no labor with positive C and feasible leisure"))
+    span = Lmax - Lmin
+    lo = Lmin + 1e-12 * span
+    hi = Lmax - 1e-12 * span
+    lo < hi || throw(DomainError((Lmin, Lmax), "empty numerical labor bracket"))
 
-    vals = (s.Y * exp(logY), s.C * exp(logC), s.L * exp(logL),
-            s.w * exp(logw), s.R * exp(logR))
-    all(x -> isfinite(x) && x > 0.0, vals) ||
-        throw(ArgumentError("macro levels must be positive and finite"))
-    p.psi * vals[3]^p.zeta < 1.0 ||
-        throw(DomainError(vals[3], "level reconstructed labor violates utility domain"))
+    function logmu_labor(L::Float64)
+        Y = capital_factor * L^labor_exponent
+        C = Y - X
+        leisure = 1.0 - p.psi * L^p.zeta
+        C > 0.0 && leisure > 0.0 ||
+            throw(DomainError((L, C, leisure), "household allocation outside domain"))
+        return -p.sigma * log(C) + (1.0 - p.sigma) * log(leisure)
+    end
+    function scaled_derivative(L::Float64)
+        Y = capital_factor * L^labor_exponent
+        C = Y - X
+        leisure = 1.0 - p.psi * L^p.zeta
+        return -p.sigma * labor_exponent * Y / C +
+               (p.sigma - 1.0) * p.psi * p.zeta * L^p.zeta / leisure
+    end
+
+    # Locate the minimum of log(mu(L)) on the feasible labor interval.
+    # This determines whether the steady-state-connected low-labor branch
+    # exists, but is NOT itself a stable way to invert extremely large mu:
+    # at large mu, C=Y-X loses relative precision as C approaches zero.
+    a, b = lo, hi
+    for _ in 1:100
+        mid = a + (b - a) / 2.0
+        if scaled_derivative(mid) < 0.0
+            a = mid
+        else
+            b = mid
+        end
+    end
+    Lturn = a + (b - a) / 2.0
+    target_logmu = log(s.mu) + logmu
+    minimum_logmu = logmu_labor(Lturn)
+    target_logmu >= minimum_logmu - 1e-12 ||
+        throw(DomainError((target_logmu, minimum_logmu),
+                          "no exact level household allocation for prescribed mu,K,X"))
+
+    # Invert marginal utility algebraically instead of obtaining extremely
+    # small consumption as the difference of two nearly equal goods flows.
+    # mu = C^(-sigma) * (1-psi*L^zeta)^(1-sigma), hence
+    # log(C)=[(1-sigma)*log(1-psi*L^zeta)-log(mu)]/sigma.
+    function consumption_given_labor(L::Float64)
+        leisure = 1.0 - p.psi * L^p.zeta
+        leisure > 0.0 ||
+            throw(DomainError((L, leisure), "nonpositive leisure"))
+        C_implied = exp(((1.0 - p.sigma) * log(leisure) - target_logmu) / p.sigma)
+        C_implied > 0.0 && isfinite(C_implied) ||
+            throw(DomainError(C_implied, "consumption unresolvable at Float64 precision"))
+        return C_implied
+    end
+    function goods_gap(L::Float64)
+        return capital_factor * L^labor_exponent - X -
+               consumption_given_labor(L)
+    end
+
+    # The lower branch has negative goods_gap at Lmin (zero goods
+    # available for C), and positive goods_gap at the mu minimum
+    # whenever the target mu is strictly above that minimum.
+    L = Lturn
+    if target_logmu > minimum_logmu + 1e-12
+        a, b = Lmin, Lturn
+        goods_gap(a) <= 0.0 ||
+            throw(ErrorException("cannot bracket low-labor root at Float64 precision"))
+        goods_gap(b) >= -1e-12 * max(1.0, abs(X)) ||
+            throw(ErrorException("cannot bracket low-labor root near mu minimum"))
+        for _ in 1:120
+            mid = a + (b - a) / 2.0
+            if mid == a || mid == b
+                break
+            elseif goods_gap(mid) < 0.0
+                a = mid
+            else
+                b = mid
+            end
+        end
+        # Choose the representable endpoint with the smaller resource
+        # residual, rather than taking another midpoint that may round.
+        L = abs(goods_gap(a)) <= abs(goods_gap(b)) ? a : b
+    end
+    Y = capital_factor * L^labor_exponent
+    C = consumption_given_labor(L)
+    leisure = 1.0 - p.psi * L^p.zeta
+    w = C * p.psi * p.zeta * L^(p.zeta - 1.0) / leisure
+    mu = s.mu * exp(logmu)
+    mu_prior = s.mu * exp(logmu_prior)
+    R = mu_prior / (p.beta * mu)
+
+    all(z -> isfinite(z) && z > 0.0, (Y, C, L, w, R, mu, mu_prior)) ||
+        throw(DomainError((Y, C, L, w, R), "nonpositive exact macro level"))
+    production_res = (Y - K_prior^p.alpha * L^labor_exponent) / Y
+    resources_res = (Y - C - X) / Y
+    mu_res = (logmu_labor(L) - target_logmu)
+    labor_res = (w * leisure - C * p.psi * p.zeta * L^(p.zeta - 1.0)) / w
+    euler_res = p.beta * R * mu / mu_prior - 1.0
+    maximum(abs, (production_res, resources_res, mu_res,
+                  labor_res, euler_res)) < 1e-9 ||
+        throw(ErrorException("exact level household/market equations failed"))
+
     return (
-        Y=vals[1], C=vals[2], L=vals[3], w=vals[4], R=vals[5],
-        logY=logY, logC=logC, logL=logL, logw=logw, logR=logR,
+        Y=Y, C=C, L=L, w=w, R=R,
+        logY=log(Y / s.Y), logC=log(C / s.C),
+        logL=log(L / s.L), logw=log(w / s.w),
+        logR=log(R / s.R),
         production_residual=production_res,
         resource_residual=resources_res,
         mu_residual=mu_res,
@@ -199,14 +300,13 @@ Perform one period in the order
   exact firm equilibrium with ES1 -> realized macro variables ->
   continuation-state update.
 
-The value mu_t is the contemporaneously adjusting forward-looking
-marginal utility. We use the stable continuation relation h*K_{t+1}
-as an explicit first-order selection assumption. It is NOT obtained
-by treating predetermined expected firm prices as realized identities.
-The departure of logmu_t from the actual conditional RE forecast is
-retained as an endogenous forecast error. Replacing this continuation
-condition with an independently derived nonlinear solution would
-require a stronger solution concept not specified in Appendix A.
+The marginal utility surprise follows the LOCAL first-order Appendix A
+stable response to the log-investment innovation: logmu_t = Eprev logmu_t
++ h*delta*epsilon_t, rather than mechanically imposing h*REALIZED finite-N
+log capital. These differ when Eq(26)'s approximation for K is inaccurate.
+This is NOT a fully solved global nonlinear rational expectations system.
+The realized household/market-clearing levels are solved exactly and are
+rejected if no admissible low-labor branch exists.
 """
 function simulate_period!(state::SimulationState)
     p = state.calibration.parameters
@@ -226,13 +326,16 @@ function simulate_period!(state::SimulationState)
         logK_prior = log(kp / s.K)
         logK_next = log(eq.K_next / s.K)
         logmu_prior = log(mup / s.mu)
-        logmu = state.re.h * logK_next
+        # Appendix A: the capital innovation in the LINEAR system is
+        # delta*epsilon, not the discrepancy in exact finite-N CES capital.
+        # The stable eigenspace slope maps this innovation to the
+        # marginal-utility jump (first-order RE closure).
+        logmu = expected.logmu_next + state.re.h * p.delta * eq.epsilon
         mu = s.mu * exp(logmu)
-        logX = log(eq.X / s.X)
         isfinite(mu) && mu > 0.0 ||
             throw(DomainError(mu, "unbounded/nonpositive continuation marginal utility"))
         realized_macro = _realized_macroeconomy(
-            state.calibration, state.re, logK_prior, logX, logmu, logmu_prior
+            state.calibration, kp, eq.X, logmu, logmu_prior
         )
 
         # Paper (26) is a FIRST-ORDER aggregate capital equation; it
