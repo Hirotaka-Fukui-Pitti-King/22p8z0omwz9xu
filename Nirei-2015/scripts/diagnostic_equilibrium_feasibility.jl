@@ -71,6 +71,38 @@ function stage10_direct_response(state, candidate::Float64)
     )
 end
 
+
+# X(K) is monotone in K. At a breakpoint b the old action still holds,
+# so positivity starts strictly ABOVE the first crossing to X>0.
+# This identifies the exact feasibility cutoff from the original 2N events.
+function stage10_positive_investment_cutoff(state)
+    ws=state.workspace
+    firms=state.firms
+    n=length(firms.lambda)
+    x=0.0
+    @inbounds for i in 1:n
+        x+=ws.depreciated[i]*(inv(firms.lambda[i])-1.0)/n
+    end
+    j=1
+    while j<=2n
+        boundary=ws.switches[ws.order[j]]
+        while j<=2n && ws.switches[ws.order[j]]==boundary
+            event=ws.order[j]
+            i=(event+1)>>>1
+            d=ws.depreciated[i]
+            li=firms.lambda[i]
+            x+=isodd(event) ?
+                d*(1.0-inv(li))/n :
+                d*(li-1.0)/n
+            j+=1
+        end
+        if x>0
+            return boundary
+        end
+    end
+    error("finite-firm high-capital positive investment was not found")
+end
+
 function stage10_wilson(k::Int,n::Int)
     n>0 || error("MC draws must be positive")
     z=1.959963984540054
@@ -96,6 +128,7 @@ function stage10_geometry!(state, t::Int;
     ws=state.workspace
     count=enumeration.total
     count>0 || error("no capital fixed points at t=$t")
+    cutoff=stage10_positive_investment_cutoff(state)
     fixed=stage10_direct_response(state,expected_K18)
     # Note: fixed is a POLICY RESPONSE, not a self-consistent equilibrium.
     nearest=argmin([abs(ws.fixed_capital[j]-expected_K18) for j in 1:count])
@@ -104,6 +137,8 @@ function stage10_geometry!(state, t::Int;
         positive[argmin([abs(ws.fixed_capital[j]-expected_K18) for j in positive])]
     selected=isempty(positive) ? 0 :
         select_es1(ws,expected.X_next,expected_K18).index
+    ((ws.fixed_capital[count]>cutoff)==!isempty(positive)) ||
+        error("break-even capital cutoff contradicts fixed point positivity")
     keys=unique([1,count,nearest,selected,closest_positive])
     check_set=Set(independently_check_every_root ? collect(1:count) :
                   [j for j in keys if j>0])
@@ -165,6 +200,9 @@ function stage10_geometry!(state, t::Int;
         "n_fixed"=>count,"n_positive_X"=>length(positive),
         "minimum_fixed_X"=>minimum(ws.fixed_investment[1:count]),
         "maximum_fixed_X"=>maximum(ws.fixed_investment[1:count]),
+        "positive_X_requires_capital_strictly_above"=>cutoff,
+        "maximum_fixed_K_minus_positive_X_cutoff"=>
+            ws.fixed_capital[count]-cutoff,
         "nearest_fixed_rank"=>nearest,
         "nearest_positive_fixed_rank"=>closest_positive,
         "selected_rank"=>selected,
