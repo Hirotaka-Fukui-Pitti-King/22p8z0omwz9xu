@@ -1,0 +1,15 @@
+method = "Unmodified simulate_period!, original ES1, iid shocks; no resampling"
+n_completed = 0
+success_seeds = []
+longest_completed_prefix = 7
+warning = "Seed-conditional path completion does not establish global equilibrium, unconditional Table 2 replication, or nonlinear rational expectations."
+count = 1
+n_no_positive_X = 1
+firms = 110000
+fraction_completed = 0.0
+requested_periods = 20
+first_seed = 20261115
+source = "Original 2015 three-choice finite-N model (published sigma=1.5)"
+
+[failure_counts]
+no_positive_X_equilibrium = 1
