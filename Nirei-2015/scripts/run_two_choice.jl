@@ -190,9 +190,9 @@ function first_order_macro_residual(
     ))
 end
 
-# The entire stochastic environment, conditional forecasts, marginal utility
-# continuation and realized household equations are the existing implementation.
-# Only the firm's adjustment choice set differs.
+# Keep the original firm shocks, two-choice investment rule and ES1.
+# Only the macroeconomic continuation differs across variants; the hybrid
+# preserves the prior exact-level solver and the linear variant uses Appendix A.
 function simulate_two_choice_period!(state::SimulationState, continuation::Symbol=:hybrid)
     continuation in (:hybrid, :linear) ||
         throw(ArgumentError("unknown macro continuation: $continuation"))
@@ -442,7 +442,8 @@ function main()
             "last_capital" => last(records).K_next,
         )
     end
-    if length(records) > 101
+    # Do not calculate post-burn-in benchmark moments from truncated failures.
+    if failure === nothing && length(records) > 101
         keep = records[101:end]
         summary["moments"] = Dict(
             "sd_logY_pct" => 100*std(r.logY for r in keep),
