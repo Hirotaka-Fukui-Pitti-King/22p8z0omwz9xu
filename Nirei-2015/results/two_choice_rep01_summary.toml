@@ -8,15 +8,26 @@ n_fixed = 17
 n_investing = 53576
 
 [status]
-requested_periods = 6
-completed_periods = 6
-failure = "none"
-completed = true
+requested_periods = 1100
+completed_periods = 140
+failure = "Nirei2015 simulation failed at t=140 (K_prior=3.1387408929990417, mu_prior=4.868312801534069e11): exact level household/market equations failed"
+completed = false
+
+[moments]
+sd_logL_pct = 36.603839945646925
+corr_Y_C = 0.7982101648688126
+sd_logY_pct = 29.065458226306735
+corr_Y_L = 0.999442296619375
+corr_Y_K = 0.9113425637654645
+sd_logC_pct = 440.53906327055944
+sd_logX_pct = 9.76120449410768
+corr_Y_X = 0.8809800189298816
+sd_logK_pct = 8.427275281495112
 
 [last_period]
-K_next = 8.283170578420977
-X = 0.101823308393602
-n_fixed = 14
+K_next = 3.1387408929990417
+X = 0.038886963432626036
+n_fixed = 2
 
 [configuration]
 firms = 110000
