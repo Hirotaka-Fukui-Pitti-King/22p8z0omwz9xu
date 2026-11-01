@@ -129,7 +129,12 @@ function main()
     N = length(ARGS) >= 2 ? parse(Int, ARGS[2]) : 110000
     seed = length(ARGS) >= 3 ? parse(Int, ARGS[3]) : 20261101
     T >= 1 && N >= 1 || error("T and N must be positive")
-    state = initialize_simulation(N=N, base_seed=seed)
+    specification = length(ARGS) >= 4 ? ARGS[4] : "hybrid"
+    specification in ("hybrid", "2013") || error("specification must be hybrid or 2013")
+    cal = specification == "2013" ?
+        run_calibration(parameters=BenchmarkParameters(sigma=1.5, firms=350000)) :
+        run_calibration()
+    state = initialize_simulation(calibration=cal, N=N, base_seed=seed)
     out = joinpath(@__DIR__, "..", "results")
     mkpath(out)
     records = NamedTuple[]
@@ -147,7 +152,7 @@ function main()
             break
         end
     end
-    prefix = "historical_binary_T$(T)_N$(N)_seed$(seed)"
+    prefix = "historical_binary_T$(T)_N$(N)_seed$(seed)_$(specification)"
     csvpath = joinpath(out, prefix * ".csv")
     open(csvpath, "w") do io
         headers = (:t,:K,:X,:expected_X,:epsilon,:roots,:investing,:Y,:C,:L,:w,:mu,
@@ -159,7 +164,7 @@ function main()
     end
     completed = length(records) == T
     summary = Dict(
-        "variant" => "Nirei 2013 binary one-sided choices, 2015 calibration; NOT 2015 three-choice benchmark",
+        "variant" => specification == "2013" ? "Nirei 2013 binary one-sided choices with 2013 sigma=1.5 N=350000 calibration; approximate macro continuation" : "2013 binary one-sided choice with 2015 calibration; NOT the published 2015 three-choice benchmark",
         "T" => T, "N" => N, "seed" => seed, "completed" => completed,
         "completed_periods" => length(records), "failure" => failure,
         "max_abs_CES_residual" => isempty(records) ? 0.0 : maximum(r -> r.residual_K, records),
