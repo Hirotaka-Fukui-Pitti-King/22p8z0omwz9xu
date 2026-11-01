@@ -14,7 +14,9 @@ using TOML
 const EXPERIMENT_LABEL = "diagnostic_shock_rejection_counterfactual"
 const RETRY_SEED_TAG = 0x6a09e667f3bcc909
 
-function trial_profile(state, candidate_expected_K::Float64)
+function trial_profile(
+    state,candidate_expected_K::Float64; accepted::Bool=false
+)
     firms=state.firms
     ws=state.workspace
     n=length(firms.capital)
@@ -27,7 +29,7 @@ function trial_profile(state, candidate_expected_K::Float64)
     investing=0
     divesting=0
     @inbounds for i in 1:n
-        a=firms.next_productivity[i]
+        a=accepted ? firms.productivity[i] : firms.next_productivity[i]
         la=log(a)
         sum_loga+=la
         sum_loga2+=la^2
@@ -113,6 +115,7 @@ function one_diagnostic_period!(
             # simulate_period! calls the ORIGINAL exact enumerator, ES1,
             # firm transition, CES check, and realized macro closure.
             result=rec
+            accepted_profile=trial_profile(state,expected_K;accepted=true)
             # The latest accepted productivity vector was moved into
             # firms.productivity by production's advance_productivity!.
             push!(attempts,Dict{String,Any}(
@@ -120,7 +123,14 @@ function one_diagnostic_period!(
                 "n_fixed"=>rec.n_fixed,"n_positive_X"=>rec.n_positive_X,
                 "expected_X"=>rec.expected_X,
                 "actual_X"=>rec.X,
-                "epsilon"=>rec.epsilon
+                "epsilon"=>rec.epsilon,
+                "mean_log_a"=>accepted_profile.mean_log_a,
+                "variance_log_a"=>accepted_profile.variance_log_a,
+                "CES_baseline_power"=>accepted_profile.CES_baseline_power,
+                "invest_share_at_expected_K"=>
+                    accepted_profile.invest_share_at_expected_K,
+                "divest_share_at_expected_K"=>
+                    accepted_profile.divest_share_at_expected_K
             ))
             break
         catch caught
@@ -234,6 +244,30 @@ function verify_initial_prefix!(state, benchmark, record::PeriodRecord, t::Int)
         state.firms.productivity==benchmark.firms.productivity ||
             error("Firm state differs from benchmark in pre-rejection prefix")
     end
+end
+
+function selection_effect_summaries(
+    attempts::Vector{Dict{String,Any}}
+)
+    vars=(
+        "mean_log_a","variance_log_a","CES_baseline_power",
+        "invest_share_at_expected_K","divest_share_at_expected_K"
+    )
+    accepted=filter(x->x["accepted"],attempts)
+    rejected=filter(x->!x["accepted"],attempts)
+    observed=Dict{String,Any}(
+        "accepted_draws"=>length(accepted),
+        "rejected_draws"=>length(rejected)
+    )
+    for key in vars
+        observed[key*"_accepted_mean"]=
+            isempty(accepted) ? "not defined" :
+            mean(x[key] for x in accepted)
+        observed[key*"_rejected_mean"]=
+            isempty(rejected) ? "not defined" :
+            mean(x[key] for x in rejected)
+    end
+    return observed
 end
 
 function run_experiment()
@@ -351,6 +385,15 @@ function run_experiment()
                 prefix_check && accepted>=5,
         ),
         "post_burnin"=>moments_table2(records,min(100,T-1)),
+        "accepted_vs_rejected_productivity"=>selection_effect_summaries(
+            attempt_rows
+        ),
+        "rejection_blocks"=>Dict(
+            "initial_100_rejections"=>
+                sum(x["rejected_count"] for x in period_rows if x["t"]<100),
+            "subsequent_rejections"=>
+                sum(x["rejected_count"] for x in period_rows if x["t"]>=100)
+        ),
         "output"=>Dict(
             "period_csv"=>csv,"attempt_csv"=>attempts_csv,
             "summary_toml"=>toml
@@ -364,6 +407,16 @@ function run_experiment()
         " rejected=",nrej," total_draws=",length(attempt_rows),
         " status=",failure)
     println("DIAGNOSTIC FILES ",toml," ; ",csv," ; ",attempts_csv)
+    if !isempty(summary["post_burnin"])
+        post=summary["post_burnin"]
+        println("DIAGNOSTIC POST-BURNIN ",post)
+        println("DIAGNOSTIC SELECTION EFFECTS ",
+            summary["accepted_vs_rejected_productivity"])
+        println("DIAGNOSTIC REJECTION BLOCKS ",summary["rejection_blocks"])
+        println("DIAGNOSTIC INITIAL K=",initial_K,
+            " FINAL K=",last(records).K_next_firm,
+            " FINAL X=",last(records).X)
+    end
     accepted==T && failure=="none" ||
         error("Diagnostic shock rejection stopped after $accepted periods: $failure")
     return nothing
