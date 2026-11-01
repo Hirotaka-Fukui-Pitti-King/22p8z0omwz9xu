@@ -19,28 +19,65 @@ function warmstart_from_stage2(filename::AbstractString,n::Int)
 end
 
 function output_revaluation(ctx::Stage3Context{T},
-                            result::FMR2020.TransitionSolveResult{T},
-                            filename::AbstractString) where {T}
-    w=result.workspace
+                            flexible::FMR2020.TransitionSolveResult{T},
+                            fixed::FMR2020.TransitionSolveResult{T},
+                            boom::FMR2020.TransitionSolveResult{T},
+                            filename::AbstractString;
+                            shock_start::Int=41) where {T}
     grid=ctx.economy.grids.fine
     src=ctx.mu_pre
-    K=w.K[1]
-    ratio=w.terms[1]/ctx.terms_pre
+    K=flexible.workspace.K[1]
     rich=sum(src[i,j]*grid[i] for i in eachindex(grid),j in axes(src,2)
              if grid[i]>0)
     lev=ctx.economy.B_initial==0 ? one(T) :
          (one(T)-ctx.leverage_hat)*K*ctx.economy.q_initial/rich
     fixedcap=ctx.leverage_hat*K
+    rflex=flexible.workspace.terms[1]/ctx.terms_pre
+    rfixed=fixed.workspace.terms[1]/ctx.terms_pre
+    # A household's inherited portfolio is the SAME in both regimes.
+    # FX valuation is regime-specific, as in source backsolve_egm.m.
+    function consumption_at(result,a::T,j::Int)
+        if a<grid[1] || a>grid[end]
+            throw(DomainError(a,"occupied revalued wealth outside grid"))
+        end
+        if a==grid[end]
+            return result.workspace.fine_consumption[end,j,1]
+        end
+        k=max(1,min(length(grid)-1,searchsortedlast(grid,a)))
+        frac=(a-grid[k])/(grid[k+1]-grid[k])
+        left=result.workspace.fine_consumption[k,j,1]
+        right=result.workspace.fine_consumption[k+1,j,1]
+        # Linear interpolation is used solely for reporting household
+        # consumption at their actual mapped initial wealth, NOT in
+        # the nonlinear EGM or GE solver.
+        if frac==zero(T)
+            return left
+        elseif frac==one(T)
+            return right
+        end
+        return (one(T)-frac)*left+frac*right
+    end
     open(filename,"w") do io
-        println(io,"asset,productivity,mass_pre,gross_capital,foreign_bonds,asset_revalued,exchange_ratio")
+        println(io,"asset,productivity,mass_pre,gross_capital,foreign_bonds,asset_flexible,asset_fixed,exchange_ratio_flexible,exchange_ratio_fixed,C_before,C_flexible,C_fixed,delta_C_flexible,delta_C_fixed")
         for j in axes(src,2),i in eachindex(grid)
             mass=src[i,j]
             mass==0 && continue
             a=grid[i]
             cap=max(lev*a+fixedcap,zero(T))
             bond=a-cap
-            newasset=cap+bond/ratio
-            println(io,join((a,j,mass,cap,bond,newasset,ratio),","))
+            afterflex=cap+bond/rflex
+            afterfix=cap+bond/rfixed
+            initial_c=boom.workspace.fine_consumption[i,j,shock_start]
+            after_cflex=consumption_at(flexible,afterflex,j)
+            after_cfix=consumption_at(fixed,afterfix,j)
+            isfinite(initial_c) && initial_c>0 &&
+              isfinite(after_cflex) && after_cflex>0 &&
+              isfinite(after_cfix) && after_cfix>0 ||
+                throw(DomainError((a,j,afterflex,afterfix),
+                                  "invalid positive-mass revaluation consumption"))
+            println(io,join((a,j,mass,cap,bond,afterflex,afterfix,
+                             rflex,rfixed,initial_c,after_cflex,after_cfix,
+                             after_cflex-initial_c,after_cfix-initial_c),","))
         end
     end
     return filename
@@ -114,7 +151,7 @@ function main()
                          joinpath(out,"stage3_flexible_transition.csv"))
         stage3_write_csv(fixed,reversal_ctx,
                          joinpath(out,"stage3_fixed_transition.csv");fixed=true)
-        output_revaluation(reversal_ctx,flex,
+        output_revaluation(reversal_ctx,flex,fixed,boom,
                            joinpath(out,"stage3_household_revaluation.csv"))
         diagfile=joinpath(out,"stage3_equilibrium_diagnostics.csv")
         open(diagfile,"w") do io
