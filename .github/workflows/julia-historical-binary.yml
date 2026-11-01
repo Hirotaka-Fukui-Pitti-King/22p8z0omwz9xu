@@ -31,13 +31,25 @@ jobs:
         run: julia --project=. scripts/historical_binary_protocol.jl 20 110000 20261101
       - name: Strict T20 completion and fixed-point residual gate
         run: |
-          julia --project=. -e 'using TOML; d=TOML.parsefile("results/historical_binary_T20_N110000_seed20261101.toml"); @assert d["completed"] && d["completed_periods"]==20; @assert d["max_abs_CES_residual"]<1e-8 && d["max_abs_investment_residual"]<1e-8'
+          julia --project=. -e 'using TOML; d=TOML.parsefile("results/historical_binary_T20_N110000_seed20261101_hybrid.toml"); @assert d["completed"] && d["completed_periods"]==20; @assert d["max_abs_CES_residual"]<1e-8 && d["max_abs_investment_residual"]<1e-8'
       - name: Historical binary under published 2015 calibration, N=110000 T1100
         timeout-minutes: 110
         run: julia --project=. scripts/historical_binary_protocol.jl 1100 110000 20261101
       - name: Strict T1100 completion and fixed-point residual gate
         run: |
-          julia --project=. -e 'using TOML; d=TOML.parsefile("results/historical_binary_T1100_N110000_seed20261101.toml"); @assert d["completed"] && d["completed_periods"]==1100; @assert d["max_abs_CES_residual"]<1e-8 && d["max_abs_investment_residual"]<1e-8'
+          julia --project=. -e 'using TOML; d=TOML.parsefile("results/historical_binary_T1100_N110000_seed20261101_hybrid.toml"); @assert d["completed"] && d["completed_periods"]==1100; @assert d["max_abs_CES_residual"]<1e-8 && d["max_abs_investment_residual"]<1e-8'
+      - name: Original 2013 model calibration, N=350000 T20
+        timeout-minutes: 60
+        run: julia --project=. scripts/historical_binary_protocol.jl 20 350000 20261101 2013
+      - name: Strict 2013 T20 completion
+        run: |
+          julia --project=. -e 'using TOML; d=TOML.parsefile("results/historical_binary_T20_N350000_seed20261101_2013.toml"); @assert d["completed"] && d["completed_periods"]==20; @assert d["max_abs_CES_residual"]<1e-8 && d["max_abs_investment_residual"]<1e-8'
+      - name: Original 2013 model calibration, N=350000 T1100
+        timeout-minutes: 110
+        run: julia --project=. scripts/historical_binary_protocol.jl 1100 350000 20261101 2013
+      - name: Strict 2013 T1100 completion
+        run: |
+          julia --project=. -e 'using TOML; d=TOML.parsefile("results/historical_binary_T1100_N350000_seed20261101_2013.toml"); @assert d["completed"] && d["completed_periods"]==1100; @assert d["max_abs_CES_residual"]<1e-8 && d["max_abs_investment_residual"]<1e-8'
       - name: Save all historical binary results (including failures)
         if: always()
         uses: actions/upload-artifact@v4
