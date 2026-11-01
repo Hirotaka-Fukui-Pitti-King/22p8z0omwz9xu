@@ -1,6 +1,5 @@
 #!/usr/bin/env julia
-# From Nirei-2015/: julia --project=. scripts/run_benchmark.jl [T] [N] [seed] [selection_mode]
-# selection_mode=original (default), capital_fallback, or capital_all
+# From Nirei-2015/: julia --project=. scripts/run_benchmark.jl [T] [N] [seed]
 # Defaults to T=1100, N=110000, seed=20261101. One trial only, Issue #5.
 
 using Nirei2015
@@ -25,9 +24,6 @@ function run()
     T = length(ARGS) >= 1 ? parse(Int, ARGS[1]) : 1100
     N = length(ARGS) >= 2 ? parse(Int, ARGS[2]) : 110000
     seed = length(ARGS) >= 3 ? parse(Int, ARGS[3]) : 20261101
-    selection_mode = length(ARGS) >= 4 ? Symbol(ARGS[4]) : :original
-    selection_mode in (:original, :capital_fallback, :capital_all) ||
-        throw(ArgumentError("selection_mode must be original, capital_fallback, or capital_all"))
     T >= 2 || throw(ArgumentError("T must be >= 2"))
     N >= 1 || throw(ArgumentError("N must be positive"))
     burnin = min(100, T - 1)
@@ -36,9 +32,8 @@ function run()
     initial_mu = state.mu_prior
     root = normpath(joinpath(@__DIR__, "..", "results"))
     mkpath(root)
-    suffix = selection_mode == :original ? "" : "_" * string(selection_mode)
-    csv_path = joinpath(root, "simulation_rep01$(suffix).csv")
-    summary_path = joinpath(root, "simulation_summary$(suffix).toml")
+    csv_path = joinpath(root, "simulation_rep01.csv")
+    summary_path = joinpath(root, "simulation_summary.toml")
 
     start = time_ns()
     records = PeriodRecord[]
@@ -47,7 +42,7 @@ function run()
         # Preserve the successful prefix for troubleshooting; no fake fill-in.
         sizehint!(records, T)
         for _ in 1:T
-            push!(records, simulate_period!(state; selection_mode=selection_mode))
+            push!(records, simulate_period!(state))
         end
     catch err
         fail = sprint(showerror, err)
@@ -67,8 +62,6 @@ function run()
             "firms" => N, "periods" => T, "burnin" => burnin,
             "base_seed" => seed, "replication" => 1, "rng" => "Random.Xoshiro",
             "initial_K" => initial_K, "initial_mu" => initial_mu,
-            "selection_mode" => string(selection_mode),
-            "capital_selection_warning" => "In capital_all: epsilon is always capital-innovation/delta, not the Section 3.4 investment log surprise. In capital_fallback: epsilon is a capital proxy only when X<=0. For either mode logX=NaN when X<=0; realized macro logX deviation then uses a first-order signed-level proxy. This experiment is NOT literal Section 3.4 or Table 2 replication.",
             "moment_calculation" => "Not part of Issue #5. Diagnostic summary only.",
             "conditional_expectations" => "Appendix A B^-1D two-state forecast of log deviations",
             "macro_closure" => "First-order bounded-continuation mu_t = h*log(K_{t+1}^firm/Kbar); finite-N forecast drift is measured",
@@ -83,7 +76,6 @@ function run()
                 if info.name in ("QuadGK", "Distributions", "Statistics", "Random", "TOML")),
         ),
         "integrity" => Dict(
-            "nonpositive_X_selected_periods" => count(r -> r.X <= 0.0, records),
             "max_abs_fixed_point_residual" => isempty(records) ? 0.0 : maximum(r -> abs(r.fixed_point_residual), records),
             "max_abs_investment_residual" => isempty(records) ? 0.0 : maximum(r -> abs(r.investment_residual), records),
             "max_abs_production_linear_residual" => isempty(records) ? 0.0 : maximum(r -> abs(r.production_linear_residual), records),
@@ -126,7 +118,6 @@ function run()
     end
     println("Nirei (2015) Issue #5 dynamic simulation")
     println("T = ", T, "; N = ", N, "; seed = ", seed,
-            "; selection mode = ", selection_mode,
             "; completed periods = ", length(records), "; elapsed seconds = ", elapsed)
     println("CSV written: ", csv_path)
     println("Summary written: ", summary_path)
@@ -134,8 +125,7 @@ function run()
         println(stderr, "FAILED: ", fail)
         error("Simulation stopped at t=$(state.period); see summary and partial CSV")
     end
-    println("Mean post-burnin recorded innovation (", selection_mode, "): ",
-            summary["post_burnin"]["mean_epsilon"])
+    println("Mean post-burnin epsilon: ", summary["post_burnin"]["mean_epsilon"])
     println("Final aggregate K: ", state.K)
     return nothing
 end
