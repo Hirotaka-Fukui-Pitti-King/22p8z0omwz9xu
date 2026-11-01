@@ -35,3 +35,18 @@ Independent diagnostics measure asset, labor, goods, capital accumulation, house
 ## Status
 
 The Stage 2 Julia source, tests and execution/figure scripts are committed but have **not** been run in Julia on the user's Windows PC. Syntax not verified; Julia import not verified; numerical convergence not verified; figures not yet generated; comparison with author numerical paths not verified. Do not claim complete Figure 1 replication.
+
+
+### 2026-11-02: Windows Stage 2 first-run failure and targeted correction
+
+Owner Windows 11 / Julia 1.12.6 result: scripts/check_syntax.jl printed PARSE OK on 26 files, but its previous parser did not reject returned parse-error expressions. test/runtests.jl passed 2,420 Stage 1 tests, then Stage 2 test parsing failed at test/test_stage2.jl:53 because view(...,:,:,end) uses end outside indexing syntax.
+
+The eight-period smoke completed backward EGM and forward distribution, including mass error 1.4432899320127035e-14, but its stationary candidate was NOT an asset-clearing GE (beta was imposed 0.9832). Its 0.009541840016043829 asset and 0.0012405672215367591 labor residuals are therefore not proof of a bad dynamic model.
+
+The 200-period simulation finished three stationary GE solves but FAILED before the first root iteration: EGM saving at a far-right fine asset node was 29759.54040678395, above the upper distribution grid. Unlike the original author's backsolve_egm.m, the Julia backward household block erroneously imposed the distribution upper asset bound on all fine-grid policy nodes, including nodes with zero population mass.
+
+The correction follows author EGM: every consumption stays strictly positive and savings satisfies the lower borrowing bound. No upper-grid bound is placed on policy evaluations at unoccupied high-wealth nodes. The forward distribution applies the upper-grid condition to all **positive-mass** states and throws an error for any true out-of-grid decision. Nothing is silently clipped or projected outside the distribution grid. A direct regression covers both occupied and unoccupied off-grid choices.
+
+The parser now rejects error/incomplete AST nodes, the test replaces invalid end by explicit size(...,3), and the stationary-limit smoke calibrates a true stationary GE before constructing a constant-B path. The known author labor exponent inconsistency is preserved, not silently altered.
+
+PATCH STATUS: committed but Julia syntax, full tests, eight-quarter true-stationary test, 399-variable nonlinear convergence and generated SVGs remain UNVERIFIED on the owner's PC.
