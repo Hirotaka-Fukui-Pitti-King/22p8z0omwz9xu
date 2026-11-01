@@ -211,3 +211,59 @@ The author MATLAB code (`solve_R.m` and `solve_EGM_EL_open_tg.m`) **directly int
 The new Julia solver recomputes the endogenous current-asset grid from the converged consumption policy, evaluates fine-grid nonbinding consumption using the endogenous consumption–asset PCHIP, and calculates savings with the household budget. It sets borrowing-bound savings exactly in the constrained region. Both the experimental option and its comparison script were deleted. The previous numerical values and 171-test result are historical observations of the **old algorithm**; they are not validation of the corrected author-consistent algorithm.
 
 Status: source committed; Julia syntax, smoke, GE and numerical Euler accuracy for this new commit **not yet checked on user's Windows PC**. The repository must not merge this change or claim complete replication before that validation.
+
+
+## 2026-11-02: AUTHOR-CONSISTENT STATIONARY SOLVER CONFIRMED ON USER PC
+
+Source: owner's Windows PowerShell output (Julia 1.12.6), after the direct
+endogenous-grid EGM commit. The pre-cleanup comparison run had 179/179 tests,
+then the author-only code had **17/17 Meta.parseall** and **2,420/2,420 tests**.
+
+The canonical EGM implementation finished beta calibration and all three
+stationary general equilibria:
+
+- beta=0.9832249176502228; beta scaled asset error=-9.318394332665269e-9.
+- Initial: B=0; r=0.011279045284627722; scaled asset error
+  1.2165000828531331e-9; scaled goods error 7.901821955559918e-11;
+  max coarse-grid Euler error 0.00026237606861146756.
+- Calibrated: B=-4.34324989100106; r=0.010609825647710607;
+  scaled asset error 9.094922339427287e-9; scaled goods error
+  7.48582315489639e-12; max coarse Euler error 0.00026706697465457384.
+- Final: B=-11.132131056640317; r=0.009397361811040686;
+  scaled asset error 5.770314550993793e-9; scaled goods error
+  9.059403001740375e-11; max coarse Euler error 0.0002783143489409251.
+- Three stationary-distribution masses within 1.1e-14 of unity.
+
+Fine-grid EGM Euler accuracy (canonical author algorithm; direct evaluation
+from endogenous consumption nodes):
+
+| State | Maximum Euler error | Mass-weighted mean | Mass-weighted 99th percentile | Mass near upper 10% assets |
+|---|---:|---:|---:|---:|
+| Initial | 0.0039822264227957075 | 1.4930139853175105e-5 | 0.00015384542984335633 | 0 |
+| Calibrated | 0.004174528166204521 | 1.7034186774983578e-5 | 0.00020359148126686442 | 0 |
+| Final | 0.0034732478454411048 | 1.970957640442883e-5 | 0.0003692208973684764 | 0 |
+
+Worst errors arise around a=0.03883872440606897, low productivity
+0.09038599945317274, with positive stationary probability. Unlike the
+old method's largest error (~0.00851 final), direct endogenous EGM reduces
+the reported final maximum to ~0.00347. This comparison is informative,
+but the DIFFERENT beta/r in the two equilibria means it is not a strictly
+fixed-price, fixed-calibration experiment. The earlier intermediate
+fixed-price comparison reported max Euler 0.006606 (coarse-savings)
+versus 0.003525 (experimental direct-endogenous savings) for the calibrated
+reference setting; that experimental option has been removed.
+
+**Judgment:** stationary GE numerical calculation succeeded using the
+author-consistent endogenous EGM algorithm. However, the preset absolute
+maximum Euler threshold 1e-6 is not met. The previous re-calibrated
+97/385 versus 193/769 grid sensitivity result belongs to the OLD
+coarse-savings implementation and does not verify grid convergence of
+the corrected author-consistent solver. Do not claim full Stage 1
+accuracy acceptance, and do not overwrite the successful GE result with
+another improvised household algorithm.
+
+The numerical outputs are preserved at
+results/stage1_steady_states.csv,
+results/stage1_diagnostics.txt,
+results/stage1_euler_summary.csv and
+results/stage1_euler_by_state.csv.

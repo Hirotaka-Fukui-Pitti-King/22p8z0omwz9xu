@@ -46,7 +46,7 @@
     }
   ],
   "current_status": {
-    "phase": "stage1_author_endogenous_egm_only_pending_windows_validation",
+    "phase": "stage1_author_egm_three_steady_states_solved_euler_accuracy_pending",
     "files_written": [
       "README.md",
       "ALGORITHM.md",
@@ -68,7 +68,7 @@
     "syntax_verified": true,
     "runtime_verified": true,
     "author_matlab_executed": false,
-    "model_equilibrium_verified": false,
+    "model_equilibrium_verified": true,
     "figures_replicated": [],
     "successful_replication_claim": false,
     "manifest_created": false,
@@ -77,60 +77,64 @@
     "full_stage1_acceptance_pending": true,
     "latest_local_evidence": {
       "julia_version": "1.12.6",
-      "source_commit": "e34344b56cf0b7416396a3f1b1e9f420b505eb3e",
-      "parsed_files": 17,
-      "tests_passed": 171,
-      "tests_total": 171,
-      "euler_accuracy": {
-        "initial": {
-          "max": 0.005479010283982644,
-          "weighted_mean": 0.000042184847385456876,
-          "mass_p99": 0.0009183315981294465
+      "method": "author-consistent endogenous EGM direct fine-grid consumption PCHIP",
+      "parse_files": 17,
+      "syntax_parse_pass": true,
+      "unit_tests_passed": 2420,
+      "unit_tests_total": 2420,
+      "calibrated_beta": 0.9832249176502228,
+      "beta_scaled_asset_residual": -9.318394332665269e-9,
+      "beta_iterations": 22,
+      "stationary": [
+        {
+          "name": "initial",
+          "B": 0,
+          "r": 0.011279045284627722,
+          "scaled_asset_error": 1.2165000828531331e-9,
+          "scaled_goods_error": 7.901821955559918e-11,
+          "max_coarse_euler": 0.00026237606861146756,
+          "max_fine_euler": 0.0039822264227957075,
+          "weighted_mean_euler": 0.000014930139853175105,
+          "weighted_p99_euler": 0.00015384542984335633,
+          "distribution_mass": 0.9999999999999893
         },
-        "calibrated": {
-          "max": 0.006606477701724808,
-          "weighted_mean": 0.00004635933858135583,
-          "mass_p99": 0.0015626308586639758
+        {
+          "name": "calibrated",
+          "B": -4.34324989100106,
+          "r": 0.010609825647710607,
+          "scaled_asset_error": 9.094922339427287e-9,
+          "scaled_goods_error": 7.48582315489639e-12,
+          "max_coarse_euler": 0.00026706697465457384,
+          "max_fine_euler": 0.004174528166204521,
+          "weighted_mean_euler": 0.000017034186774983578,
+          "weighted_p99_euler": 0.00020359148126686442,
+          "distribution_mass": 0.9999999999999896
         },
-        "final": {
-          "max": 0.008508924283699832,
-          "weighted_mean": 0.000053982674518287774,
-          "mass_p99": 0.0016601746596265597
-        },
-        "largest_error_asset": 0.014152165479991995,
-        "largest_error_productivity": 0.17945895342962148,
-        "positive_stationary_mass_at_largest_error": true,
-        "top_asset_grid_mass": 0
-      },
-      "recalibrated_grid": {
-        "small": {
-          "coarse": 97,
-          "fine": 385,
-          "beta": 0.9831941570341588,
-          "initial_r": 0.011279519570707129,
-          "final_r": 0.009396947992681311,
-          "initial_K": 28.314219719513165,
-          "final_K": 32.26673571463377
-        },
-        "large": {
-          "coarse": 193,
-          "fine": 769,
-          "beta": 0.9832249340415002,
-          "initial_r": 0.011279042995809365,
-          "final_r": 0.009397365702031897,
-          "initial_K": 28.314930929103635,
-          "final_K": 32.266019083153196
+        {
+          "name": "final",
+          "B": -11.132131056640317,
+          "r": 0.009397361811040686,
+          "scaled_asset_error": 5.770314550993793e-9,
+          "scaled_goods_error": 9.059403001740375e-11,
+          "max_coarse_euler": 0.0002783143489409251,
+          "max_fine_euler": 0.0034732478454411048,
+          "weighted_mean_euler": 0.00001970957640442883,
+          "weighted_p99_euler": 0.0003692208973684764,
+          "distribution_mass": 0.9999999999999898
         }
-      },
-      "stage1_accuracy_gate_passed": false
+      ],
+      "ge_solved": true,
+      "fine_euler_max_acceptance_threshold": 0.000001,
+      "fine_euler_threshold_passed": false,
+      "author_method_recalibrated_grid_refinement_verified": false
     },
-    "latest_patch_locally_verified": false,
-    "syntax_verified_scope": "previous commit only; canonical-author EGM patch awaits PC",
-    "runtime_verified_scope": "previous coarse-savings method only; canonical-author EGM patch awaits PC",
+    "latest_patch_locally_verified": true,
+    "syntax_verified_scope": "17 Julia files in author-only EGM implementation on Windows Julia 1.12.6",
+    "runtime_verified_scope": "2420 unit tests, full three stationary GE run, and fine-grid Euler audit",
     "bugfix_pending": [
-      "run canonical EGM PC syntax and unit tests",
-      "recalibrate beta and three GE under canonical EGM",
-      "re-evaluate fine-grid Euler residual and grid refinement"
+      "The author EGM method is fixed; no alternate interpolator should be introduced",
+      "preset maximum Euler residual acceptance 1e-6 not met",
+      "recalibrated GE grid sensitivity under author-only EGM not yet rerun"
     ],
     "methodology_decision": "Only author stationary EGM: direct fine-grid interpolation of endogenous consumption knots; constrained next-period savings at borrowing floor; no optional alternate interpolation.",
     "latest_local_evidence_context": "Existing local GE and Euler numbers refer to previous coarse-saving interpolation, not the latest algorithm"
@@ -259,7 +263,7 @@
     {
       "id": "baseline_stationary",
       "target": "EGM and stationary distribution; calibrate beta and three steady states",
-      "status": "three_steady_states_solved_aggregate_stable_household_euler_audit_pending"
+      "status": "author_egm_three_stationary_ge_solved_accuracy_gate_pending"
     },
     {
       "id": "credit_expansion",
@@ -296,7 +300,7 @@
         "probability invariance",
         "grid and constraint bounds"
       ],
-      "state": "household_solver_runs_euler_threshold_not_met"
+      "state": "author_household_algorithm_syntax_and_tests_passed_max_euler_target_not_met"
     },
     {
       "id": "G2",
@@ -306,7 +310,7 @@
         "asset-market clearing",
         "calibration table"
       ],
-      "state": "three_stationary_ge_solved_grid_accuracy_pending"
+      "state": "three_ge_numerically_solved_author_egm_grid_convergence_pending"
     },
     {
       "id": "G3",
