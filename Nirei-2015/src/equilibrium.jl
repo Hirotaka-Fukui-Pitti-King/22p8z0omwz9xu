@@ -303,7 +303,7 @@ function select_es1(
             expected_investment=xe,
             expected_capital=ke,
         ), "No equilibrium has X>0, so the Section 3.4 ES1 log shock is undefined; " *
-           "the capital-based ES1 of Definition 1 is not a valid substitute for log(X/X_expected)"))
+           "use selection_mode=:capital_fallback to opt into the Section 2.3 Definition 1 capital-based completion"))
     end
     return ES1Selection(best, best_score, ke,
                         positive, workspace.n_fixed - positive)
