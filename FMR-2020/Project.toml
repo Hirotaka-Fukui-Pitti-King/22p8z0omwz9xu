@@ -1,0 +1,6 @@
+name = "FMR2020"
+uuid = "9c17263f-1529-4c29-b51d-59ac16b64cf5"
+version = "0.1.0"
+
+[compat]
+julia = "1.10"

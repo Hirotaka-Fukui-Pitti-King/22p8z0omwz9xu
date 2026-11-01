@@ -1,0 +1,269 @@
+# Stage 1 — 原著との定常均衡照合と検証保留事項
+
+## 対象と出典
+
+- de Ferra, Mitman, and Romei (2020), JIE 124, 103303, Section 2–5, Table 1: https://doi.org/10.1016/j.jinteco.2020.103303
+- 公開著者コードの Main.m: https://github.com/kurtmitman/HANKSOME/blob/main/Main.m
+- 公開著者コードの calibrate_beta_open_tg.m: https://github.com/kurtmitman/HANKSOME/blob/main/Steady_State_Ayagari/calibrate_beta_open_tg.m
+- calibrate_R_open_tg.m: https://github.com/kurtmitman/HANKSOME/blob/main/Steady_State_Ayagari/calibrate_R_open_tg.m
+- solve_R.m / solve_EGM_EL_open_tg.m: https://github.com/kurtmitman/HANKSOME/tree/main/Steady_State_Ayagari
+- ComputeDistHist_open.m: https://github.com/kurtmitman/HANKSOME/blob/main/Steady_State_Ayagari/ComputeDistHist_open.m
+- Julia official language and performance: https://julialang.org/ ; https://docs.julialang.org/en/v1/manual/performance-tips/ ; https://pkgdocs.julialang.org/v1/environments/
+
+この文書に記載する原著設定はソースを静的に読んだものです。実行・再現成功を意味しません。
+
+## 経済学的な定常閉鎖
+
+定常状態を家計の資産選択・生産・外部資産供給で閉じます。家庭の純資産供給は A^s=Σμg で、供給量は K+B。外部純資産 B<0 は国外からの純借入です。投資I=δK、q=1、国内財価格硬直性の調整費用=0（定常インフレ1）。企業の定常価格では mc=(ε_f−1)/ε_f、資本レンタルr+δ、賃金w=mc(1−α)Y/L、利益=Y/ε_f。組合の賃金FOCを用いてLを決定する。初期の財需要を決めるため、外国の輸出需要D x^(−θ*)と集計予算の国内財消費C_Hを一致させる。βまたはrの根探索の**それぞれの試行**で家計EGMと分布を解き直す。
+
+CES需要からc_F/c_H=[(1−χ)/χ]x^θ、消費支出= [1+((1−χ)/χ)x^(θ−1)] c_H。今回のγ=θ=1では消費のEulerはβ(1+r)E c_H^(−γ)。これを一般のγ・θに拡張する場合は限界効用と組合の労働条件を再導出し、デフォルト以外の設定を無断で使わない。
+
+## 元ソースで確認した較正情報
+
+| 対象 | 元コードの設定・計算 | Stage 1 |
+|---|---|---|
+| 生産性 | nx=7, rho=.97, innovation std=.84 sqrt(1−rho²), level mean normalised to 1 | 直接対応。ここで0.84は**log生産性の定常標準偏差**であり、innovation stdとは異なる |
+| 資本・GDP比 | capital per capita=(-NFA + net wealth); NFA=-6.5×.69、wealth=26.2、GDP=12.65/4 | K/Y ≈ 9.703（四半期GDP比）。対象の単位を保持 |
+| 外貨純資産/GDP | (-6.5×.69)/(12.65/4) | 約−1.418（コードでの較正）。原論文Table 1の他の実験設定と混同しない |
+| 定常資本 | L=1、K=(K/Y)^(1/(1−α)) | 同じ正規化 |
+| 割引因子 | beta_guess=0.9832、fsolveで残差A−K−Bをゼロにする | 固定せず、根探索の参照値とする |
+| 財配分 | ω=.4, χ=.6, θ=γ=1 | c_H消費と消費支出の単位に分ける |
+| 需要シフターD | baseline Y−C_H−δK | 初期のx=1を基準に構築 |
+| 3定常 | B_initial=0, B_calibrated=観測較正, B_final=拡大B経路の最終値 | それぞれrと家計分布を再計算 |
+| グリッド | 原著のフルグリッド193 / 769、z∈[−.2,1]、z³ | フルグリッドを保存。Stage 1の定常家計計算は借入制約以上の部分を使用 |
+
+## 独立実装と著者コードの違い（意図的）
+
+- 著者の定常分布はsparse matrixの支配的固有ベクトルで計算する。Julia版は**mass-preserving, matrix-free iteration**を用い、政策が一定のとき資産ノットの上下インデックスと補間ウェイトを前計算する。数値的にμ=Q'μを満たすか独立診断で評価する。
+- MATLABのpchipを単純なcubic splineに置き換えることはせず、JuliaネイティブのFritsch–Butland / Hermite形状保持補間を実装する。MATLABの出力との逐点一致は**未検証**。
+- MATLABのグリッドには、外貨再評価のために借入制約を下回る点がある。JuliaのStage 1では全体のグリッドを残しつつ、定常の**翌期資産・定常分布は制約以上の活性集合でのみ計算**する。ショック時の負の期首資産はStage 2の家計問題として別に実装する。
+- Julia版では根のブラケットを明示し、異常値のclippingや収束失敗の黙殺を避ける。βとrをroot finderで解き、解を再評価して検証する。
+- 第1段階では外部Juliaパッケージに依存しない。Project.tomlのUUIDは本研究用に新規生成したプロジェクト固有IDで、外部パッケージUUIDを推測したものではない。
+
+## 今後、Windows PCで確認する必要がある点
+
+1. Meta.parseallが全Juliaファイルで成功すること。Julia moduleとTestの読み込みが成功すること。
+2. 実際のEGM / invariant distributionが既定tolで収束し、βとrの初期ブラケット内に根が存在すること。
+3. 1e-12のEGM update criterionは原著の設定値だが、Euler residualと同義ではない。補間誤差、KKT不等式を別に報告する。
+4. bisectionのβ初期範囲[.980,.985]、r初期範囲[-.005,.055]（実際の上限は1/β−1−0.0001まで制限）は探索開始範囲であり、実行時に根が括れていないと報告された場合に、モデルと符号を監査してから拡大する。
+5. 小グリッド・大グリッド間のasset supply, interest ratesの収束、stationary tail mass、最上位資産ノットへの質量滞留がないこと。
+6. 著者Main.mと原論文Table 1で見られるB/GDPの相違が、論文の別実験・表記単位・コードの実験設定のいずれかを原論文と対応づけて説明できること。現時点では未確定。
+7. β/r較正後、所得・配当の合計、財市場・資産市場・労働組合FOC・企業要素価格の整合が数値的に成立すること。
+
+**報告ステータス**：JuliaコードはGitHubに追加済み、構文・読み込み・実行・数値結果は**本人PCでの実行ログ待ち（未検証）**。論文全体のReplicationではない。
+
+## 2026-11-02: User-PC regression, fine-grid policy fix
+
+Windows Julia 1.12.6 result supplied by the user:
+- **Syntax**: Meta.parseall for 14 files PASS.
+- **Smoke**: 1436 EGM updates (reported diff 9.997052075050306e-10), Euler 0.00110884601889777, KKT 0, budget 2.2021586079190927e-17; distribution mass 0.9999999999999907, 1565 iterations, 9.721244087490533e-10. Smoke PASS.
+- **Tests**: 68/68 PASS.
+- **Full stationary calibration**: FAIL at solve_household fine-grid policy with computed savings −9.862788178216508e-6 below the borrowing limit.
+- **Grid refinement**: FAIL at same policy interpolation with savings −1.0261942101019716e-5 below the borrowing limit.
+- **Diagnosis from source**: previously PCHIP-interpolated coarse consumption and then inferred savings from the budget. Even if coarse savings respects the bound, consumption interpolation can imply savings **below** that bound at interior fine-grid knots.
+- **Correction committed**: interpolate the *coarse savings policy* with shape-preserving Hermite instead; derive fine-grid consumption exactly from budget, and fail on any remaining infeasible saving/consumption (no tolerance relaxation, no clipping). Report max fine budget error and minimum fine saving. Add direct regression on (61,241) and (193,769) grids at beta=0.980.
+- **Status**: patch is NOT YET verified on the owner's PC. EGM solution, distribution, beta calibration and all three steady-state equilibrium outcomes remain unverified after the patch. The new savings interpolation differs from author code's consumption interpolation, so its numerical effect on asset demand and the original paper's calibration must be checked by grid refinement and comparison.
+
+
+## 2026-11-02: second user-PC run, rate-bracketing failure
+
+The borrowing-limit interpolation repair was verified on the owner's Windows
+PC with Julia 1.12.6:
+- Meta.parseall: 14/14 files successful.
+- Smoke EGM/distribution: successful, 1436 and 1565 iterations respectively.
+- Unit tests: 157/157 passed.
+- Grid refinement: completed without violating borrowing constraints.
+  Asset demands: 61/241=25.64759695956763; 97/385=25.401319414404544;
+  193/769=25.246929207836487. These are fixed-beta/price evaluations,
+  **not equilibria**, and convergence to a grid limit has not been established.
+- Full three-steady-state run: beta calibration progressed, but the first
+  interest-rate root solve failed with "fine-grid policy exceeds distribution
+  grid upper bound"; reported chosen savings 29688.016202460338.
+- Source-level cause: the current bisection evaluated the fixed high endpoint
+  near 1/beta−1, where high-wealth households can prefer savings outside
+  the finite asset grid. This is not evidence that an interior equilibrium root
+  does not exist. Artificially truncating their policy would distort asset
+  market residuals.
+
+**Committed repair**: root bracketing anchored at ref.r, scanning nearby
+candidate rates for a genuine sign change and only skipping the specifically
+identified non-feasible *upper-grid* exploratory points. Other economic and
+numerical failures propagate. Root computation uses ordinary bracketed
+bisection only after a valid pair has been found. If none is feasible, raise
+an error reporting the explored interval and number of excluded candidates.
+No savings clipping and no looser tolerances. Add mock-root regression and
+stage-by-stage progress diagnostics.
+
+**Status**: latest patch syntax and execution UNVERIFIED pending Windows-PC
+rerun; the accepted 157 tests refer to the previous commit. No claim about
+the existence or values of the three stationary equilibria is made yet.
+
+
+## 2026-11-02: user-PC full stationary equilibrium successfully computed
+
+Source of results: pasted Windows PowerShell console log, Julia 1.12.6, based on
+branch head \`4ba084bb8a02e53017f704b87c2a8ae9be9714f5\`. The numerical outputs
+below are user-provided verified run logs, **not** estimates from an assistant runtime.
+
+- Meta.parseall: 14/14 files parsed.
+- Unit tests: 161/161 passed; prior smoke test and grid-refinement run also passed.
+- Calibrated beta: 0.9832249340415002; beta scaled asset residual
+  2.4759552789121424e-9; beta root iterations 24.
+- Reference NFA/Y: -1.418181818181818; K/Y: 9.702766798418972.
+
+| Steady state | B | r | Unscaled asset residual | Scaled asset residual | Scaled goods residual | Maximum coarse Euler residual |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Initial | 0 | 0.011279042995809365 | -5.774051814455561e-8 | 2.039225110212321e-9 | 5.699578568478156e-11 | 0.00026237630682234236 |
+| Calibrated | -4.34324989100106 | 0.010609825647710607 | 6.848970457440373e-8 | 2.699427274785832e-9 | 8.257698680921228e-11 | 0.00026706681849458303 |
+| Final | -11.132131056640317 | 0.009397365702031897 | -9.265521327961324e-8 | 4.3842010122971905e-9 | 3.4551611688112584e-11 | 0.00027831416802568147 |
+
+All reported stationary-distribution masses were within approximately
+1.4e-14 of one. The above establishes **stationary market clearing on the
+author-code-style grid**, but not the stronger Euler/grid convergence
+requirements in policy.json.
+
+### Decision
+
+G2 market-clearing numerical solve: **demonstrated** for three stationary
+states. Full Stage 1 acceptance: **pending** because policy.json sets maximum
+unconstrained Euler residual threshold 1e-6, whereas all three observed maxima
+are near 2.7e-4. No threshold relaxation is authorized. The fixed-beta/price
+asset supply sensitivity across (61,241), (97,385), (193,769) grids is
+25.64759695956763, 25.401319414404544, 25.246929207836487. Recalibrated
+GE grid convergence has not been established.
+
+### Accuracy investigations committed for owner's PC
+
+- scripts/stage1_accuracy_audit.jl: Fine-grid Euler gap and complementarity
+  residual at each state; record stationary mass at worst error, mass-weighted
+  mean and mass-weighted 99th percentile, and upper asset-grid tail mass.
+- scripts/stage1_recalibrated_grid.jl: Re-run beta and r calibration for
+  alternative coarse/fine grids, separately reporting three stationary
+  equilibria for each grid.
+
+No equations or tolerances were changed merely to make the acceptance gate
+pass. Julia source in these newly added audit files remains **syntax and
+execution unverified until owner's Windows-PC logs are provided**.
+
+
+## 2026-11-02: owner-PC accuracy audit passed execution; Euler accuracy is still inadequate
+
+Owner's Windows Julia 1.12.6 log, commit \`e34344b56cf0b7416396a3f1b1e9f420b505eb3e\`:
+- Julia Meta.parseall: 17/17 files.
+- Julia Test: 171/171 passed.
+- Fine-grid Euler audit completed: initial maximum 0.005479010283982644
+  (probability-weighted mean 4.2184847385456876e-5, mass-weighted p99
+  0.0009183315981294465); calibrated maximum 0.006606477701724808
+  (mean 4.635933858135583e-5, p99 0.0015626308586639758); final
+  maximum 0.008508924283699832 (mean 5.3982674518287774e-5,
+  p99 0.0016601746596265597).
+- The highest residual occurs around assets=0.014152165479991995 and
+  productivity=0.17945895342962148, with positive mass between
+  0.00044 and 0.00046 in the three steady states. The transition savings
+  at this node are around 0.00068–0.00075, above the borrowing bound.
+- Mass within the top 10% of the asset grid is zero in all three states;
+  the largest Euler errors are **not** driven by the top-grid tail.
+- Full GE re-calibration on 97/385 versus 193/769 grids:
+  beta 0.9831941570341588 vs 0.9832249340415002;
+  initial r 0.011279519570707129 vs 0.011279042995809365;
+  final r 0.009396947992681311 vs 0.009397365702031897;
+  initial K 28.314219719513165 vs 28.314930929103635;
+  final K 32.26673571463377 vs 32.266019083153196.
+  Thus aggregate steady-state values are comparatively stable even though
+  household maximum Euler residuals are still too large.
+
+### Isolation test: EGM off-grid policy evaluation (newly authored, not run)
+
+The published author's solve_R.m obtains fine-grid policy by direct evaluation
+of the *endogenous EGM asset grid* (a_today, c_s), with constrained states
+handled separately. The established Julia implementation is a separate
+two-stage policy interpolation: EGM endogenous -> coarse current-asset savings
+-> fine current-asset savings. It preserves feasibility but can magnify
+Euler residuals around the borrowing kink.
+
+A **non-default, experimental** \`:direct_endogenous\` option reconstructs
+the endogenous current-asset knots after coarse policy convergence, then
+shape-preserving-interpolates chosen next-period savings directly to the fine
+grid, preserving the exact borrowing choice on the constrained side. It is
+not a mechanical translation of MATLAB's c_s PCHIP and may give different
+values. The experimental and default methods must be compared at the same
+beta, r, B before the default method is changed.
+
+New files/test:
+- src/household_egm.jl supports \`fine_method=:coarse_savings\` (unchanged
+  default) or \`:direct_endogenous\`.
+- stationary_candidate passes the option for controlled comparison.
+- scripts/stage1_fine_policy_comparison.jl recalibrates beta **only with the
+  established default** then computes asset demand and Euler statistics under
+  both fine-policy rules at the same aggregate prices.
+- test/runtests.jl checks finite consumption, binding savings, mass
+  conservation, positivity, and agreement on unchanged coarse policy.
+
+**At the moment of commit, this newly authored Julia patch is not yet
+syntax/runtime/numerically validated on owner's PC. The 171/171 tests and all
+reported numerical values refer to the prior commit.**
+
+
+## 2026-11-02: Restore author EGM as the only stationary household algorithm
+
+The author MATLAB code (`solve_R.m` and `solve_EGM_EL_open_tg.m`) **directly interpolates endogenous EGM consumption** onto the fine distribution grid, while choosing the borrowing-limit saving in constrained states. Earlier Julia code instead applied a second savings interpolation, which differs from the author's calculation. That was an unjustified methodological departure for a replication and has been corrected.
+
+The new Julia solver recomputes the endogenous current-asset grid from the converged consumption policy, evaluates fine-grid nonbinding consumption using the endogenous consumption–asset PCHIP, and calculates savings with the household budget. It sets borrowing-bound savings exactly in the constrained region. Both the experimental option and its comparison script were deleted. The previous numerical values and 171-test result are historical observations of the **old algorithm**; they are not validation of the corrected author-consistent algorithm.
+
+Status: source committed; Julia syntax, smoke, GE and numerical Euler accuracy for this new commit **not yet checked on user's Windows PC**. The repository must not merge this change or claim complete replication before that validation.
+
+
+## 2026-11-02: AUTHOR-CONSISTENT STATIONARY SOLVER CONFIRMED ON USER PC
+
+Source: owner's Windows PowerShell output (Julia 1.12.6), after the direct
+endogenous-grid EGM commit. The pre-cleanup comparison run had 179/179 tests,
+then the author-only code had **17/17 Meta.parseall** and **2,420/2,420 tests**.
+
+The canonical EGM implementation finished beta calibration and all three
+stationary general equilibria:
+
+- beta=0.9832249176502228; beta scaled asset error=-9.318394332665269e-9.
+- Initial: B=0; r=0.011279045284627722; scaled asset error
+  1.2165000828531331e-9; scaled goods error 7.901821955559918e-11;
+  max coarse-grid Euler error 0.00026237606861146756.
+- Calibrated: B=-4.34324989100106; r=0.010609825647710607;
+  scaled asset error 9.094922339427287e-9; scaled goods error
+  7.48582315489639e-12; max coarse Euler error 0.00026706697465457384.
+- Final: B=-11.132131056640317; r=0.009397361811040686;
+  scaled asset error 5.770314550993793e-9; scaled goods error
+  9.059403001740375e-11; max coarse Euler error 0.0002783143489409251.
+- Three stationary-distribution masses within 1.1e-14 of unity.
+
+Fine-grid EGM Euler accuracy (canonical author algorithm; direct evaluation
+from endogenous consumption nodes):
+
+| State | Maximum Euler error | Mass-weighted mean | Mass-weighted 99th percentile | Mass near upper 10% assets |
+|---|---:|---:|---:|---:|
+| Initial | 0.0039822264227957075 | 1.4930139853175105e-5 | 0.00015384542984335633 | 0 |
+| Calibrated | 0.004174528166204521 | 1.7034186774983578e-5 | 0.00020359148126686442 | 0 |
+| Final | 0.0034732478454411048 | 1.970957640442883e-5 | 0.0003692208973684764 | 0 |
+
+Worst errors arise around a=0.03883872440606897, low productivity
+0.09038599945317274, with positive stationary probability. Unlike the
+old method's largest error (~0.00851 final), direct endogenous EGM reduces
+the reported final maximum to ~0.00347. This comparison is informative,
+but the DIFFERENT beta/r in the two equilibria means it is not a strictly
+fixed-price, fixed-calibration experiment. The earlier intermediate
+fixed-price comparison reported max Euler 0.006606 (coarse-savings)
+versus 0.003525 (experimental direct-endogenous savings) for the calibrated
+reference setting; that experimental option has been removed.
+
+**Judgment:** stationary GE numerical calculation succeeded using the
+author-consistent endogenous EGM algorithm. However, the preset absolute
+maximum Euler threshold 1e-6 is not met. The previous re-calibrated
+97/385 versus 193/769 grid sensitivity result belongs to the OLD
+coarse-savings implementation and does not verify grid convergence of
+the corrected author-consistent solver. Do not claim full Stage 1
+accuracy acceptance, and do not overwrite the successful GE result with
+another improvised household algorithm.
+
+The numerical outputs are preserved at
+results/stage1_steady_states.csv,
+results/stage1_diagnostics.txt,
+results/stage1_euler_summary.csv and
+results/stage1_euler_by_state.csv.

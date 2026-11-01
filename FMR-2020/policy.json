@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "project_id": "FMR-2020",
-  "updated_on": "2026-11-01",
+  "updated_on": "2026-11-02",
   "repository": "https://github.com/Hirotaka-Fukui-Pitti-King/22p8z0omwz9xu",
   "directory": "FMR-2020",
   "title": "Household Heterogeneity and the Transmission of Foreign Shocks — Julia replication",
@@ -46,20 +46,98 @@
     }
   ],
   "current_status": {
-    "phase": "documentation_and_design",
+    "phase": "stage1_author_egm_three_steady_states_solved_euler_accuracy_pending",
     "files_written": [
       "README.md",
       "ALGORITHM.md",
-      "policy.json"
+      "policy.json",
+      "Project.toml",
+      "src/*.jl",
+      "test/runtests.jl",
+      "scripts/check_syntax.jl",
+      "scripts/smoke_test.jl",
+      "scripts/run_steady_states.jl",
+      "docs/STAGE1_AUDIT.md",
+      "scripts/grid_refinement.jl",
+      "src/accuracy.jl",
+      "scripts/stage1_accuracy_audit.jl",
+      "scripts/stage1_recalibrated_grid.jl"
     ],
-    "julia_source_created": false,
-    "julia_project_created": false,
-    "syntax_verified": false,
-    "runtime_verified": false,
+    "julia_source_created": true,
+    "julia_project_created": true,
+    "syntax_verified": true,
+    "runtime_verified": true,
     "author_matlab_executed": false,
-    "model_equilibrium_verified": false,
+    "model_equilibrium_verified": true,
     "figures_replicated": [],
-    "successful_replication_claim": false
+    "successful_replication_claim": false,
+    "manifest_created": false,
+    "source_review_complete": true,
+    "julia_execution_only_on_user_windows_pc": true,
+    "full_stage1_acceptance_pending": true,
+    "latest_local_evidence": {
+      "julia_version": "1.12.6",
+      "method": "author-consistent endogenous EGM direct fine-grid consumption PCHIP",
+      "parse_files": 17,
+      "syntax_parse_pass": true,
+      "unit_tests_passed": 2420,
+      "unit_tests_total": 2420,
+      "calibrated_beta": 0.9832249176502228,
+      "beta_scaled_asset_residual": -9.318394332665269e-9,
+      "beta_iterations": 22,
+      "stationary": [
+        {
+          "name": "initial",
+          "B": 0,
+          "r": 0.011279045284627722,
+          "scaled_asset_error": 1.2165000828531331e-9,
+          "scaled_goods_error": 7.901821955559918e-11,
+          "max_coarse_euler": 0.00026237606861146756,
+          "max_fine_euler": 0.0039822264227957075,
+          "weighted_mean_euler": 0.000014930139853175105,
+          "weighted_p99_euler": 0.00015384542984335633,
+          "distribution_mass": 0.9999999999999893
+        },
+        {
+          "name": "calibrated",
+          "B": -4.34324989100106,
+          "r": 0.010609825647710607,
+          "scaled_asset_error": 9.094922339427287e-9,
+          "scaled_goods_error": 7.48582315489639e-12,
+          "max_coarse_euler": 0.00026706697465457384,
+          "max_fine_euler": 0.004174528166204521,
+          "weighted_mean_euler": 0.000017034186774983578,
+          "weighted_p99_euler": 0.00020359148126686442,
+          "distribution_mass": 0.9999999999999896
+        },
+        {
+          "name": "final",
+          "B": -11.132131056640317,
+          "r": 0.009397361811040686,
+          "scaled_asset_error": 5.770314550993793e-9,
+          "scaled_goods_error": 9.059403001740375e-11,
+          "max_coarse_euler": 0.0002783143489409251,
+          "max_fine_euler": 0.0034732478454411048,
+          "weighted_mean_euler": 0.00001970957640442883,
+          "weighted_p99_euler": 0.0003692208973684764,
+          "distribution_mass": 0.9999999999999898
+        }
+      ],
+      "ge_solved": true,
+      "fine_euler_max_acceptance_threshold": 0.000001,
+      "fine_euler_threshold_passed": false,
+      "author_method_recalibrated_grid_refinement_verified": false
+    },
+    "latest_patch_locally_verified": true,
+    "syntax_verified_scope": "17 Julia files in author-only EGM implementation on Windows Julia 1.12.6",
+    "runtime_verified_scope": "2420 unit tests, full three stationary GE run, and fine-grid Euler audit",
+    "bugfix_pending": [
+      "The author EGM method is fixed; no alternate interpolator should be introduced",
+      "preset maximum Euler residual acceptance 1e-6 not met",
+      "recalibrated GE grid sensitivity under author-only EGM not yet rerun"
+    ],
+    "methodology_decision": "Only author stationary EGM: direct fine-grid interpolation of endogenous consumption knots; constrained next-period savings at borrowing floor; no optional alternate interpolation.",
+    "latest_local_evidence_context": "Existing local GE and Euler numbers refer to previous coarse-saving interpolation, not the latest algorithm"
   },
   "scope": {
     "first_milestone": "Figures 1–5",
@@ -116,25 +194,28 @@
       {
         "name": "NonlinearSolve.jl",
         "documentation": "https://docs.sciml.ai/NonlinearSolve/stable/",
-        "state": "candidate_unvalidated_in_local_environment"
+        "state": "candidate_not_required_in_stage1"
       },
       {
         "name": "LinearSolve.jl",
         "documentation": "https://docs.sciml.ai/LinearSolve/stable/",
-        "state": "candidate_unvalidated_in_local_environment"
+        "state": "candidate_not_required_in_stage1"
       },
       {
         "name": "Roots.jl",
         "documentation": "https://juliamath.github.io/Roots.jl/stable/",
-        "state": "candidate_unvalidated_in_local_environment"
+        "state": "candidate_not_required_in_stage1"
       },
       {
         "name": "Interpolations.jl",
         "documentation": "https://juliamath.github.io/Interpolations.jl/stable/",
-        "state": "candidate_unvalidated_for_shape_preserving_interpolation"
+        "state": "candidate_not_required_in_stage1"
       }
     ],
-    "version_and_uuid_policy": "Do not invent. Check official project and installed Julia version before Project.toml."
+    "version_and_uuid_policy": "Do not invent. Check official project and installed Julia version before Project.toml.",
+    "current_stage1_dependencies": "Base only; no external Julia packages",
+    "stationary_fine_grid_method": "direct PCHIP on endogenous EGM asset/consumption knots, as in solve_R.m",
+    "forbid_unmotivated_algorithm_substitution": true
   },
   "author_code_reference_settings": {
     "state_count": 7,
@@ -182,7 +263,7 @@
     {
       "id": "baseline_stationary",
       "target": "EGM and stationary distribution; calibrate beta and three steady states",
-      "status": "planned"
+      "status": "author_egm_three_stationary_ge_solved_accuracy_gate_pending"
     },
     {
       "id": "credit_expansion",
@@ -219,7 +300,7 @@
         "probability invariance",
         "grid and constraint bounds"
       ],
-      "state": "not_started"
+      "state": "author_household_algorithm_syntax_and_tests_passed_max_euler_target_not_met"
     },
     {
       "id": "G2",
@@ -229,7 +310,7 @@
         "asset-market clearing",
         "calibration table"
       ],
-      "state": "not_started"
+      "state": "three_ge_numerically_solved_author_egm_grid_convergence_pending"
     },
     {
       "id": "G3",
@@ -340,5 +421,14 @@
     "never_claim_test_passed_without_local_evidence": true,
     "scripts_and_commands": "provide only after relevant Project.toml and scripts exist",
     "note": "Running in the assistant environment does not substitute for verification on the user's PC."
-  }
+  },
+  "source_audit_document": "docs/STAGE1_AUDIT.md",
+  "stage1_branch": "research/fmr-2020-stage1-steady-state",
+  "local_commands": [
+    "julia --project=. scripts/check_syntax.jl",
+    "julia --project=. scripts/smoke_test.jl",
+    "julia --project=. test/runtests.jl",
+    "julia --project=. scripts/run_steady_states.jl",
+    "julia --project=. scripts/grid_refinement.jl"
+  ]
 }
