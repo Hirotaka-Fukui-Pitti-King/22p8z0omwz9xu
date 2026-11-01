@@ -307,5 +307,38 @@
       "results/"
     ],
     "root_repository_files_unchanged": true
+  },
+  "execution_workflow": {
+    "execution_location": "user_owned_windows_pc_only",
+    "executor": "user",
+    "assistant_responsibilities": [
+      "design and author native Julia source",
+      "commit documentation and code to GitHub",
+      "static review",
+      "provide precise Windows PowerShell commands",
+      "interpret user-supplied local stdout, stderr, residuals, tests and figures",
+      "commit fixes"
+    ],
+    "user_responsibilities": [
+      "pull GitHub changes onto local Windows PC",
+      "run Julia syntax checks and dependency installation",
+      "run smoke tests and full numerical experiments",
+      "share logs, residual diagnostics and outputs needed for verification"
+    ],
+    "cycle": [
+      "assistant_commit",
+      "user_git_pull_ff_only",
+      "user_run_julia_parse_dependency_smoke_tests",
+      "user_run_model_and_irfs",
+      "user_share_logs_and_outputs",
+      "assistant_audit_and_fix",
+      "user_rerun"
+    ],
+    "do_not_run_julia_remotely": true,
+    "github_actions_execution": "disabled_by_default_unless_user_explicitly_requests",
+    "local_log_required_for_verification": true,
+    "never_claim_test_passed_without_local_evidence": true,
+    "scripts_and_commands": "provide only after relevant Project.toml and scripts exist",
+    "note": "Running in the assistant environment does not substitute for verification on the user's PC."
   }
 }
