@@ -41,6 +41,9 @@ jobs:
       - name: Diagnostic shock-rejection full 1100-period trial (benchmark N)
         timeout-minutes: 90
         run: julia --project=. scripts/diagnostic_shock_rejection.jl 1100 110000 20261101 100
+      - name: Exact CES capital and rational expectations closure audit (benchmark N)
+        timeout-minutes: 90
+        run: julia --project=. scripts/diagnostic_capital_closure.jl 1100 110000 20261101 100
       - name: Firm simulation integration smoke (benchmark N, 20 periods)
         run: |
           julia --project=. scripts/run_benchmark.jl 20 110000 20261101
@@ -54,3 +57,5 @@ jobs:
           path: |
             Nirei-2015/results/diagnostic_shock_rejection_counterfactual_*.csv
             Nirei-2015/results/diagnostic_shock_rejection_counterfactual_*.toml
+            Nirei-2015/results/diagnostic_capital_closure_*.csv
+            Nirei-2015/results/diagnostic_capital_closure_*.toml
