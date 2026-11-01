@@ -58,11 +58,37 @@ using FMR2020
         @test minimum(hh.consumption_fine) > 0
         @test minimum(hh.savings_fine) >= grids.borrowing_limit-1e-8
         @test diag.max_budget_error < 1e-8
+        @test diag.max_fine_budget_error < 1e-8
+        @test diag.minimum_fine_saving >= grids.borrowing_limit
         @test diag.minimum_savings_step > -1e-6
+        # The fine-grid interpolation preserves coarse policy choices at
+        # shared knots (full and active grids are nested for these sizes).
+        for (i, a) in enumerate(grids.coarse)
+            jfine = findfirst(==(a),grids.fine)
+            if jfine !== nothing
+                @test maximum(abs.(hh.savings_fine[jfine,:] .-
+                                    hh.savings_coarse[i,:])) < 1e-8
+            end
+        end
         @test isfinite(diag.max_euler_unconstrained)
         @test isfinite(diag.max_kkt_violation)
         @test diag.max_euler_unconstrained < 0.1 # grid-dependent; report actual
         @test diag.max_kkt_violation < 0.1
+    end
+
+    @testset "Regression: finer grids and impatient beta do not create artificial borrowing" begin
+        # The reported failure occurred at this stage, before beta root
+        # evaluation: fine-grid savings were about 1e-5 below the limit.
+        for (nc,nf) in ((61,241),(193,769))
+            pg = default_parameters(n_coarse=nc,n_fine=nf,
+                                    egm_tol=1e-9,dist_tol=1e-9)
+            grid = make_asset_grids(pg,ref.K)
+            sol = solve_household(pg,grid,chain,household_prices,0.980)
+            metric = household_diagnostics(pg,grid,chain,household_prices,0.980,sol)
+            @test minimum(sol.savings_fine) >= grid.borrowing_limit
+            @test metric.max_fine_budget_error < 1e-8
+            @test minimum(sol.consumption_fine) > 0
+        end
     end
 
     @testset "Matrix-free distribution and mass conservation" begin

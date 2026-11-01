@@ -108,19 +108,35 @@ function solve_household(p::ModelParams{T}, gr::AssetGrids{T},
     nf = length(gr.fine)
     cf = Matrix{T}(undef,nf,ns)
     gf = similar(cf)
+    # Interpolate the *choice* a' rather than consumption when transferring
+    # the converged coarse policy to the fine distribution grid. Interpolating
+    # consumption and solving backwards for a' can cross the borrowing limit
+    # between coarse knots even if every coarse choice is feasible (observed
+    # for the full 193/769-point calibration in Julia 1.12.6). A shape-preserving
+    # Hermite interpolation of feasible savings knots preserves their range
+    # on every interval. Consumption is then recovered from the exact budget.
+    #
+    # No arbitrary clipping or relaxation of the borrowing tolerance occurs.
     @inbounds for j in 1:ns
-        pchip_slopes!(derivatives,gr.coarse,view(c,:,j))
+        pchip_slopes!(derivatives,gr.coarse,view(savings,:,j))
+        income = labor_income(pr,chain.levels[j]) + pr.profits
         for i in 1:nf
             a = gr.fine[i]
-            consum = pchip_evaluate(gr.coarse,view(c,:,j),derivatives,a)
-            sav = gross*a + labor_income(pr,chain.levels[j]) + pr.profits - m*consum
-            if sav < gr.borrowing_limit-T(1e-8)*max(one(T),abs(gr.borrowing_limit))
-                throw(DomainError(sav,"fine-grid savings below borrowing limit"))
+            sav = pchip_evaluate(gr.coarse,view(savings,:,j),derivatives,a)
+            if sav < gr.borrowing_limit
+                throw(DomainError(sav,
+                    "shape-preserving fine-grid savings violate borrowing constraint"))
             end
-            sav = max(gr.borrowing_limit,sav)
+            if sav > gr.fine[end]
+                throw(DomainError(sav,
+                    "fine-grid policy exceeds distribution grid upper bound"))
+            end
+            consum = (gross*a+income-sav)/m
+            isfinite(consum) && consum > zero(T) ||
+                throw(DomainError(consum,
+                    "nonpositive consumption implied by fine-grid policy"))
             gf[i,j] = sav
-            cf[i,j] = (gross*a+labor_income(pr,chain.levels[j])+pr.profits-sav)/m
-            cf[i,j] > 0 || throw(DomainError(cf[i,j],"nonpositive interpolated consumption"))
+            cf[i,j] = consum
         end
     end
     return HouseholdSolution(c,savings,cf,gf,n_iter,last_error)
@@ -144,6 +160,8 @@ function household_diagnostics(p::ModelParams{T}, gr::AssetGrids{T},
     max_euler_unconstrained = zero(T)
     max_kkt_violation = zero(T)
     max_budget = zero(T)
+    max_fine_budget = zero(T)
+    minimum_fine_saving = T(Inf)
     minimum_savings_step = T(Inf)
     @inbounds for j in 1:ns, i in 1:n
         a = gr.coarse[i]
@@ -172,9 +190,20 @@ function household_diagnostics(p::ModelParams{T}, gr::AssetGrids{T},
                                        hh.savings_coarse[i,j]-hh.savings_coarse[i-1,j])
         end
     end
+    @inbounds for j in 1:ns, i in eachindex(gr.fine)
+        a = gr.fine[i]
+        sav = hh.savings_fine[i,j]
+        consum = hh.consumption_fine[i,j]
+        minimum_fine_saving = min(minimum_fine_saving,sav)
+        balance = (1+pr.r)*a+labor_income(pr,chain.levels[j])+pr.profits -
+                  consumption_cost(pr.terms,p)*consum-sav
+        max_fine_budget = max(max_fine_budget,abs(balance))
+    end
     return (max_euler_unconstrained=max_euler_unconstrained,
             max_kkt_violation=max_kkt_violation,
             max_budget_error=max_budget,
+            max_fine_budget_error=max_fine_budget,
+            minimum_fine_saving=minimum_fine_saving,
             minimum_savings_step=minimum_savings_step,
             policy_iterations=hh.iterations,
             policy_update_error=hh.update_error)

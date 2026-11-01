@@ -46,7 +46,7 @@
     }
   ],
   "current_status": {
-    "phase": "stage1_julia_source_committed_waiting_for_user_pc_validation",
+    "phase": "stage1_fix_fine_grid_borrowing_pending_local_verification",
     "files_written": [
       "README.md",
       "ALGORITHM.md",
@@ -62,8 +62,8 @@
     ],
     "julia_source_created": true,
     "julia_project_created": true,
-    "syntax_verified": false,
-    "runtime_verified": false,
+    "syntax_verified": true,
+    "runtime_verified": true,
     "author_matlab_executed": false,
     "model_equilibrium_verified": false,
     "figures_replicated": [],
@@ -71,7 +71,27 @@
     "manifest_created": false,
     "source_review_complete": true,
     "julia_execution_only_on_user_windows_pc": true,
-    "full_stage1_acceptance_pending": true
+    "full_stage1_acceptance_pending": true,
+    "latest_local_evidence": {
+      "julia_version": "1.12.6",
+      "syntax_parse_files": 14,
+      "syntax_passed": true,
+      "smoke_passed": true,
+      "unit_test_passed": 68,
+      "unit_test_total": 68,
+      "full_three_steady_states_passed": false,
+      "grid_refinement_passed": false,
+      "full_three_steady_states_failure": "DomainError: fine-grid savings -9.862788178216508e-6 below borrowing limit",
+      "grid_refinement_failure": "DomainError: fine-grid savings -1.0261942101019716e-5 below borrowing limit"
+    },
+    "latest_patch_locally_verified": false,
+    "syntax_verified_scope": "previous commit; latest patch not yet parsed locally",
+    "runtime_verified_scope": "previous commit smoke/unit tests; latest patch not yet executed locally",
+    "bugfix_pending": [
+      "fine-grid household policy now interpolates savings not consumption",
+      "new regression tests beta=0.980 at coarse/fine sizes 61/241 and 193/769",
+      "record fine-budget and savings-min diagnostics"
+    ]
   },
   "scope": {
     "first_milestone": "Figures 1–5",

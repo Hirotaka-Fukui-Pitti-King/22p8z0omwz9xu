@@ -51,3 +51,16 @@ CES需要からc_F/c_H=[(1−χ)/χ]x^θ、消費支出= [1+((1−χ)/χ)x^(θ�
 7. β/r較正後、所得・配当の合計、財市場・資産市場・労働組合FOC・企業要素価格の整合が数値的に成立すること。
 
 **報告ステータス**：JuliaコードはGitHubに追加済み、構文・読み込み・実行・数値結果は**本人PCでの実行ログ待ち（未検証）**。論文全体のReplicationではない。
+
+## 2026-11-02: User-PC regression, fine-grid policy fix
+
+Windows Julia 1.12.6 result supplied by the user:
+- **Syntax**: Meta.parseall for 14 files PASS.
+- **Smoke**: 1436 EGM updates (reported diff 9.997052075050306e-10), Euler 0.00110884601889777, KKT 0, budget 2.2021586079190927e-17; distribution mass 0.9999999999999907, 1565 iterations, 9.721244087490533e-10. Smoke PASS.
+- **Tests**: 68/68 PASS.
+- **Full stationary calibration**: FAIL at solve_household fine-grid policy with computed savings −9.862788178216508e-6 below the borrowing limit.
+- **Grid refinement**: FAIL at same policy interpolation with savings −1.0261942101019716e-5 below the borrowing limit.
+- **Diagnosis from source**: previously PCHIP-interpolated coarse consumption and then inferred savings from the budget. Even if coarse savings respects the bound, consumption interpolation can imply savings **below** that bound at interior fine-grid knots.
+- **Correction committed**: interpolate the *coarse savings policy* with shape-preserving Hermite instead; derive fine-grid consumption exactly from budget, and fail on any remaining infeasible saving/consumption (no tolerance relaxation, no clipping). Report max fine budget error and minimum fine saving. Add direct regression on (61,241) and (193,769) grids at beta=0.980.
+- **Status**: patch is NOT YET verified on the owner's PC. EGM solution, distribution, beta calibration and all three steady-state equilibrium outcomes remain unverified after the patch. The new savings interpolation differs from author code's consumption interpolation, so its numerical effect on asset demand and the original paper's calibration must be checked by grid refinement and comparison.
+
