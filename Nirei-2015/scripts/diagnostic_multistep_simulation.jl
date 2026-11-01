@@ -170,7 +170,7 @@ function stage13_multistep_step!(state::SimulationState, J::Int;
         "stable_jump_residual"=>
             (logmu-expected.logmu_next)-state.re.h*(logK_next-expected.logK_next),
         "level_resource_gap"=>level_gap,
-        "linear_resource_residual"=>realized.resources_residual,
+        "linear_resource_residual"=>realized.resource_residual,
         "linear_euler_residual"=>realized.euler_residual,
         "firm_count"=>n,"shock_checksum"=>shock_checksum
     )
