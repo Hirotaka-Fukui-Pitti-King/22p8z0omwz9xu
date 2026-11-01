@@ -208,11 +208,16 @@ retained as an endogenous forecast error. Replacing this continuation
 condition with an independently derived nonlinear solution would
 require a stronger solution concept not specified in Appendix A.
 
-For :capital_fallback, the negative-X region is an EXPLICIT MODEL-COMPLETION
-experiment: the selected physical X is signed, the investment log level is
-recorded as NaN, and the contemporaneous linear macro equations use the
-first-order level-deviation proxy for logX. This is not an exact log
-investment shock or a verified nonlinear GE/RE continuation.
+For :capital_all, the equilibrium selector minimizes the absolute
+log-capital forecast distance over ALL fixed points, including negative-X
+roots. For :capital_fallback, this capital rule applies only if the
+original investment-log criterion has no positive-X root.
+Both are EXPLICIT SELECTION EXPERIMENTS. In capital_all the recorded
+epsilon is a first-order capital-innovation proxy for EVERY selected
+root, not the paper's log-investment shock. When physical X<=0, the
+literal investment log level is recorded as NaN, and contemporaneous
+linear equations use the first-order signed level-deviation proxy.
+These extensions do not constitute exact nonlinear GE/RE continuation.
 """
 function simulate_period!(state::SimulationState; selection_mode::Symbol=:original)
     p = state.calibration.parameters
@@ -235,8 +240,8 @@ function simulate_period!(state::SimulationState; selection_mode::Symbol=:origin
         logmu_prior = log(mup / s.mu)
         logmu = state.re.h * logK_next
         mu = s.mu * exp(logmu)
-        # Original mode always has X>0. Opt-in fallback may select
-        # X<=0: use the FIRST-ORDER level deviation (X-Xbar)/Xbar
+        # Original mode always has X>0. Either opt-in capital mode may
+        # select X<=0: use the FIRST-ORDER level deviation (X-Xbar)/Xbar
         # as the argument of the Appendix A linear equations. It is
         # NOT an exact log(X/Xbar), and is unreliable far from steady state.
         logX = eq.X > 0.0 ? log(eq.X / s.X) : (eq.X - s.X) / s.X
