@@ -3,7 +3,8 @@
 # This is NOT the published 2015 three-choice benchmark.
 # From Nirei-2015/:
 #   julia --project=. scripts/run_two_choice.jl --smoke
-#   julia --project=. scripts/run_two_choice.jl 6 110000 20261101
+#   julia --project=. scripts/run_two_choice.jl 6 110000 20261101 1 hybrid
+#   julia --project=. scripts/run_two_choice.jl 6 110000 20261101 1 linear
 #   julia --project=. scripts/run_two_choice.jl 20 110000 20261101
 #   julia --project=. scripts/run_two_choice.jl 1100 110000 20261101
 
@@ -116,10 +117,85 @@ function select_two_choice_es1(roots, expected_X::Float64, expected_K::Float64)
     return (index=best, score=best_score, n_positive=positive_count)
 end
 
+# Appendix A first-order realized macro allocation, NOT an exact nonlinear GE solve.
+# Equations (27),(28),(30),(33) imply the expressions below.
+# The precommitted interest-rate proxy is the *conditional forecast* of R;
+# it must not be interpreted as an ex-post household Euler identity.
+function linear_realized_macroeconomy(
+    state::SimulationState, K_prior::Float64, X::Float64,
+    logmu::Float64, forecast::ExpectedEquilibrium,
+)
+    p = state.calibration.parameters
+    c = state.calibration.constants
+    s = state.calibration.steady_state
+    coeff = state.re.coefficients
+    logk = log(K_prior / s.K)
+    logx = log(X / s.X)
+    logl = (s.a_x * logx - p.alpha * logk -
+            (s.a_c / p.sigma) * logmu) / coeff.A1
+    logc = (-logmu + (p.sigma - 1.0) * (c.c_L / s.a_c) * logl) / p.sigma
+    logy = p.alpha * logk + (1.0 - p.alpha) * logl
+    logw = logc + (p.zeta - 1.0 + c.c_L / s.a_c) * logl
+    all(isfinite, (logk, logx, logl, logc, logy, logw, logmu)) ||
+        throw(DomainError((logk, logx, logl, logc, logy, logw, logmu),
+                          "nonfinite Appendix A log-deviations"))
+    residuals = (
+        logy - p.alpha * logk - (1.0 - p.alpha) * logl,
+        logy - s.a_c * logc - s.a_x * logx,
+        logmu + p.sigma * logc -
+            (p.sigma - 1.0) * (c.c_L / s.a_c) * logl,
+        logl - coeff.eta_L * (logw + logmu / p.sigma),
+        logw - logc - (p.zeta - 1.0 + c.c_L / s.a_c) * logl,
+    )
+    linear_residual = maximum(abs, residuals)
+    linear_residual < 1e-10 ||
+        throw(ErrorException("Appendix A equation residual = $linear_residual"))
+    Y = s.Y * exp(logy)
+    C = s.C * exp(logc)
+    L = s.L * exp(logl)
+    w = s.w * exp(logw)
+    R = forecast.R_next
+    all(z -> isfinite(z) && z > 0.0, (Y, C, L, w, R)) ||
+        throw(DomainError((Y, C, L, w, R),
+                          "invalid level reconstructed from first-order approximation"))
+    return (
+        Y=Y, C=C, L=L, w=w, R=R,
+        resource_residual=(Y - C - X)/Y,
+        linear_residual=linear_residual,
+    )
+end
+
+# For the hybrid branch the macro model is solved at nonlinear levels.
+# Evaluate the *first-order* approximation residual as a diagnostic only.
+function first_order_macro_residual(
+    state::SimulationState, K_prior::Float64, X::Float64,
+    logmu::Float64, allocation,
+)
+    p = state.calibration.parameters
+    c = state.calibration.constants
+    s = state.calibration.steady_state
+    coeff = state.re.coefficients
+    logk = log(K_prior / s.K)
+    logx = log(X / s.X)
+    logl = log(allocation.L / s.L)
+    logc = log(allocation.C / s.C)
+    logy = log(allocation.Y / s.Y)
+    logw = log(allocation.w / s.w)
+    return maximum(abs, (
+        logy - p.alpha * logk - (1.0-p.alpha) * logl,
+        logy - s.a_c*logc - s.a_x*logx,
+        logmu + p.sigma*logc - (p.sigma-1.0)*(c.c_L/s.a_c)*logl,
+        logl - coeff.eta_L*(logw + logmu/p.sigma),
+        logw - logc - (p.zeta-1.0+c.c_L/s.a_c)*logl,
+    ))
+end
+
 # The entire stochastic environment, conditional forecasts, marginal utility
 # continuation and realized household equations are the existing implementation.
 # Only the firm's adjustment choice set differs.
-function simulate_two_choice_period!(state::SimulationState)
+function simulate_two_choice_period!(state::SimulationState, continuation::Symbol=:hybrid)
+    continuation in (:hybrid, :linear) ||
+        throw(ArgumentError("unknown macro continuation: $continuation"))
     p = state.calibration.parameters
     s = state.calibration.steady_state
     kp = state.K
@@ -166,13 +242,33 @@ function simulate_two_choice_period!(state::SimulationState)
 
         epsilon = log(chosen_X / forecast.X_next)
         logmu_prior = log(prior_mu / s.mu)
-        logmu = forecast.logmu_next + state.re.h * p.delta * epsilon
+        logK_next = log(chosen_K / s.K)
+        # Hybrid reproduces the existing numerical continuation.
+        # Linear explicitly reanchors the *realized* jump variable to the
+        # local stable manifold after exact finite-N CES aggregation.
+        # The latter is a model approximation, NOT an exact global RE result.
+        logmu = continuation === :linear ?
+            state.re.h * logK_next :
+            forecast.logmu_next + state.re.h * p.delta * epsilon
         mu = s.mu * exp(logmu)
         isfinite(mu) && mu > 0.0 ||
             throw(DomainError(mu, "invalid two-choice continuation marginal utility"))
-        realized_macro = Nirei2015._realized_macroeconomy(
-            state.calibration, kp, chosen_X, logmu, logmu_prior
-        )
+        realized_macro = if continuation === :linear
+            linear_realized_macroeconomy(state, kp, chosen_X, logmu, forecast)
+        else
+            Nirei2015._realized_macroeconomy(
+                state.calibration, kp, chosen_X, logmu, logmu_prior
+            )
+        end
+        macro_linear_residual = continuation === :linear ?
+            realized_macro.linear_residual :
+            first_order_macro_residual(state, kp, chosen_X, logmu, realized_macro)
+        stable_gap = logmu - state.re.h * logK_next
+        investment_capital_gap = logK_next - forecast.logK_next -
+                                 p.delta * epsilon
+        all(isfinite, (macro_linear_residual, stable_gap,
+                       investment_capital_gap)) ||
+            throw(ErrorException("nonfinite macro continuation diagnostics"))
         record = (
             t=t, K_prior=kp, K_next=chosen_K, expected_K=expected_K,
             X=chosen_X, expected_X=forecast.X_next, epsilon=epsilon,
@@ -184,8 +280,11 @@ function simulate_two_choice_period!(state::SimulationState)
             n_investing=investing, n_inactive=n-investing, n_divesting=0,
             K_residual=K_residual, X_residual=X_residual,
             resource_residual=realized_macro.resource_residual,
-            capital_linear_gap=log(chosen_K / s.K) -
-                               (forecast.logK_next + p.delta*epsilon),
+            macro_linear_residual=macro_linear_residual,
+            logmu=logmu, stable_gap=stable_gap,
+            expected_logK=forecast.logK_next,
+            expected_logmu=forecast.logmu_next,
+            capital_linear_gap=investment_capital_gap,
         )
         # Commit firm capital and productivity only after all checks pass.
         old_capital = state.firms.capital
@@ -239,6 +338,23 @@ function smoke_test()
     all(x -> x >= 0.0, roots.X) ||
         error("two-choice net investment cannot be negative")
     println("PASS: two-choice N=8 exhaustive 2^N policy oracle; roots=", length(reference))
+    # Nontrivial first-order resource, production, utility and labor FOC
+    # regression, separate from the exhaustive firm-policy oracle above.
+    fresh = initialize_simulation(; N=8, base_seed=20261101)
+    steady = fresh.calibration.steady_state
+    expected = compute_expected_equilibrium(
+        fresh.re, fresh.calibration, steady.K, steady.mu
+    )
+    K_test = 1.01 * steady.K
+    X_test = 1.05 * steady.X
+    logmu_test = fresh.re.h * log(0.99)
+    allocation = linear_realized_macroeconomy(
+        fresh, K_test, X_test, logmu_test, expected
+    )
+    allocation.linear_residual < 1e-12 ||
+        error("Appendix A first-order equations failed at nonsteady test state")
+    println("PASS: Appendix A linear equations on nonsteady test state")
+
 end
 
 function write_csv(path::String, records)
@@ -261,6 +377,9 @@ function main()
     N = length(ARGS) >= 2 ? parse(Int, ARGS[2]) : 110000
     seed = length(ARGS) >= 3 ? parse(Int, ARGS[3]) : 20261101
     replication = length(ARGS) >= 4 ? parse(Int, ARGS[4]) : 1
+    continuation = length(ARGS) >= 5 ? Symbol(ARGS[5]) : :hybrid
+    continuation in (:hybrid, :linear) ||
+        throw(ArgumentError("continuation must be hybrid or linear"))
     T > 0 && N > 0 && replication > 0 ||
         throw(ArgumentError("T, N and replication must be positive"))
     state = initialize_simulation(; N=N, base_seed=seed, replication=replication)
@@ -268,7 +387,7 @@ function main()
     failure = nothing
     for _ in 1:T
         try
-            push!(records, simulate_two_choice_period!(state))
+            push!(records, simulate_two_choice_period!(state, continuation))
         catch err
             failure = sprint(showerror, err)
             break
@@ -276,7 +395,7 @@ function main()
     end
     root = normpath(joinpath(@__DIR__, "..", "results"))
     mkpath(root)
-    stem = "two_choice_rep" * lpad(string(replication), 2, '0')
+    stem = "two_choice_rep" * lpad(string(replication), 2, '0') * "_" * string(continuation)
     csv_path = joinpath(root, stem * ".csv")
     summary_path = joinpath(root, stem * "_summary.toml")
     write_csv(csv_path, records)
@@ -289,10 +408,13 @@ function main()
         ),
         "configuration" => Dict(
             "model" => "book-motivated two-choice kappa in {0,1}",
+            "macro_variant" => string(continuation),
             "not_published_2015_replication" => true,
             "firms" => N, "seed" => seed, "replication" => replication,
             "selection" => "original Section 3.4 ES1 over X>0",
-            "continuation" => "current first-order Appendix A mu innovation",
+            "continuation" => continuation === :linear ?
+                "realized K reanchored to local saddle; log-linear Appendix A variables" :
+                "existing first-order mu shock plus exact nonlinear household levels",
             "burnin" => 100,
         ),
     )
@@ -303,10 +425,21 @@ function main()
             "expected_X" => r.expected_X, "n_fixed" => r.n_fixed,
             "n_positive" => r.n_positive, "n_investing" => r.n_investing,
             "capital_residual" => r.K_residual,
+            "stable_gap" => r.stable_gap,
+            "max_linear_macro_residual" => r.macro_linear_residual,
         )
         r = last(records)
         summary["last_period"] = Dict(
             "K_next" => r.K_next, "X" => r.X, "n_fixed" => r.n_fixed,
+            "mu" => r.mu, "stable_gap" => r.stable_gap,
+        )
+    end
+    if !isempty(records)
+        summary["diagnostics"] = Dict(
+            "maximum_abs_stable_gap" => maximum(r -> abs(r.stable_gap), records),
+            "maximum_macro_linear_residual" => maximum(r -> r.macro_linear_residual, records),
+            "maximum_abs_capital_linear_gap" => maximum(r -> abs(r.capital_linear_gap), records),
+            "last_capital" => last(records).K_next,
         )
     end
     if length(records) > 101
@@ -326,7 +459,7 @@ function main()
     open(summary_path, "w") do io
         TOML.print(io, summary)
     end
-    println("Two-choice counterfactual: T=$T N=$N seed=$seed replication=$replication")
+    println("Two-choice counterfactual: T=$T N=$N seed=$seed replication=$replication continuation=$continuation")
     println("Completed ", length(records), "/", T, " periods")
     if !isempty(records)
         r = first(records)
@@ -334,7 +467,8 @@ function main()
                 " fixed points=", r.n_fixed, " positive-X=", r.n_positive,
                 " investing=", r.n_investing)
         r = last(records)
-        println("last: t=", r.t, " X=", r.X, " Knext=", r.K_next)
+        println("last: t=", r.t, " X=", r.X, " Knext=", r.K_next,
+                " mu=", r.mu, " stable_gap=", r.stable_gap)
     end
     println("CSV: ", csv_path)
     println("Summary: ", summary_path)
