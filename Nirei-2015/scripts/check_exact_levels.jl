@@ -1,6 +1,9 @@
 #!/usr/bin/env julia
 # Equations (7),(8),(11),(12) exact-level regression. NOT conditional RE.
 using Nirei2015
+
+# Function scope avoids Julia's global soft-scope ambiguity in try/catch.
+function main()
 cal=run_calibration()
 s=cal.steady_state
 p=cal.parameters
@@ -26,3 +29,6 @@ end
 @assert was_domain_error
 println("PASS: exact nonlinear steady-state/off-steady level conditions and infeasible-X domain")
 println("NOT TESTED: nonlinear conditional pricing expectations or full stochastic RE")
+end
+
+main()
