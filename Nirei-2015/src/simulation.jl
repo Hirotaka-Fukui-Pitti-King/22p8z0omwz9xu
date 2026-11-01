@@ -198,8 +198,10 @@ function _realized_macroeconomy(
                (p.sigma - 1.0) * p.psi * p.zeta * L^p.zeta / leisure
     end
 
-    # Locate the unique minimum of log(mu(L)), then bisect the lower
-    # (steady-state connected) branch. No guessed wage or labor-share FOC.
+    # Locate the minimum of log(mu(L)) on the feasible labor interval.
+    # This determines whether the steady-state-connected low-labor branch
+    # exists, but is NOT itself a stable way to invert extremely large mu:
+    # at large mu, C=Y-X loses relative precision as C approaches zero.
     a, b = lo, hi
     for _ in 1:100
         mid = a + (b - a) / 2.0
@@ -215,27 +217,51 @@ function _realized_macroeconomy(
     target_logmu >= minimum_logmu - 1e-12 ||
         throw(DomainError((target_logmu, minimum_logmu),
                           "no exact level household allocation for prescribed mu,K,X"))
-    # The minimum itself is the single tangent root. Otherwise the
-    # steady-state-connected low-L branch has one root if the left endpoint
-    # can be resolved at Float64 precision.
+
+    # Invert marginal utility algebraically instead of obtaining extremely
+    # small consumption as the difference of two nearly equal goods flows.
+    # mu = C^(-sigma) * (1-psi*L^zeta)^(1-sigma), hence
+    # log(C)=[(1-sigma)*log(1-psi*L^zeta)-log(mu)]/sigma.
+    function consumption_given_labor(L::Float64)
+        leisure = 1.0 - p.psi * L^p.zeta
+        leisure > 0.0 ||
+            throw(DomainError((L, leisure), "nonpositive leisure"))
+        C_implied = exp(((1.0 - p.sigma) * log(leisure) - target_logmu) / p.sigma)
+        C_implied > 0.0 && isfinite(C_implied) ||
+            throw(DomainError(C_implied, "consumption unresolvable at Float64 precision"))
+        return C_implied
+    end
+    function goods_gap(L::Float64)
+        return capital_factor * L^labor_exponent - X -
+               consumption_given_labor(L)
+    end
+
+    # The lower branch has negative goods_gap at Lmin (zero goods
+    # available for C), and positive goods_gap at the mu minimum
+    # whenever the target mu is strictly above that minimum.
     L = Lturn
     if target_logmu > minimum_logmu + 1e-12
-        logmu_labor(lo) >= target_logmu ||
-            throw(DomainError((target_logmu, lo),
-                              "low-labor root too close to C=0 for Float64"))
-        a, b = lo, Lturn
-        for _ in 1:100
+        a, b = Lmin, Lturn
+        goods_gap(a) <= 0.0 ||
+            throw(ErrorException("cannot bracket low-labor root at Float64 precision"))
+        goods_gap(b) >= -1e-12 * max(1.0, abs(X)) ||
+            throw(ErrorException("cannot bracket low-labor root near mu minimum"))
+        for _ in 1:120
             mid = a + (b - a) / 2.0
-            if logmu_labor(mid) > target_logmu
+            if mid == a || mid == b
+                break
+            elseif goods_gap(mid) < 0.0
                 a = mid
             else
                 b = mid
             end
         end
-        L = a + (b - a) / 2.0
+        # Choose the representable endpoint with the smaller resource
+        # residual, rather than taking another midpoint that may round.
+        L = abs(goods_gap(a)) <= abs(goods_gap(b)) ? a : b
     end
     Y = capital_factor * L^labor_exponent
-    C = Y - X
+    C = consumption_given_labor(L)
     leisure = 1.0 - p.psi * L^p.zeta
     w = C * p.psi * p.zeta * L^(p.zeta - 1.0) / leisure
     mu = s.mu * exp(logmu)
