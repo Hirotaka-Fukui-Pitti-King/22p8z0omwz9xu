@@ -5,7 +5,7 @@ author's warm-start benchmark, not an imposed result.
 """
 function calibrate_beta(p::ModelParams{T},ref::ReferenceCalibration{T},
                         chain::ProductivityChain{T},gr::AssetGrids{T};
-                        lo::T=T(0.960), hi::T=T(0.995)) where {T}
+                        lo::T=T(0.980), hi::T=T(0.985)) where {T}
     B = ref.nfa_y*ref.Y
     aggregate = aggregate_prices(p,ref,ref.r,B)
     prices = HouseholdPrices(ref.r,aggregate.wage,aggregate.terms,
@@ -30,11 +30,16 @@ function solve_steady_state(p::ModelParams{T},ref::ReferenceCalibration{T},
                             beta::T,B::T;
                             name::String="steady",lo::T=T(-0.005),
                             hi::T=T(0.055)) where {T}
+    # A finite-asset stationary economy should not be evaluated at a return
+    # above the natural impatience bound; otherwise the upper asset grid
+    # can become an artificial destination for all savers.
+    upper = min(hi,inv(beta)-one(T)-T(1e-4))
+    lo < upper || throw(ArgumentError("no admissible positive interest-rate bracket"))
     function residual(r::T)
         st = stationary_candidate(p,ref,chain,gr,beta,r,B;name=name)
         return st.asset_market_error/max(one(T),abs(st.K+B))
     end
-    solution = bracketed_root(residual,lo,hi;tol=p.root_tol,maxiter=p.root_maxiter)
+    solution = bracketed_root(residual,lo,upper;tol=p.root_tol,maxiter=p.root_maxiter)
     st = stationary_candidate(p,ref,chain,gr,beta,solution.root,B;name=name)
     st_err = abs(st.asset_market_error)/max(one(T),abs(st.K+B))
     st_err <= p.root_tol ||
