@@ -129,7 +129,15 @@ function stage3_diagnostics(sol::TransitionSolveResult{T},
     maxphillips=zero(T)
     maxeuler=zero(T); weul=zero(T); wmass=zero(T)
     grid=inp.grids.fine
+    slopes=Matrix{T}(undef,length(inp.grids.coarse),length(inp.chain.levels))
     @inbounds for t in 1:n
+        if t<n
+            future=view(w.coarse_consumption,:,:,t+1)
+            for jp in axes(future,2)
+                pchip_slopes!(view(slopes,:,jp),inp.grids.coarse,
+                              view(future,:,jp))
+            end
+        end
         mu=view(w.distribution,:,:,t)
         maxmass=max(maxmass,abs(sum(mu)-one(T)))
         maxlabor=max(maxlabor,abs(w.labor_implied[t]-w.L[t]))
@@ -169,11 +177,9 @@ function stage3_diagnostics(sol::TransitionSolveResult{T},
                 future=view(w.coarse_consumption,:,:,t+1)
                 emu=zero(T)
                 for jp in axes(future,2)
-                    derivative=Vector{T}(undef,length(inp.grids.coarse))
-                    pchip_slopes!(derivative,inp.grids.coarse,
-                                  view(future,:,jp))
                     nextc=pchip_evaluate(inp.grids.coarse,
-                                         view(future,:,jp),derivative,saving)
+                                         view(future,:,jp),
+                                         view(slopes,:,jp),saving)
                     nextc>0 || throw(DomainError(nextc,"Euler future consumption"))
                     emu+=inp.chain.transition[j,jp]*nextc^(-inp.params.gamma)
                 end

@@ -31,7 +31,7 @@ using FMR2020
     @testset "Exchange-rate change revalues liabilities and conserves mass" begin
         grid=Float64[-3,-2,-1,0,1,2,3,4]
         mu=zeros(8,1)
-        mu[4,1]=0.5
+        mu[3,1]=0.5  # borrower with negative foreign bond holdings
         mu[6,1]=0.5
         dest=similar(mu)
         info=revalue_foreign_debt!(dest,mu,grid,2.0,1.0,0.0,
@@ -40,6 +40,8 @@ using FMR2020
         @test isapprox(info.net_wealth_after,
                        info.capital+info.bonds/2;atol=1e-12)
         @test minimum(dest)>=0
+        @test isapprox(info.net_wealth_after-info.net_wealth_before,
+                       0.25;atol=1e-12)
     end
     @testset "Positive probability leaving full asset grid errors" begin
         grid=Float64[-1,0,1]
