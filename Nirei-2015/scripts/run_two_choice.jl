@@ -170,20 +170,20 @@ function simulate_two_choice_period!(state::SimulationState)
         mu = s.mu * exp(logmu)
         isfinite(mu) && mu > 0.0 ||
             throw(DomainError(mu, "invalid two-choice continuation marginal utility"))
-        macro = Nirei2015._realized_macroeconomy(
+        realized_macro = Nirei2015._realized_macroeconomy(
             state.calibration, kp, chosen_X, logmu, logmu_prior
         )
         record = (
             t=t, K_prior=kp, K_next=chosen_K, expected_K=expected_K,
             X=chosen_X, expected_X=forecast.X_next, epsilon=epsilon,
-            Y=macro.Y, C=macro.C, L=macro.L,
-            w=macro.w, R=macro.R, mu=mu,
+            Y=realized_macro.Y, C=realized_macro.C, L=realized_macro.L,
+            w=realized_macro.w, R=realized_macro.R, mu=mu,
             logK=log(chosen_K), logX=log(chosen_X),
-            logY=log(macro.Y), logC=log(macro.C), logL=log(macro.L),
+            logY=log(realized_macro.Y), logC=log(realized_macro.C), logL=log(realized_macro.L),
             n_fixed=length(roots.K), n_positive=es1.n_positive,
             n_investing=investing, n_inactive=n-investing, n_divesting=0,
             K_residual=K_residual, X_residual=X_residual,
-            resource_residual=macro.resource_residual,
+            resource_residual=realized_macro.resource_residual,
             capital_linear_gap=log(chosen_K / s.K) -
                                (forecast.logK_next + p.delta*epsilon),
         )
