@@ -1,0 +1,12 @@
+max_abs_resource_residual = 2.549444925721467e-17
+model = "2015 original 3-choice finite-N firms, exact ex-post household levels, APPROXIMATE Appendix A forecasts; NOT fully solved stochastic RE"
+N = 48
+completed = true
+requested_periods = 3
+failure = "none"
+max_abs_labor_residual = 4.440892098500626e-16
+max_abs_investment_residual = 2.7755575615628914e-17
+max_abs_stable_gap = 0.05595398382986439
+completed_periods = 3
+seed = 20261101
+max_abs_capital_residual = 1.0658141036401503e-14
