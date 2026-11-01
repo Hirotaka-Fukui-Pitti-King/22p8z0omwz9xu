@@ -50,7 +50,7 @@ using FMR2020
         @test minimum(w.fine_consumption)>0
         @test minimum(w.fine_savings) >= grids.borrowing_limit
         @test maximum(w.distribution_error) < 1e-8
-        @test isapprox(sum(view(w.distribution,:,:,end)),1;atol=1e-8)
+        @test isapprox(sum(view(w.distribution,:,:,size(w.distribution,3))),1;atol=1e-8)
         @test all(isfinite,w.terms)
         @test maximum(abs.(w.q .- 1)) < 1e-10
         result=transition_stationary_check(inp)
@@ -60,6 +60,22 @@ using FMR2020
         # This is an expressly documented source inconsistency, not
         # a reason to silently change the replicated equation.
     end
+    @testset "Off-grid saving at unoccupied states is not clipped" begin
+        grid=Float64[0.0,1.0]
+        P=Float64[1.0 0.0;0.0 1.0]
+        policy=Float64[0.5 0.5;1.1 1.2]
+        mass=zeros(2,2)
+        mass[1,1]=1.0
+        next_mass=similar(mass)
+        distribution_step!(next_mass,mass,policy,grid,P)
+        @test isapprox(sum(next_mass),1.0;atol=1e-12)
+        @test isapprox(next_mass[1,1],0.5;atol=1e-12)
+        @test isapprox(next_mass[2,1],0.5;atol=1e-12)
+        mass[1,1]=0.0
+        mass[2,1]=1.0
+        @test_throws DomainError distribution_step!(next_mass,mass,policy,grid,P)
+    end
+
     @testset "Export guard and solver input validation" begin
         @test_throws DimensionMismatch evaluate_transition!(inp,x[1:end-1])
     end

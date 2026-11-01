@@ -28,9 +28,18 @@ function transition_distribution_forward!(w::TransitionWorkspace{T},
                               "invalid transition probability distribution at t=$t"))
         end
         if t<n
-            distribution_step!(view(w.distribution,:,:,t+1),
-                               mu,view(w.fine_savings,:,:,t),
-                               input.grids.fine,input.chain.transition)
+            try
+                distribution_step!(view(w.distribution,:,:,t+1),
+                                   mu,view(w.fine_savings,:,:,t),
+                                   input.grids.fine,input.chain.transition)
+            catch err
+                if err isa DomainError
+                    throw(DomainError(err.val,
+                        "positive-mass asset policy outside distribution grid " *
+                        "at transition period t=$t: $(sprint(showerror,err))"))
+                end
+                rethrow()
+            end
         end
     end
     return w

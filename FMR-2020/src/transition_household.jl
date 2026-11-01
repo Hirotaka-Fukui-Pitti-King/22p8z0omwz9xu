@@ -75,8 +75,12 @@ function transition_household_backward!(w::TransitionWorkspace{T},
                     throw(DomainError(cons,"nonpositive transition fine consumption at t=$t"))
                 isfinite(saving) && saving>=input.grids.borrowing_limit ||
                     throw(DomainError(saving,"transition borrowing violation at t=$t"))
-                saving<=fine[end] ||
-                    throw(DomainError(saving,"transition saving beyond upper asset grid at t=$t"))
+                # The author backsolve_egm checks the borrowing
+                # restriction here, not the upper distribution-grid bound.
+                # Endogenous policy may leave the grid at far-right states
+                # carrying ZERO probability. Retain the true saving value;
+                # distribution_step! rejects out-of-grid choices only
+                # when a state actually has positive probability mass.
                 cnow[i,j]=cons
                 anow[i,j]=saving
             end

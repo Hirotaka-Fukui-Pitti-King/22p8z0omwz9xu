@@ -4,19 +4,17 @@ function main()
     println("FMR-2020 Stage 2: stationary-limit and live backward/forward smoke")
     println("Julia version: ",VERSION)
     p=default_parameters(n_coarse=61,n_fine=241,egm_tol=1e-9,dist_tol=1e-9)
-    ref=baseline_reference(p)
-    process=rouwenhorst(p)
-    grids=make_asset_grids(p,ref.K)
-    B=ref.nfa_y*ref.Y
-    prices=FMR2020.aggregate_prices(p,ref,ref.r,B)
-    household_prices=HouseholdPrices(ref.r,prices.wage,prices.terms,
-                                     prices.L,prices.profits)
-    hh=solve_household(p,grids,process,household_prices,0.9832)
-    mu=stationary_distribution(p,grids,process,hh).distribution
-    steady=FMR2020.stationary_candidate(p,ref,process,grids,0.9832,ref.r,B;
-                                        name="benchmark-smoke")
-    input=TransitionInputs(p,ref,process,grids,steady,steady,fill(B,8),
-                           ones(Float64,8),17.0,1.0,B)
+    println("Solving TRUE stationary GE on the smoke-test grids")
+    ge=solve_three_steady_states(p;verbose=true)
+    # Calibrated state has labor normalization L=1. It is the clean
+    # constant-path test for the author's labor closure; the uncalibrated
+    # stationary_candidate(beta=0.9832) is NOT an asset-clearing GE.
+    steady=ge.calibrated
+    B=steady.B
+    println("Stationary calibration asset error: ",
+            steady.asset_market_error)
+    input=TransitionInputs(p,ge.reference,ge.chain,ge.grids,steady,steady,
+                           fill(B,8),ones(Float64,8),17.0,1.0,B)
     check=transition_stationary_check(input)
     println("Stationary-limit residuals (including author labor formula mismatch): ",check)
     x=initial_transition_guess(input)
@@ -30,6 +28,9 @@ function main()
             "; implied labor: ",w.labor_implied[1])
     maximum(w.distribution_error)<1e-8 ||
         error("probability mass is not preserved")
+    maximum(abs,evaluated.residual)<1e-4 ||
+        error("Solved stationary GE should satisfy the shock-free dynamic limit; " *
+              "inspect capital/asset, labor, and terminal timing")
     all(isfinite,evaluated.residual) || error("nonfinite transition residual")
     println("SMOKE PASS: prices, backward EGM, forward distribution and residual are executable.")
     println("IMPORTANT: SMOKE PASS is not a solved 200-quarter transition.")
