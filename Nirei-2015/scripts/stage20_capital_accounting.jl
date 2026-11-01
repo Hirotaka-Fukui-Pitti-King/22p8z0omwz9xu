@@ -192,7 +192,7 @@ function write_table(path, records)
     open(path, "w") do io
         println(io, join(string.(keys), ","))
         for record in records
-            println(io, join(string(getproperty(record, k)) for k in keys, ","))
+            println(io, join((string(getproperty(record, k)) for k in keys), ","))
         end
     end
 end
