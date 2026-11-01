@@ -37,6 +37,12 @@ jobs:
       - name: Stage 12 independent small-N multi-step oracle and J=1 regression
         timeout-minutes: 15
         run: julia --project=. scripts/diagnostic_multistep_equilibrium.jl small
+      - name: Stage 13 small-N dynamic J2 smoke
+        timeout-minutes: 15
+        run: julia --project=. scripts/diagnostic_multistep_simulation.jl smoke
+      - name: Stage 13 dynamic A/B 20-period benchmark N (no shock rejection)
+        timeout-minutes: 45
+        run: julia --project=. scripts/diagnostic_multistep_simulation.jl run 20 110000 20261101
       - name: Stage 12 original t5 full multi-step equilibrium sweep J=1..4
         timeout-minutes: 60
         run: julia --project=. scripts/diagnostic_multistep_equilibrium.jl benchmark 110000 20261101
@@ -77,3 +83,5 @@ jobs:
             Nirei-2015/results/diagnostic_equilibrium_feasibility_*.toml
             Nirei-2015/results/diagnostic_multistep_equilibrium_*.csv
             Nirei-2015/results/diagnostic_multistep_equilibrium_*.toml
+            Nirei-2015/results/diagnostic_multistep_simulation_*.csv
+            Nirei-2015/results/diagnostic_multistep_simulation_*.toml
