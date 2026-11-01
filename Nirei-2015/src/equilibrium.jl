@@ -299,7 +299,7 @@ function select_es1(
                 best_score = score
             end
         end
-    elseif positive == 0
+    elseif positive == 0 && selection_mode == :original
         # Diagnostic on the genuine finite-N equilibrium correspondence.
         # Do not clip X or silently switch to capital-based selection:
         # Section 3.4 defines the ES1 shock using log(X/X_expected).
@@ -314,7 +314,7 @@ function select_es1(
             expected_investment=xe,
             expected_capital=ke,
         ), "No equilibrium has X>0, so the Section 3.4 ES1 log shock is undefined; " *
-           "use selection_mode=:capital_fallback to opt into the Section 2.3 Definition 1 capital-based completion"))
+           "use :capital_all for all-root Definition 1, or :capital_fallback for an opt-in completion"))
     end
     return ES1Selection(best, best_score, ke,
                         positive, workspace.n_fixed - positive)
