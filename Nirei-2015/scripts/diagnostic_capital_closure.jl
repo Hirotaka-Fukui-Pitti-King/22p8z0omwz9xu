@@ -392,7 +392,7 @@ function run_capital_closure_audit()
                 "eq26_linear_log_capital_residual"),
             "mean_eps"=>mean_over(rows,"epsilon"),
             "median_eps"=>isempty(rows) ? 0.0 :
-                median(r["epsilon"] for r in rows)
+                median([r["epsilon"] for r in rows])
         ),
         "post100"=>Dict(
             "mean_gK"=>mean_over(post,"log_K_growth"),
