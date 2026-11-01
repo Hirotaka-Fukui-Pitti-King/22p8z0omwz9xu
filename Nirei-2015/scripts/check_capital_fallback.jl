@@ -38,10 +38,41 @@ function main()
     @assert original.criterion == completed.criterion
     @assert original.admissible == completed.admissible == 1
 
+    # All-root capital criterion must select the closest capital root
+    # even when a positive-X root exists elsewhere.
+    capital_all = select_es1(
+        workspace, 0.17, 8.07; selection_mode=:capital_all
+    )
+    @assert capital_all.index == 3
+    @assert capital_all.criterion == abs(log(8.08 / 8.07))
+    @assert capital_all.admissible == 1
+    @assert capital_all.nonpositive == 2
+    @assert capital_all.index != original.index
+
+    # With only negative investment, all-root mode still selects a
+    # genuine exact capital fixed point; it must never reject for X<0.
+    workspace.fixed_investment[2] = -0.08
+    all_negative = select_es1(
+        workspace, 0.17, 8.07; selection_mode=:capital_all
+    )
+    @assert all_negative.index == 3
+    @assert all_negative.admissible == 0
+
+    # A zero-investment closest root is also a legitimate capital root
+    # for the capital selection, though log(X/Xe) is undefined.
+    workspace.fixed_investment[3] = 0.0
+    zero_root = select_es1(
+        workspace, 0.17, 8.07; selection_mode=:capital_all
+    )
+    @assert zero_root.index == 3
+    @assert zero_root.nonpositive == 3
+
     println("PASS: Strict Section 3.4 rejects nonpositive-only investment roots.")
-    println("PASS: Capital fallback selects closest K from all negative-X roots.")
-    println("PASS: Positive-X original selection is bit-for-bit unchanged.")
-    println("Note: This tests only ES1 selection, not a nonlinear dynamic RE equilibrium.")
+    println("PASS: Capital fallback selects closest K when X>0 is unavailable.")
+    println("PASS: Positive-X original selection is unchanged in fallback mode.")
+    println("PASS: Capital_all selects all-root closest K even when a positive-X root exists.")
+    println("PASS: Capital_all admits nonpositive and exactly zero investment.")
+    println("Note: These tests exercise selection only, not a nonlinear dynamic RE equilibrium.")
 end
 
 main()
