@@ -1,7 +1,7 @@
 using FMR2020
 
 function main()
-    p = default_parameters(n_coarse=61,n_fine=241,
+    p = default_parameters(n_coarse=97,n_fine=385,
                            egm_tol=1e-9,dist_tol=1e-9)
     reference = baseline_reference(p)
     chain = rouwenhorst(p)

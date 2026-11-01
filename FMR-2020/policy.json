@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "project_id": "FMR-2020",
-  "updated_on": "2026-11-01",
+  "updated_on": "2026-11-02",
   "repository": "https://github.com/Hirotaka-Fukui-Pitti-King/22p8z0omwz9xu",
   "directory": "FMR-2020",
   "title": "Household Heterogeneity and the Transmission of Foreign Shocks — Julia replication",
@@ -46,20 +46,31 @@
     }
   ],
   "current_status": {
-    "phase": "documentation_and_design",
+    "phase": "stage1_julia_source_committed_waiting_for_user_pc_validation",
     "files_written": [
       "README.md",
       "ALGORITHM.md",
-      "policy.json"
+      "policy.json",
+      "Project.toml",
+      "src/*.jl",
+      "test/runtests.jl",
+      "scripts/check_syntax.jl",
+      "scripts/smoke_test.jl",
+      "scripts/run_steady_states.jl",
+      "docs/STAGE1_AUDIT.md"
     ],
-    "julia_source_created": false,
-    "julia_project_created": false,
+    "julia_source_created": true,
+    "julia_project_created": true,
     "syntax_verified": false,
     "runtime_verified": false,
     "author_matlab_executed": false,
     "model_equilibrium_verified": false,
     "figures_replicated": [],
-    "successful_replication_claim": false
+    "successful_replication_claim": false,
+    "manifest_created": false,
+    "source_review_complete": true,
+    "julia_execution_only_on_user_windows_pc": true,
+    "full_stage1_acceptance_pending": true
   },
   "scope": {
     "first_milestone": "Figures 1–5",
@@ -116,25 +127,26 @@
       {
         "name": "NonlinearSolve.jl",
         "documentation": "https://docs.sciml.ai/NonlinearSolve/stable/",
-        "state": "candidate_unvalidated_in_local_environment"
+        "state": "candidate_not_required_in_stage1"
       },
       {
         "name": "LinearSolve.jl",
         "documentation": "https://docs.sciml.ai/LinearSolve/stable/",
-        "state": "candidate_unvalidated_in_local_environment"
+        "state": "candidate_not_required_in_stage1"
       },
       {
         "name": "Roots.jl",
         "documentation": "https://juliamath.github.io/Roots.jl/stable/",
-        "state": "candidate_unvalidated_in_local_environment"
+        "state": "candidate_not_required_in_stage1"
       },
       {
         "name": "Interpolations.jl",
         "documentation": "https://juliamath.github.io/Interpolations.jl/stable/",
-        "state": "candidate_unvalidated_for_shape_preserving_interpolation"
+        "state": "candidate_not_required_in_stage1"
       }
     ],
-    "version_and_uuid_policy": "Do not invent. Check official project and installed Julia version before Project.toml."
+    "version_and_uuid_policy": "Do not invent. Check official project and installed Julia version before Project.toml.",
+    "current_stage1_dependencies": "Base only; no external Julia packages"
   },
   "author_code_reference_settings": {
     "state_count": 7,
@@ -182,7 +194,7 @@
     {
       "id": "baseline_stationary",
       "target": "EGM and stationary distribution; calibrate beta and three steady states",
-      "status": "planned"
+      "status": "julia_source_committed_pending_local_run"
     },
     {
       "id": "credit_expansion",
@@ -219,7 +231,7 @@
         "probability invariance",
         "grid and constraint bounds"
       ],
-      "state": "not_started"
+      "state": "code_authored_pending_local_validation"
     },
     {
       "id": "G2",
@@ -229,7 +241,7 @@
         "asset-market clearing",
         "calibration table"
       ],
-      "state": "not_started"
+      "state": "code_authored_pending_local_validation"
     },
     {
       "id": "G3",
@@ -340,5 +352,13 @@
     "never_claim_test_passed_without_local_evidence": true,
     "scripts_and_commands": "provide only after relevant Project.toml and scripts exist",
     "note": "Running in the assistant environment does not substitute for verification on the user's PC."
-  }
+  },
+  "source_audit_document": "docs/STAGE1_AUDIT.md",
+  "stage1_branch": "research/fmr-2020-stage1-steady-state",
+  "local_commands": [
+    "julia --project=. scripts/check_syntax.jl",
+    "julia --project=. scripts/smoke_test.jl",
+    "julia --project=. test/runtests.jl",
+    "julia --project=. scripts/run_steady_states.jl"
+  ]
 }

@@ -12,7 +12,7 @@ de Ferra, Sergio; Mitman, Kurt; Romei, Federica (2020), **“Household Heterogen
 - 著者コードのライセンス：MIT（原著者の著作権表示は出典に残す。コードの引用・再利用時は条件を遵守）。
 - 当該研究の作業ディレクトリ：FMR-2020/。隣接するNirei-2015/とは独立したJulia環境にします。
 
-**現在の状態（2026-11-01）**：アルゴリズム・再現方針・検証計画を文書化済み。Juliaソースコード、Project.toml、Manifest.toml、数値出力・図、CIは未作成です。Julia構文解析・実行・IRF一致は未検証です。著者MATLABコードについても、この作業で実行成功を確認したわけではありません。
+**Stage 1（2026-11-02）**：Rouwenhorst、資産グリッド、Juliaネイティブ形状保持補間、定常EGM、matrix-free定常分布、βと利子率のroot solver、3定常均衡の実行スクリプト、テストを専用ブランチに実装しました。**Julia構文・依存関係の読み込み・数値収束・3定常均衡の再現は、本人のWindows PCからの実行ログが届くまで未検証です。** JuliaをPC以外で実行していません。Manifest.tomlは本人PCでPkg.instantiateを実施してから生成・コミットします。CIは明示的な指示があるまで起動しません。
 
 ## ファイル
 
@@ -22,7 +22,7 @@ de Ferra, Sergio; Mitman, Kurt; Romei, Federica (2020), **“Household Heterogen
 | [ALGORITHM.md](ALGORITHM.md) | 均衡条件、EGM、定常分布、非線形移行、突然の信用収縮、レバレッジ再評価、固定・変動相場制、IRF、監査項目 |
 | [policy.json](policy.json) | 機械可読な実装・検証方針、段階別受入基準、採用候補ライブラリ、既知の照合課題 |
 
-将来の実装時には、このディレクトリ内に独立したProject.toml、Manifest.toml、src/、test/、scripts/、results/を置きます。未作成のファイルや実行コマンドは存在するものとして扱いません。
+Stage 1のJuliaソースは `src/`、検証は `test/`、PC実行は `scripts/` にあります。Project.tomlは用意しました。Manifest.tomlは本人PCで生成されるまで未作成、results/は実行スクリプトで作成されます。著者のMATLABコードからの逐語翻訳ではなく、原論文の定常均衡条件に基づいて独立実装しています。
 
 ## 推奨する実装と検証の順序
 
@@ -67,6 +67,29 @@ de Ferra, Sergio; Mitman, Kurt; Romei, Federica (2020), **“Household Heterogen
 作業サイクルは「GitHubへ変更をコミット → 本人がPCで `git pull --ff-only` → 本人がJuliaで構文検査・依存解決・スモークテスト・本計算を実行 → コンソールログ・残差・出力を共有 → アシスタントが原因分析・修正をコミット」です。研究者PCでの実行結果が未共有なら**実行未検証・構文未検証・数値未検証**を維持します。報告されたエラーの修正後は関連コード全体を再点検し、本人PCで再検証します。
 
 `Project.toml`、`Manifest.toml`、テストとスクリプトが揃った段階で初めて具体的な実行コマンドを確定します。許可されないPC操作やリモート実行を前提にしません。CIが存在しても実行結果を確認できない場合は成功と報告しません。
+
+## Stage 1 — PC実行コマンド（Windows PowerShell）
+
+以下は手元のGit cloneが `C:\\github\\22p8z0omwz9xu` にある場合の例です。ローカル変更があれば`git switch`前に退避・確認してください。
+
+```powershell
+Set-Location C:\github\22p8z0omwz9xu
+git fetch origin
+git switch research/fmr-2020-stage1-steady-state
+git pull --ff-only
+Set-Location FMR-2020
+julia --version
+julia --project=. scripts/check_syntax.jl
+julia --project=. scripts/smoke_test.jl
+julia --project=. test/runtests.jl
+julia --project=. scripts/run_steady_states.jl
+```
+
+最初に構文検査を実行し、失敗した場合はそこで止めてログを共有してください。パッケージ依存を含む実行環境を確定する場合は`julia --project=. -e 'using Pkg; Pkg.instantiate()'`を別途実行します。Stage 1のホットパスはBaseのみを利用し、外部パッケージのAPI・UUIDを推測して導入していません。実際のProject/Manifestは本人の実行環境で確定し、Manifestを生成した場合は記録してください。
+
+`results/stage1_steady_states.csv`、`results/stage1_diagnostics.txt`が3定常均衡実行の出力です。PowerShellのログ、失敗時のスタックトレース、これらの出力を共有してください。本人PCの検証前にコードの成功・均衡解の収束を保証するものではありません。
+
+[Stage 1 数式・較正監査](docs/STAGE1_AUDIT.md) を参照してください。
 
 ## 成功基準と公開物
 

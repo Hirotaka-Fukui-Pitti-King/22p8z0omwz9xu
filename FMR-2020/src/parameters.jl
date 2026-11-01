@@ -41,8 +41,8 @@ function validate_params(p::ModelParams)
     0 < p.chi < 1 || throw(ArgumentError("chi must lie in (0,1)"))
     p.gamma > 0 || throw(ArgumentError("gamma must be positive"))
     # The implemented c_H Euler equation requires theta = 1/gamma.
-    abs(p.theta * p.gamma - 1) < 1e-12 ||
-        throw(ArgumentError("theta * gamma must equal 1 for this Euler formulation"))
+    abs(p.theta-one(p.theta)) < 1e-12 && abs(p.gamma-one(p.gamma)) < 1e-12 ||
+        throw(ArgumentError("Stage 1 aggregate labor closure requires theta=gamma=1"))
     p.theta_star > 0 || throw(ArgumentError("theta_star must be positive"))
     p.epsilon_f > 1 && p.epsilon_w > 1 ||
         throw(ArgumentError("elasticities must exceed one"))

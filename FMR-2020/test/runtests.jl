@@ -2,7 +2,7 @@ using Test
 using FMR2020
 
 @testset "FMR-2020 Julia stationary solver" begin
-    p = default_parameters(n_coarse=61,n_fine=241,egm_tol=1e-9,dist_tol=1e-9)
+    p = default_parameters(n_coarse=97,n_fine=385,egm_tol=1e-9,dist_tol=1e-9)
     ref = baseline_reference(p)
     chain = rouwenhorst(p)
     grids = make_asset_grids(p,ref.K)
