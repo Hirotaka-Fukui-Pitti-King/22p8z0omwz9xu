@@ -232,11 +232,13 @@ end
 Choose the minimum |log X - log expected_X| over ALL enumerated fixed
 points having X>0 (Section 3.4). Nonpositive X is counted and excluded
 because its real logarithm is undefined; no clipping is performed.
-Opt-in selection_mode=:capital_fallback preserves the original choice
-whenever any X>0 root exists, but selects min |log(K/expected_K)| among
-ALL roots when none do (Section 2.3, Definition 1). This fallback is NOT
-specified by Section 3.4 and must be reported as a separate experiment.
-When original scores tie exactly, select closest capital and then smallest K.
+selection_mode=:capital_all selects min |log(K/expected_K)| over EVERY
+capital fixed point (Section 2.3, Definition 1), regardless of signed X.
+selection_mode=:capital_fallback preserves Section 3.4 when any X>0 root
+exists and applies the capital criterion only if no such root exists.
+Both modes are distinct from the published Section 3.4 investment-shock
+criterion; the default :original mode is preserved. Ties are resolved
+deterministically by smaller capital.
 """
 function select_es1(
     workspace::EquilibriumWorkspace,
@@ -244,8 +246,8 @@ function select_es1(
     expected_K::Real;
     selection_mode::Symbol=:original,
 )
-    selection_mode in (:original, :capital_fallback) ||
-        throw(ArgumentError("selection_mode must be :original or :capital_fallback"))
+    selection_mode in (:original, :capital_fallback, :capital_all) ||
+        throw(ArgumentError("selection_mode must be :original, :capital_fallback, or :capital_all"))
     xe, ke = Float64(expected_X), Float64(expected_K)
     isfinite(xe) && xe > 0.0 ||
         throw(DomainError(xe, "expected investment must be positive and finite"))
@@ -260,15 +262,24 @@ function select_es1(
     positive = 0
     @inbounds for i in 1:workspace.n_fixed
         X = workspace.fixed_investment[i]
-        if X > 0.0
-            positive += 1
+        K = workspace.fixed_capital[i]
+        positive += X > 0.0
+        if selection_mode == :capital_all
+            score = abs(log(K / ke))
+            if score < best_score ||
+                (score == best_score &&
+                 (best == 0 || K < workspace.fixed_capital[best]))
+                best = i
+                best_score = score
+            end
+        elseif X > 0.0
             score = abs(log(X / xe))
-            distance = abs(log(workspace.fixed_capital[i] / ke))
+            distance = abs(log(K / ke))
             if score < best_score ||
                 (score == best_score &&
                  (distance < best_distance ||
                   (distance == best_distance &&
-                   (best == 0 || workspace.fixed_capital[i] < workspace.fixed_capital[best]))))
+                   (best == 0 || K < workspace.fixed_capital[best]))))
                 best = i
                 best_score = score
                 best_distance = distance
@@ -325,10 +336,13 @@ fallback is continuum equation (18): (1-delta)*K_prior + (A^(rho-1)/rho)*expecte
 This is distinct from the finite-N realization of aggregate capital.
 
 Only the selected fixed point is reaggregated over N firms, never all
-candidate fixed points. The original mode is unchanged. In the opt-in
-fallback, a selected X<=0 retains its signed level; its epsilon is a
-FIRST-ORDER capital-innovation proxy log(K/Kstar)/delta, NOT the undefined
-Section 3.4 log-investment surprise.
+candidate fixed points. The original mode is unchanged. The capital_all
+mode uses a capital-based criterion for all signed-X candidates, whereas
+capital_fallback uses it only when no positive-X candidate exists.
+For capital_all, the reported epsilon is a FIRST-ORDER capital-innovation
+proxy log(K/Kstar)/delta, even for positive X. For capital_fallback it
+is this proxy only for nonpositive X. Neither proxy is the Section 3.4
+log-investment surprise.
 """
 function solve_equilibrium!(
     workspace::EquilibriumWorkspace,
@@ -398,12 +412,14 @@ function solve_equilibrium!(
         throw(ErrorException("finite-N investment residual = $X_residual"))
     investing + inactive + divesting == n ||
         throw(ErrorException("firm policy counts do not sum to N"))
-    (selection_mode == :capital_fallback || xselected > 0.0) ||
+    (selection_mode != :original || xselected > 0.0) ||
         throw(DomainError(xselected, "selected original Section 3.4 ES1 investment must be positive"))
-    # When X<=0, log(X/Xe) does not exist. The capital forecast
-    # innovation / delta is a separately labelled first-order surrogate.
-    innovation = xselected > 0.0 ? log(xselected / xe) :
-                 log(kselected / Kstar) / p.delta
+    # In capital_all, this is always a capital-based first-order proxy.
+    # In capital_fallback, it is a proxy only when X<=0; otherwise retain
+    # the literal Section 3.4 log-investment surprise for comparisons.
+    use_capital_innovation = selection_mode == :capital_all || xselected <= 0.0
+    innovation = use_capital_innovation ?
+                 log(kselected / Kstar) / p.delta : log(xselected / xe)
 
     result = EquilibriumResult(
         kp, Kstar, xe, kselected, xselected, innovation,
