@@ -207,19 +207,8 @@ The departure of logmu_t from the actual conditional RE forecast is
 retained as an endogenous forecast error. Replacing this continuation
 condition with an independently derived nonlinear solution would
 require a stronger solution concept not specified in Appendix A.
-
-For :capital_all, the equilibrium selector minimizes the absolute
-log-capital forecast distance over ALL fixed points, including negative-X
-roots. For :capital_fallback, this capital rule applies only if the
-original investment-log criterion has no positive-X root.
-Both are EXPLICIT SELECTION EXPERIMENTS. In capital_all the recorded
-epsilon is a first-order capital-innovation proxy for EVERY selected
-root, not the paper's log-investment shock. When physical X<=0, the
-literal investment log level is recorded as NaN, and contemporaneous
-linear equations use the first-order signed level-deviation proxy.
-These extensions do not constitute exact nonlinear GE/RE continuation.
 """
-function simulate_period!(state::SimulationState; selection_mode::Symbol=:original)
+function simulate_period!(state::SimulationState)
     p = state.calibration.parameters
     s = state.calibration.steady_state
     t = state.period
@@ -231,8 +220,7 @@ function simulate_period!(state::SimulationState; selection_mode::Symbol=:origin
         )
         draw_productivity!(state.firms, state.rngs, state.calibration)
         eq = solve_equilibrium!(
-            state.workspace, state.firms, state.calibration, expected.X_next, kp;
-            selection_mode=selection_mode
+            state.workspace, state.firms, state.calibration, expected.X_next, kp
         )
         # Firm arrays already represent (k_{t+1},a_{t+1}) here.
         logK_prior = log(kp / s.K)
@@ -240,11 +228,7 @@ function simulate_period!(state::SimulationState; selection_mode::Symbol=:origin
         logmu_prior = log(mup / s.mu)
         logmu = state.re.h * logK_next
         mu = s.mu * exp(logmu)
-        # Original mode always has X>0. Either opt-in capital mode may
-        # select X<=0: use the FIRST-ORDER level deviation (X-Xbar)/Xbar
-        # as the argument of the Appendix A linear equations. It is
-        # NOT an exact log(X/Xbar), and is unreliable far from steady state.
-        logX = eq.X > 0.0 ? log(eq.X / s.X) : (eq.X - s.X) / s.X
+        logX = log(eq.X / s.X)
         isfinite(mu) && mu > 0.0 ||
             throw(DomainError(mu, "unbounded/nonpositive continuation marginal utility"))
         realized_macro = _realized_macroeconomy(
@@ -264,7 +248,7 @@ function simulate_period!(state::SimulationState; selection_mode::Symbol=:origin
             t, kp, eq.K_next, K_linear, logK_next - K_linear_logdev,
             realized_macro.Y, realized_macro.C, eq.X, realized_macro.L, realized_macro.w, realized_macro.R, mu,
             log(eq.K_next), log(realized_macro.Y), log(realized_macro.C),
-            (eq.X > 0.0 ? log(eq.X) : NaN), log(realized_macro.L),
+            log(eq.X), log(realized_macro.L),
             logK_prior, logK_next, logmu,
             expected.K_next, expected.X_next, expected.C_next,
             expected.L_next, expected.Y_next, expected.mu_next,
@@ -295,12 +279,11 @@ Return exactly T consecutive PeriodRecord values. No full firm-panel
 history is stored. On an error, throw SimulationFailure with the date and
 predetermined state; the invoking CLI writes a failure summary and stops.
 """
-function simulate_path!(state::SimulationState, T::Integer=1100;
-                        selection_mode::Symbol=:original)
+function simulate_path!(state::SimulationState, T::Integer=1100)
     T > 0 || throw(ArgumentError("T must be positive"))
     records = Vector{PeriodRecord}(undef, Int(T))
     for j in eachindex(records)
-        records[j] = simulate_period!(state; selection_mode=selection_mode)
+        records[j] = simulate_period!(state)
     end
     return records
 end
