@@ -20,10 +20,10 @@
     ]
   },
   "status": {
-    "documentation": "written",
-    "julia_implementation": "not_started",
-    "benchmark_simulation": "not_run",
-    "table2_replication": "not_verified"
+    "documentation": "archived_with_negative_results",
+    "julia_implementation": "partial_original_three_choice_and_two_choice_counterfactual",
+    "benchmark_simulation": "original_three_choice_not_completed",
+    "table2_replication": "not_replicated"
   },
   "mission": "Reproduce the benchmark Table 2 using a single executable Julia workflow, finite-firm endogenous investment shocks, and ES1 equilibrium selection.",
   "language": {
@@ -73,7 +73,7 @@
     "alpha": 0.26,
     "delta": 0.02,
     "beta": 0.99,
-    "sigma": 15,
+    "sigma": 1.5,
     "eta": 11,
     "psi": 1,
     "zeta": 2,
@@ -182,5 +182,6 @@
     "introduce arbitrary smoothing or clipping",
     "create unrelated research extensions or validation projects",
     "claim replication before running the full benchmark"
-  ]
+  ],
+  "archive_handoff": "Nirei-2015/docs/REPLICATION_ARCHIVE_2026-11-01.md"
 }
