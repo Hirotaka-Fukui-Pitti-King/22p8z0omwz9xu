@@ -119,17 +119,23 @@ function wedge_frozen_state!(state::SimulationState, date::Int,
     rows=Vector{Dict{String,Any}}()
     feasible=0
     fixed_X_all=Float64[]
+    fixed_X18_all=Float64[]
     x_fixed=Float64[]
+    x_fixed18=Float64[]
     x_es1=Float64[]
     wedge_forecast=Float64[]
     wedge_equilibrium=Float64[]
     wedge_total=Float64[]
+    wedge_forecast18=Float64[]
+    wedge_equilibrium18=Float64[]
     logeps=Float64[]
     ranks=Int[]
     max_selection_gaps=Float64[]
     max_identity_residual=0.0
     max_crossing_residual=0.0
     max_CES_residual=0.0
+    max_reference_crossing_residual=0.0
+    max_reference_CES_residual=0.0
     for draw in 1:draws
         next_a=state.firms.next_productivity
         randn!(rng,next_a)
@@ -143,7 +149,24 @@ function wedge_frozen_state!(state::SimulationState, date::Int,
         fixed_points=enumerate_fixed_points!(state.workspace,state.firms,
                                              state.calibration)
         response=fixed_capital_response(state,expected_K)
+        response18=fixed_capital_response(state,reference_K18)
+        reference_cross=crossing_accounting(state,expected_K,reference_K18)
+        max_reference_crossing_residual=max(
+            max_reference_crossing_residual,
+            abs(reference_cross.delta_X-(response18.X-response.X))
+        )
+        max_reference_CES_residual=max(
+            max_reference_CES_residual,
+            abs(reference_cross.delta_power-(response18.power-response.power))
+        )
+        isapprox(reference_cross.delta_X,response18.X-response.X;
+                 atol=1e-9,rtol=1e-9) ||
+            error("Eq18-vs-AppendixA fixed-K threshold X identity failed")
+        isapprox(reference_cross.delta_power,response18.power-response.power;
+                 atol=1e-9,rtol=1e-9) ||
+            error("Eq18-vs-AppendixA fixed-K CES identity failed")
         push!(fixed_X_all,response.X)
+        push!(fixed_X18_all,response18.X)
         ws=state.workspace
         nfix=fixed_points.total
         npositive=fixed_points.admissible
@@ -153,6 +176,10 @@ function wedge_frozen_state!(state::SimulationState, date::Int,
             "K_expected_Eq18"=>reference_K18,
             "K_expected_discrepancy"=>reference_K18-expected_K,
             "X_fixed"=>response.X,"Phi_fixed"=>response.Phi,
+            "X_fixed_Eq18"=>response18.X,
+            "Phi_fixed_Eq18"=>response18.Phi,
+            "reference_fixed_X_difference"=>response18.X-response.X,
+            "reference_changed_firms"=>reference_cross.changed_firms,
             "reaction_residual_at_K_expected"=>response.Phi-expected_K,
             "n_fixed"=>nfix,"n_positive_X"=>npositive,
             "min_fixed_K"=>fixed_points.minimum_K,
@@ -170,6 +197,10 @@ function wedge_frozen_state!(state::SimulationState, date::Int,
             fw=response.X-expected.X_next
             ew=xe-response.X
             tw=xe-expected.X_next
+            fw18=response18.X-expected.X_next
+            ew18=xe-response18.X
+            abs(fw18+ew18-tw)<1e-11 ||
+                error("Eq18 reference wedge decomposition failed")
             power_change=ke^c.rho-response.power
             cross_res=abs(cross.delta_X-ew)
             ces_res=abs(cross.delta_power-power_change)
@@ -192,6 +223,8 @@ function wedge_frozen_state!(state::SimulationState, date::Int,
             row["forecast_wedge"]=fw
             row["equilibrium_wedge"]=ew
             row["total_wedge"]=tw
+            row["forecast_wedge_Eq18"]=fw18
+            row["equilibrium_wedge_Eq18"]=ew18
             row["epsilon"]=log(xe/expected.X_next)
             row["ES1_capital_rank"]=j
             row["ES1_rank_fraction"]=j/nfix
@@ -207,10 +240,13 @@ function wedge_frozen_state!(state::SimulationState, date::Int,
             row["delta_X_from_crossings"]=cross.delta_X
             row["delta_CES_power_from_crossings"]=cross.delta_power
             push!(x_fixed,response.X)
+            push!(x_fixed18,response18.X)
             push!(x_es1,xe)
             push!(wedge_forecast,fw)
             push!(wedge_equilibrium,ew)
             push!(wedge_total,tw)
+            push!(wedge_forecast18,fw18)
+            push!(wedge_equilibrium18,ew18)
             push!(logeps,row["epsilon"])
             push!(ranks,j)
             push!(max_selection_gaps,xe-max_pos_x)
@@ -231,11 +267,18 @@ function wedge_frozen_state!(state::SimulationState, date::Int,
         "K_reference_Eq18_for_ES1"=>reference_K18,
         "X_expected_AppendixA"=>expected.X_next,
         "X_fixed_unconditional_iid"=>_wedge_mean_se(fixed_X_all),
+        "X_fixed_Eq18_unconditional_iid"=>_wedge_mean_se(fixed_X18_all),
         "X_fixed_conditional_feasible"=>_wedge_mean_se(x_fixed),
+        "X_fixed_Eq18_conditional_feasible"=>_wedge_mean_se(x_fixed18),
         "X_ES1_conditional_feasible"=>_wedge_mean_se(x_es1),
         "forecast_wedge_conditional"=>_wedge_mean_se(wedge_forecast),
         "equilibrium_wedge_conditional"=>_wedge_mean_se(wedge_equilibrium),
         "total_wedge_conditional"=>_wedge_mean_se(wedge_total),
+        "forecast_wedge_conditional_Eq18"=>_wedge_mean_se(wedge_forecast18),
+        "equilibrium_wedge_conditional_Eq18"=>_wedge_mean_se(wedge_equilibrium18),
+        "paired_equilibrium_minus_forecast_wedge"=>_wedge_mean_se(
+            wedge_equilibrium .- wedge_forecast
+        ),
         "epsilon_conditional_feasible"=>_wedge_mean_se(logeps),
         "mean_ES1_rank"=>isempty(ranks) ? "undefined" : mean(ranks),
         "share_ES1_is_max_positive_X"=>
@@ -244,6 +287,8 @@ function wedge_frozen_state!(state::SimulationState, date::Int,
         "max_abs_wedge_identity_residual"=>max_identity_residual,
         "max_abs_threshold_X_residual"=>max_crossing_residual,
         "max_abs_threshold_CES_power_residual"=>max_CES_residual,
+        "max_abs_reference_X_residual"=>max_reference_crossing_residual,
+        "max_abs_reference_CES_residual"=>max_reference_CES_residual,
         "covariance_forecast_equilibrium_wedges"=>
             length(wedge_forecast)>1 ?
                 cov(wedge_forecast,wedge_equilibrium) : "undefined",
@@ -258,7 +303,14 @@ function wedge_frozen_state!(state::SimulationState, date::Int,
         abs(f+e-total)<1e-10 ||
             error("conditional wedge means do not sum")
         summary["mean_wedge_additivity_residual"]=f+e-total
+        f18=mean(wedge_forecast18)
+        e18=mean(wedge_equilibrium18)
+        abs(f18+e18-total)<1e-10 ||
+            error("Eq18 reference conditional wedge means do not sum")
+        summary["mean_wedge_Eq18_additivity_residual"]=f18+e18-total
         if abs(total)>1e-12
+            summary["forecast_Eq18_signed_share"]=f18/total
+            summary["equilibrium_Eq18_signed_share"]=e18/total
             summary["forecast_signed_share"]=f/total
             summary["equilibrium_signed_share"]=e/total
         end
@@ -270,10 +322,13 @@ function write_wedge_csv(path::String, rows::Vector{Dict{String,Any}})
     cols=[
         "t","draw","feasible","X_expected","K_expected_AppendixA",
         "K_expected_Eq18","K_expected_discrepancy","X_fixed","Phi_fixed",
+        "X_fixed_Eq18","Phi_fixed_Eq18","reference_fixed_X_difference",
+        "reference_changed_firms",
         "reaction_residual_at_K_expected","n_fixed","n_positive_X",
         "min_fixed_K","max_fixed_K","closest_fixed_abs_logK_distance",
         "X_ES1","K_ES1","forecast_wedge","equilibrium_wedge",
-        "total_wedge","epsilon","ES1_capital_rank","ES1_rank_fraction",
+        "total_wedge","forecast_wedge_Eq18",
+        "equilibrium_wedge_Eq18","epsilon","ES1_capital_rank","ES1_rank_fraction",
         "ES1_minus_max_positive_X","min_positive_X","max_positive_X",
         "closest_positive_abs_logK_distance","ES1_abs_logK_distance",
         "changed_firms","lower_switch_events","upper_switch_events",
