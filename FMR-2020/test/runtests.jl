@@ -135,6 +135,25 @@ using FMR2020
         @test isfinite(sum(stationary.distribution .* hh.savings_fine))
     end
 
+    @testset "Fine-grid, probability-weighted Euler audit" begin
+        st = stationary_candidate(p,ref,chain,grids,0.9832,ref.r,B;
+                                  name="accuracy-test")
+        result = euler_accuracy_map(p,grids,chain,st)
+        s = result.summary
+        @test length(result.records) == length(grids.fine)*p.n_s
+        @test isapprox(s.total_mass,1;atol=1e-10)
+        @test s.n_active_states > 0
+        @test s.n_active_states <= s.n_grid_states
+        @test s.mass_in_top_ten_percent_asset_grid >= 0
+        @test s.probability_weighted_mean >= 0
+        @test isfinite(s.max_unconstrained)
+        @test isfinite(s.probability_weighted_p99)
+        @test result.ranked[1].euler_kkt_violation >=
+              result.ranked[end].euler_kkt_violation
+        @test maximum(x->x.euler_kkt_violation,result.records) >=
+              s.probability_weighted_mean
+    end
+
     @testset "Full GE opt-in (set FMR_FULL_TESTS=1)" begin
         if get(ENV,"FMR_FULL_TESTS","0") == "1"
             result = solve_three_steady_states(p)

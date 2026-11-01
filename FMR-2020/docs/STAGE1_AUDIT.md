@@ -97,3 +97,50 @@ stage-by-stage progress diagnostics.
 **Status**: latest patch syntax and execution UNVERIFIED pending Windows-PC
 rerun; the accepted 157 tests refer to the previous commit. No claim about
 the existence or values of the three stationary equilibria is made yet.
+
+
+## 2026-11-02: user-PC full stationary equilibrium successfully computed
+
+Source of results: pasted Windows PowerShell console log, Julia 1.12.6, based on
+branch head \`4ba084bb8a02e53017f704b87c2a8ae9be9714f5\`. The numerical outputs
+below are user-provided verified run logs, **not** estimates from an assistant runtime.
+
+- Meta.parseall: 14/14 files parsed.
+- Unit tests: 161/161 passed; prior smoke test and grid-refinement run also passed.
+- Calibrated beta: 0.9832249340415002; beta scaled asset residual
+  2.4759552789121424e-9; beta root iterations 24.
+- Reference NFA/Y: -1.418181818181818; K/Y: 9.702766798418972.
+
+| Steady state | B | r | Unscaled asset residual | Scaled asset residual | Scaled goods residual | Maximum coarse Euler residual |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Initial | 0 | 0.011279042995809365 | -5.774051814455561e-8 | 2.039225110212321e-9 | 5.699578568478156e-11 | 0.00026237630682234236 |
+| Calibrated | -4.34324989100106 | 0.010609825647710607 | 6.848970457440373e-8 | 2.699427274785832e-9 | 8.257698680921228e-11 | 0.00026706681849458303 |
+| Final | -11.132131056640317 | 0.009397365702031897 | -9.265521327961324e-8 | 4.3842010122971905e-9 | 3.4551611688112584e-11 | 0.00027831416802568147 |
+
+All reported stationary-distribution masses were within approximately
+1.4e-14 of one. The above establishes **stationary market clearing on the
+author-code-style grid**, but not the stronger Euler/grid convergence
+requirements in policy.json.
+
+### Decision
+
+G2 market-clearing numerical solve: **demonstrated** for three stationary
+states. Full Stage 1 acceptance: **pending** because policy.json sets maximum
+unconstrained Euler residual threshold 1e-6, whereas all three observed maxima
+are near 2.7e-4. No threshold relaxation is authorized. The fixed-beta/price
+asset supply sensitivity across (61,241), (97,385), (193,769) grids is
+25.64759695956763, 25.401319414404544, 25.246929207836487. Recalibrated
+GE grid convergence has not been established.
+
+### Accuracy investigations committed for owner's PC
+
+- scripts/stage1_accuracy_audit.jl: Fine-grid Euler gap and complementarity
+  residual at each state; record stationary mass at worst error, mass-weighted
+  mean and mass-weighted 99th percentile, and upper asset-grid tail mass.
+- scripts/stage1_recalibrated_grid.jl: Re-run beta and r calibration for
+  alternative coarse/fine grids, separately reporting three stationary
+  equilibria for each grid.
+
+No equations or tolerances were changed merely to make the acceptance gate
+pass. Julia source in these newly added audit files remains **syntax and
+execution unverified until owner's Windows-PC logs are provided**.

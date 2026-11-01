@@ -12,7 +12,7 @@ de Ferra, Sergio; Mitman, Kurt; Romei, Federica (2020), **“Household Heterogen
 - 著者コードのライセンス：MIT（原著者の著作権表示は出典に残す。コードの引用・再利用時は条件を遵守）。
 - 当該研究の作業ディレクトリ：FMR-2020/。隣接するNirei-2015/とは独立したJulia環境にします。
 
-**Stage 1（2026-11-02）**：Rouwenhorst、資産グリッド、Juliaネイティブ形状保持補間、定常EGM、matrix-free定常分布、βと利子率のroot solver、3定常均衡の実行スクリプト、テストを専用ブランチに実装しました。**Julia構文・依存関係の読み込み・数値収束・3定常均衡の再現は、本人のWindows PCからの実行ログが届くまで未検証です。** JuliaをPC以外で実行していません。Manifest.tomlは本人PCでPkg.instantiateを実施してから生成・コミットします。CIは明示的な指示があるまで起動しません。
+**Stage 1（2026-11-02更新）**：Windows 11 / Julia 1.12.6で14ファイル構文検査、161/161ユニットテストと3種類の定常一般均衡の数値計算に成功しました。\(\beta=0.9832249340415002\)で、資産市場の相対残差はすべて \(4.4\times10^{-9}\) 以下、財市場の相対残差は \(9\times10^{-11}\) 以下でした。一方、**粗グリッドの最大Euler残差 \(2.6\text{–}2.8\times10^{-4}\) は事前基準 \(10^{-6}\) を満たさず、グリッド収束も未確認です**。このためStage 1の精度検証は未完了です。後続のEuler精度監査用コードは追加済みですが、当該新規コードの構文と実行はPCで未検証です。数値計算はすべて研究者本人のPCで実施します。
 
 ## ファイル
 
@@ -80,6 +80,14 @@ Windows 11 / Julia 1.12.6で14ファイルの`Meta.parseall`、スモークテ�
 
 利子率の探索を**基準定常利子率の近くから始めて、許容される候補間に残差の符号変化を見つけてから二分法で解く**方式へ変更しました。経済的に実行不能な上端候補だけを探索点から除外し、家計貯蓄を上限へ投影することはしません。今回の修正はまだPCでの実行・構文検証をしていないため、均衡収束は未検証です。詳しくは[Stage 1監査](docs/STAGE1_AUDIT.md)を参照してください。
 
+## Stage 1 精度検証（3定常均衡の収束後）
+
+すでに\(\beta\)較正と3定常均衡の資産・財市場が高精度で解けています。しかし、粗グリッドで計算した最大Euler残差は\(10^{-6}\)を上回るため、単純にGate 1を通過済みとすることはできません。
+
+- `scripts/stage1_accuracy_audit.jl` は3つの定常均衡を再計算し、各細グリッド状態でEuler/KKT残差を独立評価し、確率質量で加重した平均・99パーセンタイル・最大誤差の位置・資産上限近傍の確率質量をCSVに保存します。最悪点が事実上観測されない状態か、正の質量を持つ状態かを判定します。
+- `scripts/stage1_recalibrated_grid.jl` は97×385点と193×769点でそれぞれ割引因子と3定常均衡の利子率を**再較正**します。固定価格下の資産供給の比較（`grid_refinement.jl`）とは別実験です。385×1537点も実行する場合はPowerShellで`$env:FMR_LARGE_GRID = '1'`と指定します（大規模計算は任意）。
+- 両スクリプトは今後の実行で正しく動作するか未検証です。既存の数値結果を変更するものではなく、検証用の追加計算です。
+
 ## Stage 1 — PC実行コマンド（Windows PowerShell）
 
 以下は手元のGit cloneが `C:\\github\\22p8z0omwz9xu` にある場合の例です。ローカル変更があれば`git switch`前に退避・確認してください。
@@ -96,6 +104,8 @@ julia --project=. scripts/smoke_test.jl
 julia --project=. test/runtests.jl
 julia --project=. scripts/run_steady_states.jl
 julia --project=. scripts/grid_refinement.jl
+julia --project=. scripts/stage1_accuracy_audit.jl
+julia --project=. scripts/stage1_recalibrated_grid.jl
 ```
 
 最初に構文検査を実行し、失敗した場合はそこで止めてログを共有してください。パッケージ依存を含む実行環境を確定する場合は`julia --project=. -e 'using Pkg; Pkg.instantiate()'`を別途実行します。Stage 1のホットパスはBaseのみを利用し、外部パッケージのAPI・UUIDを推測して導入していません。実際のProject/Manifestは本人の実行環境で確定し、Manifestを生成した場合は記録してください。

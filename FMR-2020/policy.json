@@ -46,7 +46,7 @@
     }
   ],
   "current_status": {
-    "phase": "stage1_fixed_rate_bracketing_pending_windows_local_retest",
+    "phase": "stage1_three_steady_states_solved_accuracy_gate_pending",
     "files_written": [
       "README.md",
       "ALGORITHM.md",
@@ -58,7 +58,10 @@
       "scripts/smoke_test.jl",
       "scripts/run_steady_states.jl",
       "docs/STAGE1_AUDIT.md",
-      "scripts/grid_refinement.jl"
+      "scripts/grid_refinement.jl",
+      "src/accuracy.jl",
+      "scripts/stage1_accuracy_audit.jl",
+      "scripts/stage1_recalibrated_grid.jl"
     ],
     "julia_source_created": true,
     "julia_project_created": true,
@@ -74,25 +77,70 @@
     "full_stage1_acceptance_pending": true,
     "latest_local_evidence": {
       "julia_version": "1.12.6",
-      "syntax_verified_previous_commit": true,
+      "source_commit": "4ba084bb8a02e53017f704b87c2a8ae9be9714f5",
       "syntax_files": 14,
-      "smoke_passed_previous_commit": true,
-      "tests_passed_previous_commit": 157,
-      "tests_total_previous_commit": 157,
-      "steady_states": "FAILED during GE interest-rate bracketing due to top asset grid at 29688.016202460338",
-      "grid_refinement": "PASS; grid sensitivity not converged",
-      "asset_supply_fixed_beta_prices_61_241": 25.64759695956763,
-      "asset_supply_fixed_beta_prices_97_385": 25.401319414404544,
-      "asset_supply_fixed_beta_prices_193_769": 25.246929207836487
+      "syntax_passed": true,
+      "unit_tests_passed": 161,
+      "unit_tests_total": 161,
+      "calibrated_beta": 0.9832249340415002,
+      "beta_scaled_asset_residual": 2.4759552789121424e-9,
+      "beta_iterations": 24,
+      "reference_nfa_to_quarterly_gdp": -1.418181818181818,
+      "reference_k_to_quarterly_gdp": 9.702766798418972,
+      "steady_states": {
+        "initial": {
+          "B": 0,
+          "r": 0.011279042995809365,
+          "scaled_asset_error": 2.039225110212321e-9,
+          "scaled_goods_error": 5.699578568478156e-11,
+          "max_coarse_euler_error": 0.00026237630682234236,
+          "distribution_mass": 0.9999999999999887
+        },
+        "calibrated": {
+          "B": -4.34324989100106,
+          "r": 0.010609825647710607,
+          "scaled_asset_error": 2.699427274785832e-9,
+          "scaled_goods_error": 8.257698680921228e-11,
+          "max_coarse_euler_error": 0.00026706681849458303,
+          "distribution_mass": 0.9999999999999887
+        },
+        "final": {
+          "B": -11.132131056640317,
+          "r": 0.009397365702031897,
+          "scaled_asset_error": 4.3842010122971905e-9,
+          "scaled_goods_error": 3.4551611688112584e-11,
+          "max_coarse_euler_error": 0.00027831416802568147,
+          "distribution_mass": 0.9999999999999863
+        }
+      },
+      "full_three_steady_states": "SOLVED on source commit; further accuracy gate pending",
+      "accuracy_threshold_max_unconstrained_euler": 0.000001,
+      "accuracy_gate_result": "NOT_PASSED",
+      "grid_refinement_fixed_beta_prices": [
+        {
+          "coarse": 61,
+          "fine": 241,
+          "assets": 25.64759695956763
+        },
+        {
+          "coarse": 97,
+          "fine": 385,
+          "assets": 25.401319414404544
+        },
+        {
+          "coarse": 193,
+          "fine": 769,
+          "assets": 25.246929207836487
+        }
+      ]
     },
     "latest_patch_locally_verified": false,
-    "syntax_verified_scope": "Previous (157-test) version only; new branch commit untested",
-    "runtime_verified_scope": "Previous (157-test) version only; GE remains unverified",
+    "syntax_verified_scope": "14 files in commit 4ba084bb8a02e53017f704b87c2a8ae9be9714f5; latest audit code not verified",
+    "runtime_verified_scope": "161 tests + three equilibria in commit 4ba084bb8a02e53017f704b87c2a8ae9be9714f5; latest audit code unverified",
     "bugfix_pending": [
-      "safeguarded GE rate bracket begins at reference r",
-      "do not evaluate invalid full high endpoint prematurely",
-      "root failure reports tested feasible interval",
-      "no savings clipping/no tolerance relaxation"
+      "fine Euler residuals not yet localized by stationary distribution mass",
+      "GE results require re-calibrated grid refinement",
+      "new accuracy audit scripts await user-PC syntax/load/runtime confirmation"
     ]
   },
   "scope": {
@@ -217,7 +265,7 @@
     {
       "id": "baseline_stationary",
       "target": "EGM and stationary distribution; calibrate beta and three steady states",
-      "status": "julia_source_committed_pending_local_run"
+      "status": "three_steady_states_solved_full_accuracy_validation_pending"
     },
     {
       "id": "credit_expansion",
@@ -254,7 +302,7 @@
         "probability invariance",
         "grid and constraint bounds"
       ],
-      "state": "code_authored_pending_local_validation"
+      "state": "household_solver_runs_euler_threshold_not_met"
     },
     {
       "id": "G2",
@@ -264,7 +312,7 @@
         "asset-market clearing",
         "calibration table"
       ],
-      "state": "code_authored_pending_local_validation"
+      "state": "three_stationary_ge_solved_grid_accuracy_pending"
     },
     {
       "id": "G3",
