@@ -28,7 +28,10 @@ Shape-preserving Hermite interpolation is used on endogenous asset knots.
 """
 function solve_household(p::ModelParams{T}, gr::AssetGrids{T},
                          chain::ProductivityChain{T}, pr::HouseholdPrices{T},
-                         beta::T) where {T<:AbstractFloat}
+                         beta::T;
+                         fine_method::Symbol=:coarse_savings) where {T<:AbstractFloat}
+    fine_method in (:coarse_savings,:direct_endogenous) ||
+        throw(ArgumentError("fine_method must be :coarse_savings or :direct_endogenous"))
     0 < beta < 1 || throw(ArgumentError("beta must lie in (0,1)"))
     pr.r > -1 || throw(ArgumentError("gross real return must be positive"))
     pr.terms > 0 && pr.labor > 0 || throw(ArgumentError("terms and labor must be positive"))
@@ -108,21 +111,49 @@ function solve_household(p::ModelParams{T}, gr::AssetGrids{T},
     nf = length(gr.fine)
     cf = Matrix{T}(undef,nf,ns)
     gf = similar(cf)
-    # Interpolate the *choice* a' rather than consumption when transferring
-    # the converged coarse policy to the fine distribution grid. Interpolating
-    # consumption and solving backwards for a' can cross the borrowing limit
-    # between coarse knots even if every coarse choice is feasible (observed
-    # for the full 193/769-point calibration in Julia 1.12.6). A shape-preserving
-    # Hermite interpolation of feasible savings knots preserves their range
-    # on every interval. Consumption is then recovered from the exact budget.
+    # Two explicitly named, numerically distinct evaluations of the
+    # CONVERGED coarse-grid EGM policy on the fine distribution grid:
     #
-    # No arbitrary clipping or relaxation of the borrowing tolerance occurs.
+    # :coarse_savings (established baseline): interpolate the saving
+    # policy at coarse current-asset knots. This avoids a spurious borrowing
+    # violation from interpolating consumption, but inserts a second layer
+    # of approximation around the borrowing kink.
+    #
+    # :direct_endogenous (accuracy experiment): reconstruct the endogenous
+    # current-asset knots from the final coarse-grid consumption policy,
+    # then interpolate the choice a' directly as a function of endogenous
+    # current assets. On the constrained side, impose a'=borrowing_limit.
+    # The EGM continuation policies are unchanged; this comparison isolates
+    # the off-grid policy evaluation rather than changing equilibrium theory.
+    #
+    # In both methods, derive consumption from the EXACT household budget.
+    # Never silently clip infeasible savings or loosen error tolerances.
     @inbounds for j in 1:ns
-        pchip_slopes!(derivatives,gr.coarse,view(savings,:,j))
         income = labor_income(pr,chain.levels[j]) + pr.profits
+        current_knots = gr.coarse
+        next_asset_knots = view(savings,:,j)
+        if fine_method === :direct_endogenous
+            for i in 1:n
+                expected_mu = zero(T)
+                for jp in 1:ns
+                    expected_mu += chain.transition[j,jp]*c[i,jp]^(-p.gamma)
+                end
+                endo_consumption[i] = (beta*gross*expected_mu)^(-inv(p.gamma))
+                endo_asset[i] = (m*endo_consumption[i]+gr.coarse[i]-income)/gross
+            end
+            all(diff(endo_asset) .> 0) ||
+                throw(ArgumentError("final endogenous asset grid is not increasing"))
+            current_knots = endo_asset
+            next_asset_knots = gr.coarse
+        end
+        pchip_slopes!(derivatives,current_knots,next_asset_knots)
         for i in 1:nf
             a = gr.fine[i]
-            sav = pchip_evaluate(gr.coarse,view(savings,:,j),derivatives,a)
+            sav = if fine_method === :direct_endogenous && a <= endo_asset[1]
+                gr.borrowing_limit
+            else
+                pchip_evaluate(current_knots,next_asset_knots,derivatives,a)
+            end
             if sav < gr.borrowing_limit
                 throw(DomainError(sav,
                     "shape-preserving fine-grid savings violate borrowing constraint"))

@@ -144,3 +144,61 @@ GE grid convergence has not been established.
 No equations or tolerances were changed merely to make the acceptance gate
 pass. Julia source in these newly added audit files remains **syntax and
 execution unverified until owner's Windows-PC logs are provided**.
+
+
+## 2026-11-02: owner-PC accuracy audit passed execution; Euler accuracy is still inadequate
+
+Owner's Windows Julia 1.12.6 log, commit \`e34344b56cf0b7416396a3f1b1e9f420b505eb3e\`:
+- Julia Meta.parseall: 17/17 files.
+- Julia Test: 171/171 passed.
+- Fine-grid Euler audit completed: initial maximum 0.005479010283982644
+  (probability-weighted mean 4.2184847385456876e-5, mass-weighted p99
+  0.0009183315981294465); calibrated maximum 0.006606477701724808
+  (mean 4.635933858135583e-5, p99 0.0015626308586639758); final
+  maximum 0.008508924283699832 (mean 5.3982674518287774e-5,
+  p99 0.0016601746596265597).
+- The highest residual occurs around assets=0.014152165479991995 and
+  productivity=0.17945895342962148, with positive mass between
+  0.00044 and 0.00046 in the three steady states. The transition savings
+  at this node are around 0.00068–0.00075, above the borrowing bound.
+- Mass within the top 10% of the asset grid is zero in all three states;
+  the largest Euler errors are **not** driven by the top-grid tail.
+- Full GE re-calibration on 97/385 versus 193/769 grids:
+  beta 0.9831941570341588 vs 0.9832249340415002;
+  initial r 0.011279519570707129 vs 0.011279042995809365;
+  final r 0.009396947992681311 vs 0.009397365702031897;
+  initial K 28.314219719513165 vs 28.314930929103635;
+  final K 32.26673571463377 vs 32.266019083153196.
+  Thus aggregate steady-state values are comparatively stable even though
+  household maximum Euler residuals are still too large.
+
+### Isolation test: EGM off-grid policy evaluation (newly authored, not run)
+
+The published author's solve_R.m obtains fine-grid policy by direct evaluation
+of the *endogenous EGM asset grid* (a_today, c_s), with constrained states
+handled separately. The established Julia implementation is a separate
+two-stage policy interpolation: EGM endogenous -> coarse current-asset savings
+-> fine current-asset savings. It preserves feasibility but can magnify
+Euler residuals around the borrowing kink.
+
+A **non-default, experimental** \`:direct_endogenous\` option reconstructs
+the endogenous current-asset knots after coarse policy convergence, then
+shape-preserving-interpolates chosen next-period savings directly to the fine
+grid, preserving the exact borrowing choice on the constrained side. It is
+not a mechanical translation of MATLAB's c_s PCHIP and may give different
+values. The experimental and default methods must be compared at the same
+beta, r, B before the default method is changed.
+
+New files/test:
+- src/household_egm.jl supports \`fine_method=:coarse_savings\` (unchanged
+  default) or \`:direct_endogenous\`.
+- stationary_candidate passes the option for controlled comparison.
+- scripts/stage1_fine_policy_comparison.jl recalibrates beta **only with the
+  established default** then computes asset demand and Euler statistics under
+  both fine-policy rules at the same aggregate prices.
+- test/runtests.jl checks finite consumption, binding savings, mass
+  conservation, positivity, and agreement on unchanged coarse policy.
+
+**At the moment of commit, this newly authored Julia patch is not yet
+syntax/runtime/numerically validated on owner's PC. The 171/171 tests and all
+reported numerical values refer to the prior commit.**

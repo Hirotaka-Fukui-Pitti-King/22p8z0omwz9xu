@@ -113,6 +113,27 @@ using FMR2020
         end
     end
 
+    @testset "Direct endogenous-grid fine policy (experimental)" begin
+        # Separate evaluation of the SAME converged coarse-grid policy.
+        # The established :coarse_savings method remains the default.
+        direct = solve_household(p,grids,chain,household_prices,0.9832;
+                                 fine_method=:direct_endogenous)
+        @test maximum(abs.(direct.consumption_coarse .-
+                            hh.consumption_coarse)) < 1e-10
+        @test maximum(abs.(direct.savings_coarse .-
+                            hh.savings_coarse)) < 1e-10
+        @test minimum(direct.savings_fine) >= grids.borrowing_limit
+        @test minimum(direct.consumption_fine) > 0
+        check = household_diagnostics(p,grids,chain,household_prices,0.9832,direct)
+        @test check.max_fine_budget_error < 1e-8
+        @test_throws ArgumentError solve_household(
+            p,grids,chain,household_prices,0.9832;fine_method=:unknown)
+        direct_mu = stationary_distribution(p,grids,chain,direct)
+        @test abs(sum(direct_mu.distribution)-1) < 1e-10
+        @test distribution_invariance(direct_mu.distribution,direct,
+                                      grids,chain).invariance_error < 1e-8
+    end
+
     @testset "Matrix-free distribution and mass conservation" begin
         n = length(grids.fine)
         ns = length(chain.levels)

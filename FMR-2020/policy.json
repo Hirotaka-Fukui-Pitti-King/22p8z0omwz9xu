@@ -46,7 +46,7 @@
     }
   ],
   "current_status": {
-    "phase": "stage1_three_steady_states_solved_accuracy_gate_pending",
+    "phase": "stage1_aggregate_converged_household_accuracy_fine_policy_experiment_pending",
     "files_written": [
       "README.md",
       "ALGORITHM.md",
@@ -61,7 +61,8 @@
       "scripts/grid_refinement.jl",
       "src/accuracy.jl",
       "scripts/stage1_accuracy_audit.jl",
-      "scripts/stage1_recalibrated_grid.jl"
+      "scripts/stage1_recalibrated_grid.jl",
+      "scripts/stage1_fine_policy_comparison.jl"
     ],
     "julia_source_created": true,
     "julia_project_created": true,
@@ -77,70 +78,59 @@
     "full_stage1_acceptance_pending": true,
     "latest_local_evidence": {
       "julia_version": "1.12.6",
-      "source_commit": "4ba084bb8a02e53017f704b87c2a8ae9be9714f5",
-      "syntax_files": 14,
-      "syntax_passed": true,
-      "unit_tests_passed": 161,
-      "unit_tests_total": 161,
-      "calibrated_beta": 0.9832249340415002,
-      "beta_scaled_asset_residual": 2.4759552789121424e-9,
-      "beta_iterations": 24,
-      "reference_nfa_to_quarterly_gdp": -1.418181818181818,
-      "reference_k_to_quarterly_gdp": 9.702766798418972,
-      "steady_states": {
+      "source_commit": "e34344b56cf0b7416396a3f1b1e9f420b505eb3e",
+      "parsed_files": 17,
+      "tests_passed": 171,
+      "tests_total": 171,
+      "euler_accuracy": {
         "initial": {
-          "B": 0,
-          "r": 0.011279042995809365,
-          "scaled_asset_error": 2.039225110212321e-9,
-          "scaled_goods_error": 5.699578568478156e-11,
-          "max_coarse_euler_error": 0.00026237630682234236,
-          "distribution_mass": 0.9999999999999887
+          "max": 0.005479010283982644,
+          "weighted_mean": 0.000042184847385456876,
+          "mass_p99": 0.0009183315981294465
         },
         "calibrated": {
-          "B": -4.34324989100106,
-          "r": 0.010609825647710607,
-          "scaled_asset_error": 2.699427274785832e-9,
-          "scaled_goods_error": 8.257698680921228e-11,
-          "max_coarse_euler_error": 0.00026706681849458303,
-          "distribution_mass": 0.9999999999999887
+          "max": 0.006606477701724808,
+          "weighted_mean": 0.00004635933858135583,
+          "mass_p99": 0.0015626308586639758
         },
         "final": {
-          "B": -11.132131056640317,
-          "r": 0.009397365702031897,
-          "scaled_asset_error": 4.3842010122971905e-9,
-          "scaled_goods_error": 3.4551611688112584e-11,
-          "max_coarse_euler_error": 0.00027831416802568147,
-          "distribution_mass": 0.9999999999999863
-        }
-      },
-      "full_three_steady_states": "SOLVED on source commit; further accuracy gate pending",
-      "accuracy_threshold_max_unconstrained_euler": 0.000001,
-      "accuracy_gate_result": "NOT_PASSED",
-      "grid_refinement_fixed_beta_prices": [
-        {
-          "coarse": 61,
-          "fine": 241,
-          "assets": 25.64759695956763
+          "max": 0.008508924283699832,
+          "weighted_mean": 0.000053982674518287774,
+          "mass_p99": 0.0016601746596265597
         },
-        {
+        "largest_error_asset": 0.014152165479991995,
+        "largest_error_productivity": 0.17945895342962148,
+        "positive_stationary_mass_at_largest_error": true,
+        "top_asset_grid_mass": 0
+      },
+      "recalibrated_grid": {
+        "small": {
           "coarse": 97,
           "fine": 385,
-          "assets": 25.401319414404544
+          "beta": 0.9831941570341588,
+          "initial_r": 0.011279519570707129,
+          "final_r": 0.009396947992681311,
+          "initial_K": 28.314219719513165,
+          "final_K": 32.26673571463377
         },
-        {
+        "large": {
           "coarse": 193,
           "fine": 769,
-          "assets": 25.246929207836487
+          "beta": 0.9832249340415002,
+          "initial_r": 0.011279042995809365,
+          "final_r": 0.009397365702031897,
+          "initial_K": 28.314930929103635,
+          "final_K": 32.266019083153196
         }
-      ]
+      },
+      "stage1_accuracy_gate_passed": false
     },
     "latest_patch_locally_verified": false,
     "syntax_verified_scope": "14 files in commit 4ba084bb8a02e53017f704b87c2a8ae9be9714f5; latest audit code not verified",
     "runtime_verified_scope": "161 tests + three equilibria in commit 4ba084bb8a02e53017f704b87c2a8ae9be9714f5; latest audit code unverified",
     "bugfix_pending": [
-      "fine Euler residuals not yet localized by stationary distribution mass",
-      "GE results require re-calibrated grid refinement",
-      "new accuracy audit scripts await user-PC syntax/load/runtime confirmation"
+      "compare direct EGM endogenous fine policy with two-stage savings interpolation on same prices and beta",
+      "do not change baseline method before measuring Euler and asset supply outcomes"
     ]
   },
   "scope": {
@@ -265,7 +255,7 @@
     {
       "id": "baseline_stationary",
       "target": "EGM and stationary distribution; calibrate beta and three steady states",
-      "status": "three_steady_states_solved_full_accuracy_validation_pending"
+      "status": "three_steady_states_solved_aggregate_stable_household_euler_audit_pending"
     },
     {
       "id": "credit_expansion",
@@ -431,6 +421,7 @@
     "julia --project=. scripts/smoke_test.jl",
     "julia --project=. test/runtests.jl",
     "julia --project=. scripts/run_steady_states.jl",
-    "julia --project=. scripts/grid_refinement.jl"
+    "julia --project=. scripts/grid_refinement.jl",
+    "julia --project=. scripts/stage1_fine_policy_comparison.jl"
   ]
 }
