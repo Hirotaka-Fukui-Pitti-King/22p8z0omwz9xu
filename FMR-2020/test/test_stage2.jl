@@ -76,6 +76,29 @@ using FMR2020
         @test_throws DomainError distribution_step!(next_mass,mass,policy,grid,P)
     end
 
+    @testset "Independent interior goods vs terminal boundary discrepancy" begin
+        trial=evaluate_transition!(inp,x)
+        w=trial.workspace
+        assumed=FMR2020.TransitionSolveResult(inp,w,copy(x),trial.residual,
+                                                0,1,maximum(abs,trial.residual),true)
+        check=transition_diagnostics(assumed;compute_euler=false)
+        @test check.max_goods_market_period in 0:(Tperiods-1)
+        @test isfinite(check.max_goods_market_level)
+        @test isfinite(check.terminal_goods_gap_unconstrained)
+        @test isfinite(check.terminal_wealth_gap_unconstrained)
+        @test check.max_goods_market_level >= 0
+        # Only the last-period household aggregate is changed. The
+        # author model does not impose a T-th goods-market condition.
+        last_home=w.aggregate_home[end]
+        w.aggregate_home[end]=last_home+0.25
+        modified=transition_diagnostics(assumed;compute_euler=false)
+        @test isapprox(modified.max_goods_market_level,
+                       check.max_goods_market_level;atol=1e-12)
+        @test isapprox(modified.terminal_goods_gap_unconstrained,
+                       check.terminal_goods_gap_unconstrained-0.25;atol=1e-12)
+        w.aggregate_home[end]=last_home
+    end
+
     @testset "Export guard and solver input validation" begin
         @test_throws DimensionMismatch evaluate_transition!(inp,x[1:end-1])
     end

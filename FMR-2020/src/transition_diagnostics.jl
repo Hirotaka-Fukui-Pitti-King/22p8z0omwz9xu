@@ -12,6 +12,11 @@ function transition_diagnostics(sol::TransitionSolveResult{T};
     Kerror=zero(T)
     Lerror=zero(T)
     Gerror=zero(T)
+    Gperiod=0
+    max_budget_implied_gap=zero(T)
+    terminal_goods_gap=zero(T)
+    terminal_budget_gap=zero(T)
+    terminal_wealth_gap=zero(T)
     caperror=zero(T)
     maxmass=maximum(w.distribution_error)
     maxbudget=zero(T)
@@ -28,11 +33,31 @@ function transition_diagnostics(sol::TransitionSolveResult{T};
             supply=w.Y[t]-w.I[t-1]-cost-
                    input.reference.export_shift*w.terms[t]^(-input.params.theta_star)
         end
-        # Independent goods check uses household consumption from the
-        # forward distribution, NOT the aggregate budget quantity used
-        # to solve the period's trade price. Otherwise the goods
-        # residual is mechanically zero even when markets do not clear.
-        Gerror=max(Gerror,abs(supply-w.aggregate_home[t]))
+        # Authors' solve_transition_bis.m has market-clearing equations
+        # for capital in 1:T-1 and labor in 1:T. The final date uses
+        # terminal steady-state household policies and a copied t=T-1
+        # aggregate consumption for the final labor residual; it does
+        # NOT impose an independent T-th goods-clearing condition.
+        #
+        # An interior resource residual is independently checked using
+        # distribution-weighted actual household consumption, never
+        # budget-implied home consumption used to determine trade prices.
+        actual_gap=supply-w.aggregate_home[t]
+        if t<n
+            if abs(actual_gap)>Gerror
+                Gerror=abs(actual_gap)
+                Gperiod=t
+            end
+            max_budget_implied_gap=max(max_budget_implied_gap,
+                                       abs(w.home_budget[t]-w.aggregate_home[t]))
+        else
+            # Record but DO NOT add this extra terminal condition to
+            # the interior market-clearing acceptance gate.
+            terminal_goods_gap=actual_gap
+            terminal_budget_gap=w.home_budget[t]-w.aggregate_home[t]
+            terminal_wealth_gap=w.aggregate_savings[t]-
+                                (input.B[t]+input.terminal.K)
+        end
         Lerror=max(Lerror,abs(w.labor_implied[t]-w.L[t]))
         if t<n
             m=consumption_cost(w.terms[t],input.params)
@@ -87,6 +112,11 @@ function transition_diagnostics(sol::TransitionSolveResult{T};
     return (max_asset_market_level=Kerror,
             max_labor_market_level=Lerror,
             max_goods_market_level=Gerror,
+            max_goods_market_period=Gperiod,
+            max_interior_home_budget_gap=max_budget_implied_gap,
+            terminal_goods_gap_unconstrained=terminal_goods_gap,
+            terminal_home_budget_gap_unconstrained=terminal_budget_gap,
+            terminal_wealth_gap_unconstrained=terminal_wealth_gap,
             max_capital_accumulation=caperror,
             max_household_budget=maxbudget,
             max_probability_mass_deviation=maxmass,
