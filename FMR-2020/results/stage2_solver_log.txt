@@ -1,0 +1,5 @@
+Stage 2 nonlinear equilibrium FAILED
+Julia: 1.12.6
+Error: DomainError with 29759.54040678395:
+transition saving beyond upper asset grid at t=1
+Do not report an unconverged path or plot guessed IRFs.
