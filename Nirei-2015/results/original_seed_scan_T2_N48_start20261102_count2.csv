@@ -1,0 +1,3 @@
+seed,requested_periods,completed_periods,completed,failure_period,failure_class,initial_K,final_K,first_X,last_X,max_capital_residual,max_investment_residual,max_level_resource_gap,max_abs_epsilon,Y_sd_percent,C_sd_percent,X_sd_percent,L_sd_percent,K_sd_percent,elapsed_seconds,failure
+"20261102","2","2","true",,"none","8.65347925182969","8.574691563435575","0.16833914597792454","0.09940981409055755","8.881784197001252e-15","5.551115123125783e-17","0.015060605371005962","0.554209767453112",,,,,,"4.5100000000000005e-5","none"
+"20261103","2","2","true",,"none","8.668004246944596","8.62837587489626","0.15315605002950647","0.15924487409797403","5.329070518200751e-15","1.6653345369377348e-16","0.000799289209428397","0.12026987926826323",,,,,,"3.0e-5","none"
