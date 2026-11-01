@@ -156,7 +156,7 @@ function export_transition_csv(sol::TransitionSolveResult{T},
     input=sol.input
     mkpath(dirname(filename))
     open(filename,"w") do io
-        println(io,"quarter,B,K,L,Y,I,q,rK,r,w,terms,nominal_exchange_rate,profits,C_H,C_F,C_aggregate,A_supply,goods_residual,capital_residual,labor_residual,distribution_mass")
+        println(io,"quarter,B,K,L,Y,I,q,rK,r,w,terms,nominal_exchange_rate,profits,C_H,C_H_authors_labor_input,C_F,C_aggregate,A_supply,goods_residual_interior,terminal_goods_gap_unconstrained,capital_residual,labor_residual,distribution_mass")
         n=length(input.B)
         p=input.params
         @inbounds for t in 1:n
@@ -164,7 +164,7 @@ function export_transition_csv(sol::TransitionSolveResult{T},
             foreign=(1-p.chi)/p.chi*w.terms[t]^p.theta*home
             # Cobb-Douglas aggregate (multiplicative constant immaterial for IRFs).
             consum=home^p.chi*foreign^(1-p.chi)
-            goods=if t<n
+            gap_goods=if t<n
                 w.Y[t]-w.I[t]-w.adjustment[t]-
                 input.reference.export_shift*w.terms[t]^(-p.theta_star)-home
             else
@@ -173,13 +173,19 @@ function export_transition_csv(sol::TransitionSolveResult{T},
                 w.Y[t]-w.I[t-1]-terminal_cost-
                 input.reference.export_shift*w.terms[t]^(-p.theta_star)-home
             end
+            # T-th independent goods clearing is not part of the 399
+            # source equations; expose that discrepancy in its own column.
+            goods=t<n ? gap_goods : T(NaN)
+            terminal_goods=t==n ? gap_goods : T(NaN)
+            authors_ch=t<n ? home : w.aggregate_home[t-1]
             capital=t<n ? (w.aggregate_savings[t]-input.B[t])/w.q[t]-w.K[t+1] : T(NaN)
             labor=w.labor_implied[t]-w.L[t]
             println(io,join((t-1,input.B[t],w.K[t],w.L[t],w.Y[t],w.I[t],
                              w.q[t],w.rental[t],w.rate[t],w.wage[t],
                              w.terms[t],inv(w.terms[t]),w.profits[t],
-                             home,foreign,consum,w.aggregate_savings[t],
-                             goods,capital,labor,sum(view(w.distribution,:,:,t))),","))
+                             home,authors_ch,foreign,consum,w.aggregate_savings[t],
+                             goods,terminal_goods,capital,labor,
+                             sum(view(w.distribution,:,:,t))),","))
         end
     end
     return filename

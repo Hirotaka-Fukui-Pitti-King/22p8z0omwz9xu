@@ -21,6 +21,21 @@ function main()
     @assert length(x)==15
     evaluated=evaluate_transition!(input,x)
     w=evaluated.workspace
+    # Test actual household-aggregated goods clearing on interior dates.
+    # The source author does not include an independent T-th goods
+    # condition; diagnose its boundary mismatch separately.
+    constructed=FMR2020.TransitionSolveResult(input,w,copy(x),
+                                              copy(evaluated.residual),0,
+                                              w.function_evals,
+                                              maximum(abs,evaluated.residual),true)
+    goodscheck=transition_diagnostics(constructed;compute_euler=false)
+    println("Shock-free max interior goods residual: ",
+            goodscheck.max_goods_market_level,
+            " at t=",goodscheck.max_goods_market_period)
+    println("Shock-free terminal goods gap (NOT an interior GE equation): ",
+            goodscheck.terminal_goods_gap_unconstrained)
+    goodscheck.max_goods_market_level<1e-4 ||
+        error("Constant-path interior goods-market clearing failed")
     println("Shock-free transition max scaled residual: ",maximum(abs,evaluated.residual))
     println("Transition mass max error: ",maximum(w.distribution_error))
     println("Capital price max gap from 1: ",maximum(abs.(w.q .- 1)))
