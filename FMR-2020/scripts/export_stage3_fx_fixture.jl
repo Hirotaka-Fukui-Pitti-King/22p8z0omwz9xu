@@ -121,6 +121,13 @@ function main()
             raw=similar(prod)
             stage3_unscale_residual!(raw,prod,case)
             savecsv(joinpath(directory,"julia_raw_399.csv"),raw)
+            savecsv(joinpath(directory,"julia_terms.csv"),w.terms)
+            savecsv(joinpath(directory,"julia_rate.csv"),w.rate)
+            savecsv(joinpath(directory,"julia_wage.csv"),w.wage)
+            savecsv(joinpath(directory,"julia_aggregate_C.csv"),
+                    vcat(w.aggregate_home[1:end-1],w.aggregate_home[end-1]))
+            savecsv(joinpath(directory,"julia_aggregate_A.csv"),
+                    w.aggregate_savings[1:end-1])
             calibrated=st.calibrated
             refpolicy=source_matlab_stationary_egm(
                 st.grids,st.chain,p,calibrated.beta,calibrated.r,

@@ -201,6 +201,29 @@ function main()
         end
     end
     println("FX ORIGINAL BASEFUN VS JULIA NUMERIC COMPARISON PASS")
+    # The original full 399-equation MATLAB function is independently
+    # executed once using the exported same candidate path, G0, B, and
+    # calibrated 193-row terminal policy. It can be numerically
+    # undefined; this MUST fail rather than being called a match.
+    ge_output=joinpath(dir,"original_399_output")
+    isdir(ge_output) ||
+        error("Exact original MATLAB 399-residual output missing")
+    assert_fixture("original MATLAB raw 399 GE residual",
+                   read_numeric_csv(joinpath(fx_input,"julia_raw_399.csv")),
+                   read_numeric_csv(joinpath(ge_output,"matlab_raw_399.csv"));
+                   atol=1e-6)
+    for label in ("terms","rate","wage","aggregate_C")
+        assert_fixture("original 399 "*label,
+                       read_numeric_csv(joinpath(fx_input,"julia_"*label*".csv")),
+                       read_numeric_csv(joinpath(ge_output,"matlab_"*label*".csv"));
+                       atol=1e-6)
+    end
+    source_A=read_numeric_csv(joinpath(ge_output,"matlab_aggregate_A.csv"))
+    source_A=source_A[1:end-1,:]
+    assert_fixture("original 399 aggregate savings",
+                   read_numeric_csv(joinpath(fx_input,"julia_aggregate_A.csv")),
+                   source_A;atol=1e-6)
+    println("DIRECT ORIGINAL MATLAB 399-EQUATION RESIDUAL COMPARISON PASS")
     println("SOURCE EGM NUMERICAL COMPARISON PASS. This alone does NOT verify GE.")
 end
 

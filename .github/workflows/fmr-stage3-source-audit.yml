@@ -81,6 +81,9 @@ jobs:
       - name: Revalue original shock-date household portfolios with original MATLAB basefun
         run: |
           octave --no-gui --quiet --eval "addpath('julia-replication/FMR-2020/matlab'); export_stage3_fx_fixture('HANKSOME','julia-replication/FMR-2020/results/matlab_egm_fixture/fx_input','julia-replication/FMR-2020/results/matlab_egm_fixture/fx_output');"
+      - name: Evaluate unmodified original 399-variable MATLAB source on the same Julia candidate
+        run: |
+          octave --no-gui --quiet --eval "addpath('julia-replication/FMR-2020/matlab'); export_original_399_residual('HANKSOME','julia-replication/FMR-2020/results/matlab_egm_fixture/fx_input','julia-replication/FMR-2020/results/matlab_egm_fixture/calibrated_output','julia-replication/FMR-2020/results/matlab_egm_fixture/original_399_output');"
       - name: Compare source MATLAB fixture and Julia full-grid EGM numerically
         working-directory: julia-replication/FMR-2020
         run: |
