@@ -1,2 +1,2 @@
-STAGE3 FAILED: Stage3 line search failed at iteration=12; max=0.021569342187721885
+STAGE3 FAILED: Stage3 MATLAB-aligned residual evaluation budget exhausted at 5000/5000, before 399/599-equation convergence
 No solution or figure may be claimed from this failure.
