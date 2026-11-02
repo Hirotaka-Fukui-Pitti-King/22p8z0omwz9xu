@@ -48,7 +48,10 @@ function main()
                    read_numeric_csv(joinpath(dir,"productivity.csv")))
     assert_fixture("original Markov probabilities",ch.transition,
                    read_numeric_csv(joinpath(dir,"transition.csv"));atol=1e-12)
-    future=fill(10.0,193,params.n_s)
+    # Same positive increasing source future policy as the MATLAB fixture.
+    # Keeps the tested EGM interpolation inside the endogenous-knot range.
+    future=repeat(reshape(1.0 .+ 0.02 .* max.(gr.coarse_full,0.0),:,1),
+                  1,params.n_s)
     step=source_matlab_egm_step(gr,ch,params,future,0.98,0.01,0.01,
                                 1.0,1.8,1.0,0.25)
     assert_fixture("source coarse consumption",step.coarse_consumption,

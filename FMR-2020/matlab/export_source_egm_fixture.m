@@ -51,7 +51,11 @@ profits=.25;
 omega=.4;
 theta=1;
 consumption_floor=1e-5;
-future=10*ones(193,7);
+% Positive and increasing with assets: a_today spans the fine/coarse
+% source grid so interp1(...,'pchip') is tested WITHIN its domain.
+% A constant future policy caused an unrelated source upper-tail
+% out-of-domain NaN, not a valid PCHIP equivalence experiment.
+future=repmat(1+0.02*max(Agrid,0),1,7);
 m=1+omega/(1-omega)*terms^(theta-1);
 
 coarse_consumption=zeros(193,7);
