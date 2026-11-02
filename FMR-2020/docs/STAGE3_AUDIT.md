@@ -63,3 +63,20 @@ Owner Windows Julia 1.12.6: 34/34 files printed PARSE OK on the previous commit,
 Fix (commit `ef781a05905ffc77931076340cbfd442bb2fe1ca`): convert the first module-level descriptive docstring to comments; the second triple-quoted string now immediately precedes the intended `foreign_debt_trade_root` function. Scanned all 19 `src/*.jl` files for adjacent triple-quote blocks; only this one occurrence was found. Modified `scripts/check_syntax.jl` to **actually load FMR2020 after Meta.parseall**, so future malformed docstring attachments fail the first check instead of displaying false success. Existing parse-only output alone was inadequate; no change to the model, root choice, constraints or numerical tolerances.
 
 **This corrected commit has NOT been tested on the owner's Windows PC.** Until new PC logs, Julia syntax+module-load, full unit tests and macro GE convergence are unverified for the current commit. Do not call Stage 3 completed merely because source was committed.
+
+
+## 2026-11-03: Positive-mass household budget infeasibility after foreign-liability revaluation
+
+Owner's latest Windows 11, Julia 1.12.6 log: **34/34 parse+package load, 2,420 Stage 1 + 37 Stage 2 + 22 Stage 3 tests passed**, smoke passed (no-revaluation mass test, double-root regression, fixed price block). The foreign-denominated expansion already passes its GE aggregate tests (scaled residual 3.5510e-7). The sudden-stop flexible transition fails before the first nonlinear GE iteration:
+
+`DomainError with (1, -0.6604250433394604, 1, NaN, NaN): positive-mass household infeasible after FX shock`.
+
+This occurs because the previous lower-branch trade root `x_low≈0.78659` revalues gross foreign liabilities sharply upward and sends positive household mass into wealth-grid nodes where the budget cannot fund positive consumption with `a' >= bmin`. That is an **economically infeasible household state**, not a harmless off-support policy node. The original MATLAB backsolve_egm.m lines 68–71 uses `max(c_constrained,1e-5)`, and lines 100–107 use constrained savings `bmin`; for such a state, blindly copying the floor would violate the budget constraint. We deliberately did NOT insert an artificial consumption floor or drop distribution mass.
+
+The trade-price residual has **two** positive roots at this initial aggregate path. The lower root cannot automatically be equated with the correctly selected equilibrium merely because MATLAB `fsolve` started at 0.8. The modified algorithm computes both positive roots and uses the original revaluation mapping plus *the actual post-revaluation mass-splitting grid* to test a necessary household feasibility condition at every occupied (asset,productivity) state:
+
+`(1+r_1)*a_revalued_grid + w_1 L_1 s + profits_1 - bmin > 0`.
+
+It selects the lower root only if that branch satisfies the household budget condition; otherwise it uses the upper root if that branch is feasible. An out-of-grid positive-mass revaluation rejects just that root, not every possible root. If neither branch is feasible, it fails with both roots and the minimum available household resource diagnostic. The later backward EGM and forward distribution still enforce positive consumption, the borrowing lower bound, probability conservation and independently checked household budgets. **No tolerances, structural equations, shock timing or wealth values are altered.** Root selection is now conditional on household feasibility and thus **is not asserted to be numerically identical** to MATLAB's unguarded `fsolve(aggr,0.8)` with consumption floors.
+
+Important: this code patch has been statically reviewed only and has **not** yet passed owner-PC Julia syntax/runtime or shown successful 399/599 GE convergence. Full Stage 3 results remain unverified.

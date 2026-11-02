@@ -127,9 +127,22 @@ function stage3_positive_trade_root(w::TransitionWorkspace{T},
     # imposes c=max(c_budget,1e-5) even on households whose budgets
     # CANNOT fund c=1e-5. The correct GE must pass household feasibility.
     # Prefer the author's lower branch only if it is truly feasible.
-    lowcheck=initial_revaluation_budget_support!(w,ctx,roots.low)
+    # An out-of-grid positive-mass node rejects THAT root only; it
+    # must not prevent evaluating the other economically possible root.
+    function affordable(candidate::T)
+        try
+            return initial_revaluation_budget_support!(w,ctx,candidate)
+        catch err
+            if err isa DomainError
+                return (feasible=false,minresource=-T(Inf),
+                        minstate=(0,0),occupied_mass=zero(T))
+            end
+            rethrow()
+        end
+    end
+    lowcheck=affordable(roots.low)
     highcheck=roots.high===nothing ? nothing :
-              initial_revaluation_budget_support!(w,ctx,roots.high)
+              affordable(roots.high)
     selected=if lowcheck.feasible
         roots.low
     elseif highcheck!==nothing && highcheck.feasible

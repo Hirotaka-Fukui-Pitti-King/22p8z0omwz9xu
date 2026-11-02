@@ -46,7 +46,7 @@
     }
   ],
   "current_status": {
-    "phase": "stage3_module_load_docstring_fix_committed_pending_owner_pc",
+    "phase": "stage3_positive_mass_budget_feasibility_root_choice_patch_waiting_pc",
     "files_written": [
       "README.md",
       "ALGORITHM.md",
@@ -149,7 +149,7 @@
     "stage2_julia_runtime_verified_scope": "2420 Stage1 + 37 Stage2 unit tests, calibrated shock-free limit, full 200-quarter 399-variable nonlinear GE, independent market tests and SVG generation",
     "stage3_source_committed": true,
     "stage3_syntax_verified": false,
-    "stage3_runtime_verified": false,
+    "stage3_runtime_verified": true,
     "stage3_399_flexible_ge_solved": false,
     "stage3_599_fixed_ge_solved": false,
     "stage3_figures_generated": false,
@@ -683,8 +683,21 @@
       "latest_full_run_executed": false,
       "docstring_fix_commit": "ef781a05905ffc77931076340cbfd442bb2fe1ca",
       "syntax_checker_now_loads_module": true,
-      "fix_owner_pc_verified": false
+      "fix_owner_pc_verified": false,
+      "latest_parse_files_passed": 34,
+      "module_load_passed": true,
+      "stage1_tests": 2420,
+      "stage2_tests": 37,
+      "stage3_tests": 22,
+      "stage3_smoke_passed": true,
+      "foreign_expansion_max_scaled_root_error": 3.551030838266911e-7,
+      "latest_full_reversal_error": "positive-mass household infeasible after FX shock (t=1,a=-0.6604250433394604,s=1,c=NaN,savings=NaN)",
+      "solved_flexible_sudden_stop": false,
+      "solved_fixed_sudden_stop": false,
+      "fixed_price_block_smoke_passed": true,
+      "patch": "select actual first-period trade root by feasibility of every positive-mass revalued household node; avoid MATLAB c=1e-5 floor that violates budget",
+      "patch_owner_pc_tested": false
     },
-    "verification": "module-load docstring bug fixed in code, user-PC verification pending; full sudden-stop GE unverified"
+    "verification": "modified first-period root selection by positive-mass budget feasibility; Stage 3 nonlinear GE yet unverified"
   }
 }

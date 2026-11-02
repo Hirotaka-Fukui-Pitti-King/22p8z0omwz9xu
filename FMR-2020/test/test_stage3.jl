@@ -28,6 +28,12 @@ using FMR2020
         @test isapprox(root,0.7865895839646455;atol=1e-9)
         @test root<xpeak
         @test abs(f(root))<1e-9
+        roots=FMR2020.foreign_debt_trade_roots(C,E,D,theta_star)
+        @test isapprox(roots.low,root;atol=1e-11)
+        @test roots.high !== nothing
+        @test isapprox(roots.high,1.0379166453624395;atol=1e-9)
+        @test roots.low<roots.peak<roots.high
+        @test abs(f(roots.high))<1e-9
         # Opposite signs at two arbitrary far endpoints are NOT
         # required, but genuine lack of any positive root still fails.
         @test_throws DomainError FMR2020.foreign_debt_trade_root(
