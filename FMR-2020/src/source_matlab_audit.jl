@@ -91,14 +91,20 @@ function source_matlab_egm_step(gr::AssetGrids{T},
             binding=a<=threshold
             # Source MATLAB interp1(...,'pchip') without 'extrap'
             # returns NaN outside the endogenous-knot range.
-            c=if binding
-                # Source interp1(Agrid, c_constrained, Agrid_fine)
-                # returns NaN even for a tiny lower-end grid roundoff
-                # outside [Agrid[1],Agrid[end]] without extrapolation.
-                (a<coarse[1] || a>coarse[end]) ? T(NaN) :
-                    pchip_evaluate(coarse,constrained,constrained_slopes,a)
-            elseif a<a_today[1] || a>a_today[end]
+            # The literal MATLAB c_new_fine uses
+            #   mask.*interp1(a_today,c_s,...) +
+            #   (1-mask).*interp1(Agrid,c_constrained,...).
+            # Both interp1 calls are evaluated BEFORE multiplying by
+            # masks. Hence 0*NaN contaminates the result even when the
+            # undefined interpolant is on an UNUSED policy branch.
+            # Preserve this numerical source behavior separately
+            # from the economically well-defined Julia branch.
+            outside_endogenous=(a<a_today[1] || a>a_today[end])
+            outside_constrained=(a<coarse[1] || a>coarse[end])
+            c=if outside_endogenous || outside_constrained
                 T(NaN)
+            elseif binding
+                pchip_evaluate(coarse,constrained,constrained_slopes,a)
             else
                 pchip_evaluate(a_today,c_s,slopes,a)
             end
