@@ -15,8 +15,11 @@ function savecsv(path::AbstractString,x::AbstractArray)
 end
 
 function main()
-    length(ARGS)==1 || error("Pass FX fixture output directory")
+    (length(ARGS)==1 ||
+     (length(ARGS)==2 && ARGS[2]=="--checkpoint")) ||
+        error("Usage: julia export_stage3_fx_fixture.jl OUTPUT_DIR [--checkpoint]")
     directory=ARGS[1]
+    checkpoint_mode=length(ARGS)==2
     mkpath(directory)
     root=normpath(joinpath(@__DIR__,".."))
     st=solve_three_steady_states(default_parameters();verbose=false)
@@ -50,6 +53,21 @@ function main()
         x[t]=st.calibrated.K+(inp.initial.K-st.calibrated.K)*0.8^t
     end
     x[n:end].=st.calibrated.L
+    # Isolate the last ACCEPTED but UNCONVERGED 399-variable iterate.
+    # Never mistake it for a solved GE. This is an especially important
+    # off-equilibrium comparison: the original source-like EGM map
+    # may deviate from production much more here than at the first guess.
+    if checkpoint_mode
+        saved=joinpath(root,"results",
+                       "stage3_unleveraged_UNCONVERGED.checkpoint")
+        isfile(saved) ||
+            error("No unleveraged accepted-iterate checkpoint at $saved")
+        x=FMR2020.stage3_read_checkpoint(saved,2*n-1)
+        println("STAGE3 SOURCE-MAP AUDIT: accepted but UNCONVERGED " *
+                "checkpoint; 399 residuals will be reevaluated.")
+    else
+        println("STAGE3 SOURCE-MAP AUDIT: original initial K/L guess.")
+    end
     grid=inp.grids.fine
     savecsv(joinpath(directory,"fine_grid.csv"),grid)
     savecsv(joinpath(directory,"mu_pre.csv"),ctx.mu_pre)
