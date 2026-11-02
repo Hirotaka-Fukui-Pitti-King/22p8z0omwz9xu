@@ -169,3 +169,34 @@ and must be compared to Julia `w.aggregate_savings[t]`; target `a_prime` is now 
 **Current GE result remains**: unleveraged 399 unsolved at max scaled residual 0.0051466392021841875 after 3499 evaluations; leverage=1/16 and fixed 599 unsolved; Figures 1/4/5 unverified. The stopping residual is orders of magnitude larger than the measured map difference at the *initial* candidate. Check the last accepted-but-unconverged checkpoint for any growth in source-vs-production differences before attributing the stall to the grid.
 
 The GitHub cross-language CI: https://github.com/Hirotaka-Fukui-Pitti-King/22p8z0omwz9xu/actions/runs/41542097425 . Source unit corrections at current head have not yet completed CI as of this entry.
+
+
+## 2026-11-03: Original author MATLAB SOLUTIONS SUPPLIED AND INSPECTED (supersedes nonexistence speculation)
+
+The owner supplied the ACTUAL MATLAB/author-run solution files, not just original code:
+- exp_flex.mat (unleveraged reversal); stored **399-equation raw residual maximum 7.373721189196658e-9, L2 7.869627606062965e-8**; solved initial terms 0.9117778675311863.
+- exp_flex_lev16.mat (leveraged 1/16 reversal); **399-equation raw maximum 1.3536933352042979e-8, L2 7.837269646446639e-8**; solved initial terms 0.9098585114110708.
+- exp_both_41_lev16.mat (leveraged fixed exchange); **599-equation raw maximum 5.962021987215849e-10, L2 1.3117150854134083e-9**; fixed initial terms 1.0141756869497338.
+- SteadyStates.mat: calibrated beta=0.9832249176983235, vs prior Julia beta=0.9832249176502228, nearly identical.
+
+These saved residuals establish that the author's original MATLAB source HAS found numerical zeros; lack of a root in the **author residual map** is no longer a viable explanation for Julia's failure. The original Matlab files save the converged full solution vectors as k_l_exp (399) and k_l_t_fixed (599), not the pre-shock/initial guess k_l or kl_path. Treating the latter as the author root would be an indexing/variable-selection error.
+
+**Key economic facts independently recomputed from the actual user-supplied MATLAB policy / distribution arrays** (fine 769x7, t=1):
+| State | Post-FX positive mass below a_min | Minimum occupied available resources after saving a_min | Positive mass with budget equation gap >1e-8 | Max occupied budget gap | Mass-weighted absolute budget gap |
+|---|---:|---:|---:|---:|---:|
+| Unleveraged flexible shock | 0.0004774447906905504 | 0.4637287508447221 | 0 | approx machine epsilon | approx 4.08e-16 |
+| 1/16 leveraged flexible shock | **0.20612299381858398** | **0.23217244367238327** | **0.04688062761805478** | **0.006961346273793806** | **0.00015945300905686837** |
+| 1/16 leveraged fixed shock | **0.15095430944258192** | positive (occupied-budget check no gap) | 0 | approx machine epsilon | approx 1.55e-15 |
+
+The positive-mass budget gap in leveraged flexible is calculated DIRECTLY as 
+\`(1+r_t)a_{i}+[(ε_f−1)/ε_f](1−α)Y_t ex_j/E[ex]+Profits_t − m(x_t)c_{i,j,t}−a'_{i,j,t}\` using actual source arrays \`In_dis_exp,c_tran_fine_exp,dec_tran_fine_exp,r_t_exp,y_agg_exp,Profits_exp,params.ex\`. The worst state is fine asset index 116, productivity index 1, revalued current wealth −0.2487936594115256, source current consumption 0.13512665843915367, saving a_min −2.971518905359365e-6 and mass 0.0076223184958871815.
+
+This is NOT a failure of the 10^-5 source consumption floor for occupied mass (lowest occupied consumption in leveraged flexible is 0.13512665843915367, much larger than the floor). It is the original source's constrained-zone fine-grid PCHIP interpolated consumption combined with source rule setting saving exactly to a_min. Original method matches its own aggregate equations to 1e-8 even though selected individual numerical budgets differ. Current Julia's strict-budget EGM differs precisely where it insists on budget identity.
+
+**Crucial correction to former root-selection claim:** The prior initial guess low root 0.7865895867 had negative occupied household disposable resources under leverage 1/16. That was an OFF-EQUILIBRIUM guess, NOT the author's converged low root. At the ACTUAL author's leveraged solved K/L vector, first terms = **0.9098585114110708**, occupied min resources after lower savings = **+0.23217244367238327**. Thus the old infeasibility assertion must NOT be attributed to the author's ACTUAL solution. Source scalar fsolve(aggr,0.8) solves the aggregate trade equation and does not check individual budgets, but actual candidate K/L matters materially to feasibility. During source original solve, it first obtains the unleveraged root, then uses it as the leveraged starting guess, which can avoid spurious branch switching at the generic initial path.
+
+**Implementation decision:** Do NOT blindly change original 193 coarse to only 161 active nodes or vice versa as a cure. The author really uses complete 193 coarse / 769 fine including negative current assets after FX. Existing Julia's economic-strict EGM was an intentional deviation made without proving equivalence. Source-compatible policy at positive-mass negative-wealth points must be a separately labeled replication mode, and budget-validated corrected policy must remain distinct. They are not generally numerically identical as evidenced by the leveraged occupied budget gap.
+
+**NEW direct empirical gate**, commit eb4d640cccc2e065ff753c283208953b6168fdfe: \`scripts/evaluate_author_matlab_solution.jl\` evaluates **the owner's ACTUAL saved author-solved 399 + 399 + 599 vectors** with Julia's existing residual maps, without doing ANY new 399/599-dimensional root find. It compares all raw residual components, initial trade terms, and shock-date distribution. The corresponding full-precision 17-digit CSV bundle has been generated from the supplied MATLAB .mat files for user extraction into \`FMR-2020/results/author_reference/\`. It is not yet committed to the repo, and the new Julia evaluator has not run against the author's fixture; only static inspection and upstream author .mat numeric analysis have been performed. CI syntax+load is configured to run on the script.
+
+**Do not claim that a Julia 399 or 599 root has converged. The MATLAB author's roots DO exist and the supplied files prove it.** Next step is measuring Julia's residual at those *exact* roots, not another generic trust-region/Broyden modification.
