@@ -1,0 +1,38 @@
+name: FMR 2020 source algorithm audit
+on:
+  push:
+    branches:
+      - research/fmr-2020-stage3-sudden-stop-exchange-regimes
+    paths:
+      - 'FMR-2020/src/**'
+      - 'FMR-2020/test/**'
+      - 'FMR-2020/scripts/check_syntax.jl'
+      - 'FMR-2020/scripts/validate_sudden_stop.jl'
+      - '.github/workflows/fmr-stage3-source-audit.yml'
+  pull_request:
+    paths:
+      - 'FMR-2020/src/**'
+      - 'FMR-2020/test/**'
+      - '.github/workflows/fmr-stage3-source-audit.yml'
+  workflow_dispatch:
+
+jobs:
+  julia-source-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: FMR-2020
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.12.6'
+      - name: Instantiate Julia environment
+        run: julia --project=. -e 'using Pkg; Pkg.instantiate()'
+      - name: Parse all Julia files and load FMR2020
+        run: julia --project=. scripts/check_syntax.jl
+      - name: Unit tests, source full-grid EGM regression and docstrings
+        run: julia --project=. test/runtests.jl
+      - name: Independent Stage 3 shock and price-block smoke
+        run: julia --project=. scripts/validate_sudden_stop.jl
