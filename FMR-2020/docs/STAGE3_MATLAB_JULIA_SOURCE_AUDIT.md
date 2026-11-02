@@ -231,3 +231,17 @@ Here g(x)>0 at its GLOBAL minimum on x>0, so **there is no positive scalar goods
 New test in test/test_stage3.jl checks BOTH observed author C,E,D coefficient sets have no admissible first-period positive trade-price root. This is a deterministic mathematical regression based on actual uploaded solution values, and was added without changing any economic solver equations. Julia CI test execution for the new test must be verified separately.
 
 The exact source MATLAB 399 and 599 vectors (k_l_exp / k_l_t_fixed), raw residuals, first-period terms, and inherited distribution have been exported as 17-digit Float64 CSV fixtures from uploaded .mat files. Script scripts/evaluate_author_matlab_solution.jl compares them to Julia without nonlinear root-solving; the results have NOT yet been run on those fixture files.
+
+
+### Refinement: household realized domestic consumption vs source inner trade equation (author saved arrays)
+
+At source author t=1, THREE domestic consumption quantities must be distinguished:
+1. \`c_t_agg_exp\`: aggregate home consumption inferred from asset-initial and budget/expenditure closure, used by scalar \`fsolve(aggr,0.8)\`.
+2. \`net_c_exp\`: domestic-home-goods resource supply from actual production/investment/export goods equation.
+3. \`c_t_exp\`: consumption aggregated from actual initial cross-sectional household distribution and source fine-grid policy.
+
+In exp_flex.mat, at t=1, (1)-(2)=0.024336037042358205 and (3)-(2)=0.024336047061604527. Under leverage 1/16 in exp_flex_lev16.mat, (1)-(2)=0.002110419278378961, while **actual household goods-market gap (3)-(2)=0.004335227648397888**. The extra realized-vs-budget gap (3)-(1)=0.002224808370018927 arises from both a post-FX aggregate wealth discrepancy and source fine PCHIP policy's binding-budget error. At leveraged t=1 post-FX: actual wealth from \`In_dis_exp\` fine-grid distribution is 23.18382926153688, while aggregate valuation \`qprev K + BGprev xprev/x\` is 23.179763968727837, difference **0.004065292809041665**. Thus the source MATLAB 399 root violates first-period household goods clearing even more than the nested scalar fsolve gap suggests. This is why keeping clear the two separate goods residuals is essential.
+
+For exp_both_41_lev16.mat, the fixed-exchange \`c_t_fixed\` versus \`net_c_fixed\` gap is at most 3.2913005654222616e-10 across 200 periods: unlike flexible, the author's fixed-exchange **599-equation** code explicitly includes the goods-market residual and its saved solution passes this aggregate comparison. The variable \`c_t_agg_fixed\` remains all zeros in the saved source workspace and is NOT actual household consumption; comparing it to net_c_fixed would be a category error.
+
+This source-level and numerical finding establishes why MATLAB running and reporting a 399-vector residual <=1e-8 does not mean the flexible system has a true goods-clearing GE. The author's 599-dimensional fixed solution passes the saved aggregate goods test, albeit the model's independent KKT/Euler checks and reproduction in Julia remain to be done.
