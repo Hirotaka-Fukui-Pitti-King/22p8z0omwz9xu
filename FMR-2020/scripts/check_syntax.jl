@@ -1,6 +1,16 @@
 # Run from the project with: julia --project=. scripts/check_syntax.jl
 root_dir = normpath(joinpath(@__DIR__,".."))
 count = 0
+# Parsing does not catch two adjacent Julia docstrings: Julia attaches the
+# first to the second string and package loading then fails with "cannot
+# document the following expression". Reject that exact pattern EARLY.
+triple_quote = "\"\"\""
+adjacent_docstrings = Regex("(?s)" * triple_quote * ".*?" *
+                            triple_quote * "\\s*" * triple_quote)
+example_bad = triple_quote * "first" * triple_quote * "\n" *
+              triple_quote * "second" * triple_quote
+occursin(adjacent_docstrings, example_bad) ||
+    error("Adjacency guard self-test failed")
 for (dir, _, names) in walkdir(root_dir)
     for name in names
         endswith(name,".jl") || continue
@@ -8,7 +18,11 @@ for (dir, _, names) in walkdir(root_dir)
         # Meta.parseall may return an AST with nested Expr(:error) or
         # Expr(:incomplete) instead of throwing a ParseError. Explicitly
         # reject those expressions; printing "PARSE OK" is insufficient.
-        expr = Meta.parseall(read(path,String);filename=path)
+        source = read(path,String)
+        occursin(adjacent_docstrings,source) &&
+            error("Consecutive Julia docstrings in $(relpath(path,root_dir)); " *
+                  "replace an unattached documentation string with # comments")
+        expr = Meta.parseall(source;filename=path)
         function check_parse_tree(node)
             if node isa Expr
                 (node.head === :error || node.head === :incomplete) &&
