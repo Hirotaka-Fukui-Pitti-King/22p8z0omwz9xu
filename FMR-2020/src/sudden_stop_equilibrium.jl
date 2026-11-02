@@ -1,9 +1,8 @@
 
-"""
-Stage 3 reuses the Stage 2 399-variable economic closure, but introduces
-the source author's foreign-debt revaluation INSIDE EVERY candidate-path
-evaluation. Its household policies and distributions are recomputed each time.
-"""
+# Stage 3 reuses the Stage 2 399-variable economic closure, but introduces
+# the source author's foreign-debt revaluation INSIDE EVERY candidate-path
+# evaluation. Its household policies and distributions are recomputed each time.
+#
 """
 For negative opening foreign bonds, the source trade-price equation is
 

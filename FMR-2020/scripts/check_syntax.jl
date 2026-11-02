@@ -25,4 +25,10 @@ for (dir, _, names) in walkdir(root_dir)
     end
 end
 count > 0 || error("No Julia files found")
-println("Parsed ",count," Julia files (parse only; does not execute).")
+println("Parsed ",count," Julia files (parse only).")
+
+# A valid Meta.parseall result does not prove that Julia can evaluate the
+# module: malformed docstring attachment is one example. Load the actual
+# package after parsing every Julia file to catch such top-level errors.
+using FMR2020
+println("LOAD OK: FMR2020 (module loaded; economic tests not executed)")
