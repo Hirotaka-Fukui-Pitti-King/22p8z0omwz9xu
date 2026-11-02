@@ -1,0 +1,2 @@
+STAGE3 FAILED: Stage3 line search failed at iteration=12; max=0.021569342187721885
+No solution or figure may be claimed from this failure.
