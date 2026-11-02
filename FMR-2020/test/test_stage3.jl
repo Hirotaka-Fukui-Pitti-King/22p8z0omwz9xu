@@ -55,9 +55,7 @@ using FMR2020
             goods_gap(x)=-C-E/x+D/x^3
             @test isapprox(goods_gap(x_author),gap_author;atol=1e-10)
             @test goods_gap(xstar)>0
-            @test isapprox(goods_gap(xstar),
-                           min(goods_gap(x_author),goods_gap(xstar));
-                           atol=1e-10)
+            @test goods_gap(xstar)<=goods_gap(x_author)+1e-10
             @test_throws DomainError FMR2020.foreign_debt_trade_root(
                 C,E,D,3.0)
             @test_throws DomainError FMR2020.foreign_debt_trade_roots(
