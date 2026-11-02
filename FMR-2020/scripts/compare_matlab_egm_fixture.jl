@@ -219,7 +219,9 @@ function main()
                        atol=1e-6)
     end
     source_A=read_numeric_csv(joinpath(ge_output,"matlab_aggregate_A.csv"))
-    source_A=source_A[1:end-1,:]
+    # MATLAB's returned a_prime is target capital+bonds, NOT household
+    # realized savings; fixture exporter reconstructs a_prime_t from
+    # source asset-market residual R_K and the candidate K/B/q.
     assert_fixture("tail-extrapolated source 399 aggregate savings",
                    read_numeric_csv(joinpath(fx_input,"julia_aggregate_A.csv")),
                    source_A;atol=1e-6)
