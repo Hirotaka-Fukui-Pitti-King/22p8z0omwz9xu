@@ -140,3 +140,32 @@ That failure is consistent with original fine-grid PCHIP `interp1(...,'pchip')` 
 **New reference-only experiment (commit 509a972ef)**: the author's original `backsolve_egm.m` is preserved and tested literally first, with failure logged explicitly. Separately, an unchanged-source copy except for `interp1(...,'pchip','extrap')` at two fine-grid interpolations is run as **tail-extrapolated source reference** on identical data. This removes undefined off-support fine policy evaluations without imposing a consumption floor beyond the author's original one. Its results are compared with Julia's **unscaled** 399 GE residual vector, period-by-period trade prices, rates, wages, C and A. Both successful numeric equality and any failure must be recorded without equating the two source versions.
 
 No MATLAB original 399-root solve, Julia 399-root solve, or 599-root solve was executed in this direct-source comparison. The reference variant is NOT certified budget-feasible at positive-mass extrapolated nodes; this must be independently checked before treating it as an economic solution. CI for commit 509a972ef is pending as of this audit entry.
+
+
+## Direct same-input 399-vector numerical check — CI 41542097425 (2026-11-03)
+
+After separating literal original (which fails with `params(nan)` at `backsolve_egm.m:176`) from the explicitly labeled **two-tail-PCHIP-extrapolation reference variant**, the adapted MATLAB source evaluated and returned a **finite** raw 399-vector. On exactly the same K/L path, B, shock-date 769x7 distribution, full 193x7 calibrated terminal policy, and original MATLAB parameters:
+
+| Same-input comparison: adapted MATLAB source vs production Julia | Maximum absolute difference |
+|---|---:|
+| RAW 399 residuals `solve_transition_bis.m` vs `stage3_unscale_residual!` | **1.498253787701742e-7**, index 199 |
+| Terms of trade (200 periods) | 5.9499132176732417e-8, at 200 |
+| Asset return | 2.220446049250313e-16 |
+| Wage | 2.220446049250313e-16 |
+| Domestic consumption aggregate | 6.338659463978047e-8, at period 1 |
+
+MATLAB adapted-source raw residual maximum norm 1.68142 and Euclidean norm 13.1893, confirming this was ONLY a **candidate residual evaluation**, not a solved 399-equation equilibrium. Raw source and normalized Julia residuals have different magnitudes by construction, but raw 399-vector comparisons above are in the **same units**.
+
+The CI comparator initially marked the separate *aggregate savings* check as FAILED, displaying Julia household savings 21.665907578130664 vs MATLAB 23.340396277382485. **This was a COMPARATOR ERROR**, not source economic disagreement: `solve_transition_bis.m` returns `a_prime`, which is the exogenous TARGET asset supply `B_t+q_tK_(t+1)`, **not** household `a_prime_t` computed inside `backsolve_egm.m`. Household realized savings are reconstructed in exact source units as
+
+```
+A_household_t = B_t + q_t * ( K_(t+1) + R_asset_MATLAB_t )
+```
+
+and must be compared to Julia `w.aggregate_savings[t]`; target `a_prime` is now exported separately. This correction is in commit `42d966b56b06b24141695fa0a1f8c61e48180906`. It is NOT necessary to modify the production economic equations to address a faulty comparison.
+
+**Interpretation:** Together with the independent full-source-like 399 residual difference <=4.72e-8 (scaled), the direct adapted-MATLAB-vs-Julia <=1.5e-7 (unscaled) is strong evidence that the *initial-path* 399 economic residual maps are practically identical on the occupied-state support. This observation **contradicts the hypothesis that switching 161 to 193 active coarse nodes automatically fixes nonconvergence**. It does not establish full-path Jacobian equivalence, equivalence under all nonlinear perturbations, mathematical existence of a GE root, or exact equality of literal MATLAB source (which fails on NaN indexing at this candidate).
+
+**Current GE result remains**: unleveraged 399 unsolved at max scaled residual 0.0051466392021841875 after 3499 evaluations; leverage=1/16 and fixed 599 unsolved; Figures 1/4/5 unverified. The stopping residual is orders of magnitude larger than the measured map difference at the *initial* candidate. Check the last accepted-but-unconverged checkpoint for any growth in source-vs-production differences before attributing the stall to the grid.
+
+The GitHub cross-language CI: https://github.com/Hirotaka-Fukui-Pitti-King/22p8z0omwz9xu/actions/runs/41542097425 . Source unit corrections at current head have not yet completed CI as of this entry.
