@@ -93,7 +93,8 @@ using FMR2020
         @test length(gr.coarse_full)==193
         @test gr.coarse_full[33]==gr.borrowing_limit
         chain=rouwenhorst(params)
-        full_future=fill(10.0,193,params.n_s)
+        full_future=repeat(reshape(1.0 .+ 0.02 .* max.(gr.coarse_full,0.0),
+                                   :,1),1,params.n_s)
         source=source_matlab_egm_step(
             gr,chain,params,full_future,0.98,0.01,0.01,
             1.0,1.8,1.0,0.25)

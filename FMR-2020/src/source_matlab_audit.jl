@@ -89,9 +89,15 @@ function source_matlab_egm_step(gr::AssetGrids{T},
         for i in 1:nf
             a=fine[i]
             binding=a<=threshold
-            c=binding ?
-                pchip_evaluate(coarse,constrained,constrained_slopes,a) :
+            # Source MATLAB interp1(...,'pchip') without 'extrap'
+            # returns NaN outside the endogenous-knot range.
+            c=if binding
+                pchip_evaluate(coarse,constrained,constrained_slopes,a)
+            elseif a<a_today[1] || a>a_today[end]
+                T(NaN)
+            else
                 pchip_evaluate(a_today,c_s,slopes,a)
+            end
             cf[i,j]=c
             af[i,j]=binding ? gr.borrowing_limit :
                 gross_now*a+income-m*c

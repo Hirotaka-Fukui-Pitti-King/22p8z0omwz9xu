@@ -14,7 +14,8 @@ function read_numeric_csv(path::AbstractString)
         throw(DimensionMismatch("Inconsistent MATLAB fixture columns: $path"))
     mat=Matrix{Float64}(undef,length(rows),n)
     for (i,row) in enumerate(cells),j in 1:n
-        mat[i,j]=parse(Float64,strip(row[j]))
+        cell=strip(row[j])
+        mat[i,j]=uppercase(cell)=="NA" ? NaN : parse(Float64,cell)
     end
     return mat
 end
@@ -23,7 +24,21 @@ function assert_fixture(label::String, ours::AbstractArray, theirs::AbstractArra
                         atol::Float64=1e-8)
     size(ours)==size(theirs) ||
         error("$label dimensions differ: Julia=$(size(ours)) MATLAB=$(size(theirs))")
-    dif=abs.(ours.-theirs)
+    omiss=isnan.(ours)
+    mmiss=isnan.(theirs)
+    omission_diff=count(omiss .!= mmiss)
+    println(label,": undefined MATLAB=",count(mmiss),
+            " undefined Julia=",count(omiss),
+            " unmatched_undefined=",omission_diff)
+    omission_diff==0 ||
+        error("SOURCE PCHIP DOMAIN DISAGREEMENT in $label; " *
+              "NaN status must match at every asset/productivity index")
+    valid=.!mmiss
+    all(isfinite.(ours[valid])) && all(isfinite.(theirs[valid])) ||
+        error("Nonfinite source-policy values outside expected NaN mask")
+    any(valid) || error("No numerically valid source comparison nodes: $label")
+    dif=zeros(Float64,size(ours))
+    dif[valid] .=abs.(ours[valid].-theirs[valid])
     k=argmax(dif)
     gap=dif[k]
     println(label,": max_abs_error=",gap," index=",Tuple(k),
