@@ -46,3 +46,19 @@ The new one-pass `scripts/diagnose_stage3_initial.jl` completed successfully. Bo
 **Process safety update:** `scripts/run_sudden_stop.jl --unleveraged-only` now computes only the unleveraged 399-variable reversal, independently verifies all GE and household diagnostics, saves `results/stage3_unleveraged_transition.csv` and exits. The full run can reuse that saved K/L vector as a warm start, rechecking every GE residual before accepting it. `stage3_nonlinear_solve` now enforces at most 5000 exact residual evaluations per nonlinear solve, matching original MATLAB `MIT_transition.m` `MaxFunEvals=5000`. The evaluation cap is a time/cost guard, not a relaxation of equilibrium conditions. On failure it throws and DOES NOT produce plots as if a solution existed.
 
 The new source changes are not yet Julia syntax-tested, loaded, unit-tested or numerically run on the owner's PC. The earlier 2496 tests belong only to the previous commit. Do not claim completion of any Stage 3 nonlinear GE.
+
+
+## 2026-11-03: unleveraged full GE hit evaluation limit (owner Windows Julia)
+
+The owner ran Julia 1.12.6 on the prior source: all **35** Julia files parsed and FMR2020 loaded; **2,420 + 37 + 39 = 2,496** unit tests passed. The original-source-order unleveraged credit reversal (initial positive household-resource min 0.4708108) proceeded but **did NOT solve the 399 equations within the 5000 evaluation cap**:
+
+- iteration 0: max scaled residual **0.05651597863384016** and residual 2-norm **0.4992912129602136**;
+- iteration 11: max scaled residual **0.00897660738511874** and 2-norm **0.03254463187358031**;
+- limit hit while rebuilding a 399-column Jacobian at iteration 12. This is evidence of substantial initial improvement but not convergence and not proof of no solution.
+- The first few accepted steps lowered the 2-norm by 58.7%, 44.0%, and 7.65%. Repeated expensive numerical Jacobian recalculations on small step sizes consumed the function budget.
+
+**Numerical work-cost correction**: drop the policy that refreshes all 399 Jacobian columns simply because an accepted line-search damping was <1/8. Instead, refresh when two consecutive improvements are <2%, on the scheduled refresh interval, or when an existing Broyden direction fails. Also avoid a second redundant refresh in the same iteration. Keep the same economic residuals and strict 1e-6 acceptance check.
+
+**Checkpointing**: `stage3_write_checkpoint` writes only accepted but **UNCONVERGED** 399-vector states to a distinct file `results/stage3_unleveraged_UNCONVERGED.checkpoint` with a signature, dimension, iteration, maximum residual and values. It is NEVER treated as `stage3_unleveraged_transition.csv` or accepted output. Subsequent `--unleveraged-only` runs start from that checkpoint if no validated CSV exists, recomputing all current residuals; on verified convergence the checkpoint is removed and the validated CSV is written. Atomic temporary-file replacement avoids partial writes. A small unit test checks roundtrip, dimensions and finite values. The 5000 residual evaluations per run are retained.
+
+**Verification:** This new patch has been statically reviewed only, with no duplicate consecutive docstrings and correct LM function docstring attachment. The owner has not run syntax/load, test or 399-variable GE on the latest commit. Neither the 399-variable flexible sudden stop nor the 599-variable fixed sudden stop is verified.
