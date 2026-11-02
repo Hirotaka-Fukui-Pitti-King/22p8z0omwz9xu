@@ -78,20 +78,18 @@ for j=1:7
                 interp1(a_today,c_s,Agrid(i),'pchip'),consumption_floor);
         end
     end
-    for i=1:769
-        if Agrid_fine(i)<=threshold
-            fine_consumption(i,j)=interp1(Agrid,c_constrained, ...
-                                         Agrid_fine(i),'pchip');
-            fine_savings(i,j)=bmin;
-        else
-            fine_consumption(i,j)=interp1(a_today,c_s, ...
-                                         Agrid_fine(i),'pchip');
-            fine_savings(i,j)=(1+r_now)*Agrid_fine(i)+income- ...
-                              m*fine_consumption(i,j);
-        end
-        fine_budget(i,j)=(1+r_now)*Agrid_fine(i)+income- ...
-                           m*fine_consumption(i,j)-fine_savings(i,j);
-    end
+    % Literal original solve_R.m:71-74 and backsolve_egm.m:99-108.
+    % MATLAB evaluates BOTH interpolants over all fine nodes, before
+    % multiplying by the Boolean masks. Therefore 0*NA remains NA.
+    % A branchwise if/else is a different numerical algorithm.
+    endo_fine=interp1(a_today,c_s,Agrid_fine,'pchip');
+    constrained_fine=interp1(Agrid,c_constrained,Agrid_fine,'pchip');
+    mask=(Agrid_fine>threshold);
+    fine_consumption(:,j)=mask.*endo_fine+(~mask).*constrained_fine;
+    fine_savings(:,j)=mask.*((1+r_now)*Agrid_fine+income- ...
+                            m*fine_consumption(:,j))+(~mask).*bmin;
+    fine_budget(:,j)=(1+r_now)*Agrid_fine+income- ...
+                      m*fine_consumption(:,j)-fine_savings(:,j);
 end
 % No estimate of an equilibrium, only matched one-step author formulas.
 dlmwrite(fullfile(output_dir,'coarse_grid.csv'),Agrid,'precision','%.17g');

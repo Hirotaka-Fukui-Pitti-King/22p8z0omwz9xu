@@ -109,8 +109,10 @@ function source_matlab_egm_step(gr::AssetGrids{T},
                 pchip_evaluate(a_today,c_s,slopes,a)
             end
             cf[i,j]=c
-            af[i,j]=binding ? gr.borrowing_limit :
-                gross_now*a+income-m*c
+            # Original MATLAB saving uses mask*(budget-c) +
+            # (1-mask)*bmin. If c is NaN, 0*NaN also produces NaN.
+            af[i,j]=isnan(c) ? T(NaN) :
+                (binding ? gr.borrowing_limit : gross_now*a+income-m*c)
             raw_budget[i,j]=gross_now*a+income-m*c-af[i,j]
         end
     end

@@ -100,9 +100,14 @@ using FMR2020
             1.0,1.8,1.0,0.25)
         @test size(source.coarse_consumption)==(193,7)
         @test size(source.fine_consumption)==(769,7)
-        @test all(isfinite,source.fine_consumption)
-        @test minimum(source.fine_consumption)>0
-        @test all(source.fine_savings .>= gr.borrowing_limit)
+        # MATLAB interp1 without extrapolation can return NaN for
+        # off-grid nodes. In its vectorized masked sum, 0*NaN is NaN.
+        # Do NOT misreport these as valid household decisions.
+        valid=isfinite.(source.fine_consumption)
+        @test any(valid)
+        @test all(source.fine_consumption[valid] .> 0)
+        @test all(isnan.(source.fine_savings) .== .!valid)
+        @test all(source.fine_savings[valid] .>= gr.borrowing_limit)
         # Enforced lower saving bound in the constrained region follows
         # author backsolve_egm.m, not a blanket household-debt clip.
         @test all(isfinite,source.endogenous_threshold)
@@ -112,7 +117,9 @@ using FMR2020
         for j in 1:params.n_s
             binding=findall(a->a<=source.endogenous_threshold[j],
                             gr.fine_full)
-            @test all(source.fine_savings[binding,j] .==
+            occupied_valid=[i for i in binding
+                            if isfinite(source.fine_savings[i,j])]
+            @test all(source.fine_savings[occupied_valid,j] .==
                       gr.borrowing_limit)
         end
         @test_throws DimensionMismatch source_matlab_egm_step(
