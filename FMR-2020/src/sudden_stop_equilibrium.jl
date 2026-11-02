@@ -438,12 +438,6 @@ end
 
 # Numerical Stage 3 solver: finite-difference Jacobian, Broyden updates,
 # and adaptive globalization for the same 399/599 GE equations.
-"""
-A Levenberg–Marquardt direction for the SAME GE equations. This is only
-a globalization fallback after a freshly recomputed Jacobian fails to
-produce a decreasing Newton step. A nonzero residual is never accepted
-as an equilibrium.
-"""
 # Persist accepted but NOT YET CONVERGED GE paths, separately from
 # verified economic outputs. The next run reevaluates all residuals.
 function stage3_write_checkpoint(path::AbstractString,
@@ -486,6 +480,12 @@ function stage3_read_checkpoint(path::AbstractString,n::Int)
     return x
 end
 
+"""
+A Levenberg–Marquardt direction for the SAME GE equations. This is only
+a globalization fallback after a freshly recomputed Jacobian fails to
+produce a decreasing Newton step. A nonzero residual is never accepted
+as an equilibrium.
+"""
 function stage3_lm_direction(J::Matrix{T}, f::Vector{T}, factor::T) where {T}
     n=length(f)
     size(J)==(n,n) || throw(DimensionMismatch("square GE Jacobian"))
