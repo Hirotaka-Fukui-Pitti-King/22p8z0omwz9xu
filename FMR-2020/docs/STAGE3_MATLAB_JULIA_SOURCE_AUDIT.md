@@ -125,3 +125,18 @@ julia --project=. scripts/export_stage3_fx_fixture.jl results/checkpoint_399_aud
 ```
 
 This reads `results/stage3_unleveraged_UNCONVERGED.checkpoint`, recomputes the current Julia production map and original-source-like full-grid EGM/distribution at that **same 399-vector**, and exports per-period residual discrepancies. This checkpoint is an accepted iterate, **not** an equilibrium. The source-vs-production 399-map difference there will determine whether the full-grid discretization materially explains the actual nonlinear solver failure.
+
+
+## 2026-11-03: Direct original 399-variable source failed on imported Julia initial candidate
+
+A new standalone comparison calls the original unmodified `Transition/solve_transition_bis.m` once with the **exact 399 K/L candidate, original 193×7 calibrated terminal consumption policy, original 769×7 terminal fine policy, shock-date 769×7 distribution, source B[1:200], production/price parameters and the original MATLAB files**.
+
+- Initial CI [run 41540924802](https://github.com/Hirotaka-Fukui-Pitti-King/22p8z0omwz9xu/actions/runs/41540924802) stopped because Octave lacks MATLAB's `optimoptions` (pure API portability, not evidence of GE mismatch).
+- Added an **Octave-only** `optimoptions('fsolve',...)` compatibility adapter that uses Octave's native fsolve; this is **not MATLAB's Levenberg–Marquardt** and cannot be claimed equivalent without checking roots.
+- With that portability fix, the actual original function in [run 41541360334](https://github.com/Hirotaka-Fukui-Pitti-King/22p8z0omwz9xu/actions/runs/41541360334) stopped: `error: params(nan): subscripts must be either integers 1 to ...`; stack `Transition/backsolve_egm.m:176`, from `solve_transition_bis.m:161`. The original source attempts to use a **NaN fine-grid savings interpolation index** before returning its 399-dimensional residual vector. The direct source residual map is thus **undefined at this particular imported candidate**. This does NOT prove it is undefined at the author's original solved candidate.
+
+That failure is consistent with original fine-grid PCHIP `interp1(...,'pchip')` being out of its knot range and MATLAB's masked arithmetic propagating `0*NaN=NaN` into `dec_temp_fine`. The controlled source-style Julia EGM already reported **four NaNs at high fine-grid nodes during many intermediate dates**, with zero positive mass at these nodes for this initial candidate. This makes a zero-probability tail interpolation domain a plausible direct cause, but it must be verified by changing the interpolation mode in a separately labeled reference implementation.
+
+**New reference-only experiment (commit 509a972ef)**: the author's original `backsolve_egm.m` is preserved and tested literally first, with failure logged explicitly. Separately, an unchanged-source copy except for `interp1(...,'pchip','extrap')` at two fine-grid interpolations is run as **tail-extrapolated source reference** on identical data. This removes undefined off-support fine policy evaluations without imposing a consumption floor beyond the author's original one. Its results are compared with Julia's **unscaled** 399 GE residual vector, period-by-period trade prices, rates, wages, C and A. Both successful numeric equality and any failure must be recorded without equating the two source versions.
+
+No MATLAB original 399-root solve, Julia 399-root solve, or 599-root solve was executed in this direct-source comparison. The reference variant is NOT certified budget-feasible at positive-mass extrapolated nodes; this must be independently checked before treating it as an economic solution. CI for commit 509a972ef is pending as of this audit entry.
