@@ -25,3 +25,24 @@ Previous Julia Stage 3 skipped step 2 and attempted step 3 directly from a stati
 ## Verification limitation
 
 This new patch has been read back from the current branch, but **not syntax-checked or executed in Julia**. Whether the unleveraged 399-equation equilibrium converges is not yet known. The leveraged 399-equation and fixed 599-equation solutions, and Figures 1/4/5, remain unverified. Run scripts/check_syntax.jl and test/runtests.jl on Windows before running scripts/diagnose_stage3_initial.jl. Do not run the expensive full script again unless the one-pass diagnostic confirms the initial conditions are feasible.
+
+## 2026-11-03: Owner one-pass residual results and low-cost staged solve
+
+Owner Windows Julia 1.12.6: 35 files parsed, module load succeeded, 2420+37+39=2496 unit tests passed. Stage 3 corrected foreign-denominated credit expansion verified at maximum scaled GE residual 3.551030838266911e-7.
+
+The new one-pass `scripts/diagnose_stage3_initial.jl` completed successfully. Both cases have strictly positive minimum resources in each occupied revalued household state, and probability mass is conserved. These tests verify initial feasible household budgets, NOT full equilibrium.
+
+| Statistic at identical original-source initial K/L guess | No leverage | Leverage 1/16 |
+|---|---:|---:|
+| Selected initial terms of trade | 0.7865895866917804 | 1.037916643090368 |
+| Min resources across occupied post-FX nodes | 0.4708108248444556 | 0.48493043012136894 |
+| Full GE residual 2-norm | 0.4992912129602136 | 0.14595616021482744 |
+| Max absolute scaled asset residual | 0.05651597863384016 | 0.009992184169123416 |
+| Max absolute scaled labor residual | 0.0420581405452537 | 0.021003904982795363 |
+| Period-1 labor residual | 0.0420581405452537 | 0.021003904982795363 |
+
+**Interpretation:** The no-leverage starting vector is further from GE than the leveraged vector in norm. Neither norm establishes existence or nonexistence of a fully feasible GE. The original MATLAB Main.m calls fsolve on no-leverage first (MIT_transition.m), then leverages warm-start from its solution. Julia has been changed to do the same, but this new solve is unverified.
+
+**Process safety update:** `scripts/run_sudden_stop.jl --unleveraged-only` now computes only the unleveraged 399-variable reversal, independently verifies all GE and household diagnostics, saves `results/stage3_unleveraged_transition.csv` and exits. The full run can reuse that saved K/L vector as a warm start, rechecking every GE residual before accepting it. `stage3_nonlinear_solve` now enforces at most 5000 exact residual evaluations per nonlinear solve, matching original MATLAB `MIT_transition.m` `MaxFunEvals=5000`. The evaluation cap is a time/cost guard, not a relaxation of equilibrium conditions. On failure it throws and DOES NOT produce plots as if a solution existed.
+
+The new source changes are not yet Julia syntax-tested, loaded, unit-tested or numerically run on the owner's PC. The earlier 2496 tests belong only to the previous commit. Do not claim completion of any Stage 3 nonlinear GE.
