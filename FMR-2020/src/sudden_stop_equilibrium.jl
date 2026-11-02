@@ -48,6 +48,67 @@ function foreign_debt_trade_root(C::T,E::T,D::T,theta_star::T) where {T<:Abstrac
     return root.root
 end
 
+
+"""
+Compute all strictly positive roots of the original scalar trade equation.
+The low root alone is NOT generally a feasible heterogeneous-household GE:
+after FX debt revaluation, occupied states may violate the household budget.
+"""
+function foreign_debt_trade_roots(C::T,E::T,D::T,theta_star::T) where {T<:AbstractFloat}
+    low=foreign_debt_trade_root(C,E,D,theta_star)
+    peak=(theta_star*D/E)^(inv(theta_star-one(T)))
+    high=nothing
+    if C<zero(T)
+        f(x)=C+E/x-D*x^(-theta_star)
+        upper=T(2)*peak
+        for _ in 1:100
+            f(upper)<zero(T) && break
+            upper*=T(2)
+        end
+        isfinite(upper) && f(upper)<zero(T) ||
+            throw(DomainError(upper,"unable to bracket upper positive trade root"))
+        root=bracketed_root(f,peak,upper;tol=T(1e-11),maxiter=110)
+        high=root.root
+        high>peak || throw(DomainError(high,"upper trade root not above peak"))
+    end
+    return (low=low,high=high,peak=peak)
+end
+
+"""
+Necessary feasibility test, before backward EGM, on the exact positively
+weighted grid states created by the original distribution mass-splitting
+scheme. It rejects the author MATLAB's numerical consumption floor when that
+floor would give a household resources below its exogenous borrowing limit.
+No zero-mass exception, borrowing-limit relaxation, or probability clipping.
+"""
+function initial_revaluation_budget_support!(w::TransitionWorkspace{T},
+                                              ctx::Stage3Context{T},
+                                              terms::T) where {T}
+    inp=ctx.economy
+    p=inp.params
+    grid=inp.grids.fine
+    mu=view(w.distribution,:,:,1)
+    revalue_foreign_debt!(mu,ctx.mu_pre,grid,w.K[1],
+                          inp.q_initial,inp.B_initial,
+                          ctx.terms_pre,terms,ctx.leverage_hat;
+                          foreign=ctx.foreign)
+    gross=one(T)+w.rate[1]
+    minresource=T(Inf)
+    minstate=(0,0)
+    for j in axes(mu,2),i in axes(mu,1)
+        mu[i,j]>zero(T) || continue
+        earnings=w.wage[1]*w.L[1]*inp.chain.levels[j]+w.profits[1]
+        disposable=gross*grid[i]+earnings-inp.grids.borrowing_limit
+        if disposable<minresource
+            minresource=disposable
+            minstate=(i,j)
+        end
+    end
+    return (feasible=isfinite(minresource)&&minresource>zero(T),
+            minresource=minresource,minstate=minstate,
+            occupied_mass=sum(mu))
+end
+
 function stage3_positive_trade_root(w::TransitionWorkspace{T},
                                    ctx::Stage3Context{T}) where {T}
     inp=ctx.economy
@@ -56,16 +117,38 @@ function stage3_positive_trade_root(w::TransitionWorkspace{T},
     outwealth=inp.B[1]+w.q[1]*w.K[2]
     other=w.wage[1]*w.L[1]+w.profits[1]
     gross=one(T)+w.rate[1]
-    # Exactly the original first-period household wealth revaluation
-    # q_initial*K_initial+B_initial*terms_pre/x. No missing return factor.
     C=expenditure-p.chi*(gross*inp.q_initial*w.K[1]-outwealth+other)
     E=-p.chi*gross*inp.B_initial*ctx.terms_pre
     D=inp.reference.export_shift
-    if E<=zero(T)
-        throw(DomainError(E,
-            "negative inherited foreign bonds required for lower-branch rule; audit other-sign debt case"))
+    E>zero(T) ||
+        throw(DomainError(E,"negative inherited foreign bonds required for this root map"))
+    roots=foreign_debt_trade_roots(C,E,D,p.theta_star)
+    # MATLAB fsolve(aggr,0.8) may return the lower root, but it also
+    # imposes c=max(c_budget,1e-5) even on households whose budgets
+    # CANNOT fund c=1e-5. The correct GE must pass household feasibility.
+    # Prefer the author's lower branch only if it is truly feasible.
+    lowcheck=initial_revaluation_budget_support!(w,ctx,roots.low)
+    highcheck=roots.high===nothing ? nothing :
+              initial_revaluation_budget_support!(w,ctx,roots.high)
+    selected=if lowcheck.feasible
+        roots.low
+    elseif highcheck!==nothing && highcheck.feasible
+        roots.high
+    else
+        throw(DomainError((roots.low,roots.high,lowcheck,
+                           highcheck),
+            "neither trade-price branch supports positive-mass household budgets"))
     end
-    return foreign_debt_trade_root(C,E,D,p.theta_star)
+    if w.function_evals==1
+        println("STAGE3 TRADE ROOTS low=",roots.low,
+                " high=",roots.high,
+                " low_budget_min=",lowcheck.minresource,
+                " high_budget_min=",highcheck===nothing ? "N/A" :
+                                      highcheck.minresource,
+                " selected=",selected,
+                " (no household consumption floor)")
+    end
+    return selected
 end
 
 function stage3_flexible_prices!(w::TransitionWorkspace{T},
