@@ -1,9 +1,13 @@
-function export_original_399_residual(original_root,input_dir,terminal_dir,output_dir)
+function export_original_399_residual(original_root,input_dir,terminal_dir,output_dir,mode)
 % Evaluate the UNMODIFIED original author's 399-equation residual function
 % at precisely the K/L path and shock-date distribution exported by Julia.
 % Do not call outer fsolve. Unscaled original source units are preserved.
-if nargin~=4
-    error('Usage: export_original_399_residual(original_root,input_dir,terminal_dir,output_dir)');
+if nargin<4 || nargin>5
+    error('Expected original_root, input_dir, terminal_dir, output_dir, [mode]');
+end
+if nargin==4, mode='literal'; end
+if ~strcmp(mode,'literal') && ~strcmp(mode,'tail_extrapolation')
+    error('Unsupported original MATLAB residual evaluation mode');
 end
 addpath(fullfile(original_root,'Transition'));
 addpath(fullfile(original_root,'Exogenous_files'));
@@ -12,6 +16,16 @@ addpath(fullfile(original_root,'Exogenous_files'));
 % economics and residual function files are unchanged.
 if exist('OCTAVE_VERSION','builtin')
     addpath(fullfile(fileparts(mfilename('fullpath')),'octave_compat'));
+end
+if strcmp(mode,'tail_extrapolation')
+    % Source-compatibility TEST variant, not the original: avoids only
+    % out-of-support PCHIP NaN at fine-grid nodes. It MUST NOT be
+    % described as literal author execution, and equality is not assumed.
+    addpath(fullfile(fileparts(mfilename('fullpath')),
+                     'octave_compat','source_support'));
+    fprintf('REFERENCE VARIANT ONLY: fine-grid PCHIP tail extrapolation enabled\n');
+else
+    fprintf('LITERAL ORIGINAL backsolve_egm.m with no source patches\n');
 end
 if ~exist('solve_transition_bis','file') || ~exist('basefun','file')
     error('Original source Transition/solve_transition_bis.m or basefun.m missing');
