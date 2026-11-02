@@ -68,6 +68,21 @@ function main()
     else
         println("STAGE3 SOURCE-MAP AUDIT: original initial K/L guess.")
     end
+    # Export ALL inputs needed to call the author's unmodified
+    # Transition/solve_transition_bis.m at the exact same 399-vector.
+    # This is a direct original-source residual evaluation, NOT fsolve.
+    p=inp.params
+    savecsv(joinpath(directory,"candidate_399.csv"),x)
+    savecsv(joinpath(directory,"B_stop.csv"),inp.B)
+    savecsv(joinpath(directory,"z_path.csv"),inp.z)
+    savecsv(joinpath(directory,"coarse_grid.csv"),st.grids.coarse_full)
+    savecsv(joinpath(directory,"productivity.csv"),inp.chain.levels)
+    savecsv(joinpath(directory,"transition.csv"),inp.chain.transition)
+    savecsv(joinpath(directory,"source_parameters.csv"),Float64[
+        st.calibrated.beta,p.chi,p.theta,p.gamma,p.alpha,p.delta,
+        p.epsilon_f,p.epsilon_w,inp.phi_ac,p.theta_star,
+        inp.reference.export_shift,inp.reference.chi_dis,
+        inp.terminal.K,p.grid_min_z,p.grid_power])
     grid=inp.grids.fine
     savecsv(joinpath(directory,"fine_grid.csv"),grid)
     savecsv(joinpath(directory,"mu_pre.csv"),ctx.mu_pre)
@@ -99,6 +114,13 @@ function main()
             # Evaluate occupied probabilities under the ORIGINAL
             # Julia candidate path, without claiming it is a GE.
             FMR2020.stage3_distribution_forward!(w,case)
+            # Store the unscaled Julia 399-vector for DIRECT comparison
+            # with the original MATLAB source's raw residual vector.
+            prod=zeros(Float64,2*n-1)
+            FMR2020.stage3_market_residual!(prod,w,case)
+            raw=similar(prod)
+            stage3_unscale_residual!(raw,prod,case)
+            savecsv(joinpath(directory,"julia_raw_399.csv"),raw)
             calibrated=st.calibrated
             refpolicy=source_matlab_stationary_egm(
                 st.grids,st.chain,p,calibrated.beta,calibrated.r,
