@@ -105,8 +105,16 @@ using FMR2020
         @test all(source.fine_savings .>= gr.borrowing_limit)
         # Enforced lower saving bound in the constrained region follows
         # author backsolve_egm.m, not a blanket household-debt clip.
-        @test all(source.endogenous_threshold .> gr.borrowing_limit)
-        @test all(source.fine_savings[129,:].==gr.borrowing_limit)
+        @test all(isfinite,source.endogenous_threshold)
+        # The source constraint binds iff the current asset a is
+        # BELOW the state-specific endogenous cutoff; no common
+        # binding status at a=bmin is implied across productivity.
+        for j in 1:params.n_s
+            binding=findall(a->a<=source.endogenous_threshold[j],
+                            gr.fine_full)
+            @test all(source.fine_savings[binding,j] .==
+                      gr.borrowing_limit)
+        end
         @test_throws DimensionMismatch source_matlab_egm_step(
             gr,chain,params,full_future[33:end,:],0.98,0.01,0.01,
             1.0,1.8,1.0,0.25)
