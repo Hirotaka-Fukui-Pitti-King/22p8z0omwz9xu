@@ -190,3 +190,36 @@ using FMR2020
             dest,mu,grid,1.0,1.0,0.0,1.0,0.1,0.0)
     end
 end
+
+@testset "Explicit 599-variable flexible source-independent closure" begin
+    # 199 K plus 200 L plus 200 terms: no scalar nested fsolve.
+    params=default_parameters()
+    steady=solve_three_steady_states(params;verbose=false)
+    ctx=stage3_expansion_context(steady)
+    w=FMR2020.TransitionWorkspace(ctx.economy)
+    n=length(ctx.economy.B)
+    @test n==200
+    x0=vcat(FMR2020.initial_transition_guess(ctx.economy),ones(n))
+    @test length(x0)==599
+    @test_throws DimensionMismatch FMR2020.stage3_flexible_full_prices!(
+        w,ctx,x0[1:end-1])
+    FMR2020.stage3_flexible_full_prices!(w,ctx,x0)
+    markup=(params.epsilon_f-1)/params.epsilon_f
+    for t in 1:n
+        @test isapprox(w.wage[t]*w.L[t]/
+            ((1-params.alpha)*w.Y[t]),markup;atol=1e-12)
+        @test isapprox(w.rental[t]*w.K[t]/
+            (params.alpha*w.Y[t]),markup;atol=1e-12)
+    end
+    # The first two blocks are the unchanged original Stage3 equations.
+    fill!(w.aggregate_savings,0.0)
+    fill!(w.aggregate_home,1.0)
+    full=zeros(3*n-1)
+    core=zeros(2*n-1)
+    FMR2020.stage3_market_residual!(core,w,ctx)
+    FMR2020.stage3_flexible_full_market_residual!(full,w,ctx)
+    @test full[1:2*n-1]==core
+    @test all(isfinite,full)
+    @test_throws DimensionMismatch FMR2020.stage3_flexible_full_market_residual!(
+        zeros(399),w,ctx)
+end
