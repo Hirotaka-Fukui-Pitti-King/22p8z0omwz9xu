@@ -51,7 +51,9 @@ function stage3_flexible_full_market_residual!(res::AbstractVector{T},
     n=length(inp.B)
     length(res)==3n-1 ||
         throw(DimensionMismatch("explicit flexible market residual must be 3T-1"))
-    stage3_market_residual!(view(res,1:2n-1),w,ctx;fixed=false)
+    core=Vector{T}(undef,2n-1)
+    stage3_market_residual!(core,w,ctx;fixed=false)
+    copyto!(view(res,1:2n-1),core)
     scale=max(one(T),inp.reference.Y)
     @inbounds for t in 1:n
         if t<n
