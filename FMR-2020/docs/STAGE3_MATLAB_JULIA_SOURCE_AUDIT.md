@@ -200,3 +200,34 @@ This is NOT a failure of the 10^-5 source consumption floor for occupied mass (l
 **NEW direct empirical gate**, commit eb4d640cccc2e065ff753c283208953b6168fdfe: \`scripts/evaluate_author_matlab_solution.jl\` evaluates **the owner's ACTUAL saved author-solved 399 + 399 + 599 vectors** with Julia's existing residual maps, without doing ANY new 399/599-dimensional root find. It compares all raw residual components, initial trade terms, and shock-date distribution. The corresponding full-precision 17-digit CSV bundle has been generated from the supplied MATLAB .mat files for user extraction into \`FMR-2020/results/author_reference/\`. It is not yet committed to the repo, and the new Julia evaluator has not run against the author's fixture; only static inspection and upstream author .mat numeric analysis have been performed. CI syntax+load is configured to run on the script.
 
 **Do not claim that a Julia 399 or 599 root has converged. The MATLAB author's roots DO exist and the supplied files prove it.** Next step is measuring Julia's residual at those *exact* roots, not another generic trust-region/Broyden modification.
+
+
+## Decisive root-cause finding from author's ACTUAL converged MATLAB files (2026-11-03)
+
+**The original author 399-equation code returns an asset/labor root despite an UNSOLVED first-period scalar GOODS/CLEARING equation.** Both actual user-provided exp_flex.mat and exp_flex_lev16.mat have source market residual norm <=1e-7, but independent first-period C_H_budget - C_H_resource computed from stored arrays is:
+
+- unleveraged: **0.024336037042358205** (all other 199 periods differ by machine roundoff);
+- leverage 1/16: **0.002110419278378961** (all other periods differ by machine roundoff).
+
+Source Transition/solve_transition_bis.m:127–155 calls scalar fsolve(aggr,0.8,optimoptions(...)) and unconditionally assigns x0 to terms without checking exitflag or norm(aggr(x0)). Its final outer 399-vector at lines 163–170 contains ONLY 199 capital/asset and 200 labor residuals, not first-period goods-market error.
+
+At the actual author's saved first-period K/L and budget objects, the goods-market error as a function of positive terms x is exactly
+
+    g(x) = -C - E/x + D/x^3
+
+using theta_star=3. The coefficients recovered directly from saved original author arrays are:
+
+| Source case | C | E | D | Saved source terms x | Minimizer x* = sqrt(3D/E) | g(x*) |
+|---|---:|---:|---:|---:|---:|---:|
+| Unleveraged | -2.7018950240416792 | 3.6621965903557725 | 1.0149463620475911 | 0.9117778675311863 | 0.9118246865030667 | **0.024336026452175696** |
+| Leverage 1/16 | -2.696913415635473 | 3.6779032664825757 | 1.0149463620475911 | 0.9098585114110708 | 0.909875606122103 | **0.002110417851466151** |
+
+Here g(x)>0 at its GLOBAL minimum on x>0, so **there is no positive scalar goods-clearing root for EITHER saved author K/L path**. The author's scalar fsolve returned a number extremely close to the minimizer, not a root. It is WRONG to equate the small 399 outer residual with a completely validated heterogeneous-agent GE.
+
+**This exactly clarifies why the Julia root-finder struggles:** Julia stage3_positive_trade_root REJECTS any K/L guess for which the scalar goods equation has no positive zero, whereas author MATLAB fsolve silently accepts the residual-minimizing non-root and permits the outer 399-equation root-finder to settle on a candidate with a nonzero goods gap. This is much more substantive than stale Jacobian or 161-vs-193 coarse grid. It does not establish that the stricter model has no equilibrium at some other K/L path.
+
+**Research decision:** To reproduce original *published numerical output*, use a clearly labeled source-compatibility mode that records the MATLAB inner fsolve failure and its scalar residual, never relabeling its 399 asset/labor root as a full GE. To solve the *economically closed model*, do not hide scalar nonexistence behind silent fsolve fallback. The canonical direct formulation is to keep 200 terms of trade x_t as endogenous unknowns along with 199 K and 200 L, and add all 200 goods-market equations: **599 unknowns, 599 equations, even in flexible prices**. Under this formulation, one evaluates the full explicit residual map F(K,L,x), rather than assuming that each scalar goods equation can be independently root-solved at arbitrary K/L guesses. It might find a fully closed root by adjusting K/L jointly; no such root has yet been computed or verified.
+
+New test in test/test_stage3.jl checks BOTH observed author C,E,D coefficient sets have no admissible first-period positive trade-price root. This is a deterministic mathematical regression based on actual uploaded solution values, and was added without changing any economic solver equations. Julia CI test execution for the new test must be verified separately.
+
+The exact source MATLAB 399 and 599 vectors (k_l_exp / k_l_t_fixed), raw residuals, first-period terms, and inherited distribution have been exported as 17-digit Float64 CSV fixtures from uploaded .mat files. Script scripts/evaluate_author_matlab_solution.jl compares them to Julia without nonlinear root-solving; the results have NOT yet been run on those fixture files.
