@@ -40,6 +40,31 @@ using FMR2020
             -10.0,1.0,1.0,3.0)
     end
 
+    @testset "Actual author MATLAB 399-vector has no first-period goods root" begin
+        # Source: user-supplied exp_flex.mat and exp_flex_lev16.mat.
+        # The author solved asset/labor residuals (<1.4e-8), but its
+        # nested scalar fsolve(aggr,0.8) DID NOT solve t=1 goods clearing.
+        # Do not silently call a non-root a valid nested trade-price solve.
+        D=1.0149463620475911
+        for (C,E,x_author,gap_author) in (
+            (-2.7018950240416792,3.6621965903557725,
+             0.9117778675311863,0.024336037042358205),
+            (-2.696913415635473,3.6779032664825757,
+             0.9098585114110708,0.002110419278378961))
+            xstar=sqrt(3*D/E)
+            goods_gap(x)=-C-E/x+D/x^3
+            @test isapprox(goods_gap(x_author),gap_author;atol=1e-10)
+            @test goods_gap(xstar)>0
+            @test isapprox(goods_gap(xstar),
+                           min(goods_gap(x_author),goods_gap(xstar));
+                           atol=1e-10)
+            @test_throws DomainError FMR2020.foreign_debt_trade_root(
+                C,E,D,3.0)
+            @test_throws DomainError FMR2020.foreign_debt_trade_roots(
+                C,E,D,3.0)
+        end
+    end
+
     @testset "Regularized nonlinear direction remains descent near singular Jacobian" begin
         # The user's full GE stopped because the 399-variable Broyden
         # Jacobian was not refreshed after many near-zero damped steps.
