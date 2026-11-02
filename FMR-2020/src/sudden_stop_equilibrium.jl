@@ -436,11 +436,8 @@ function stage3_residual!(res::AbstractVector{T}, x::AbstractVector{T},
     return stage3_market_residual!(res,w,ctx)
 end
 
-"""
-Dense damped finite-difference Broyden/Newton solves the exact heterogeneous
-household general equilibrium each trial. Shared between the 399-variable
-flexible and 599-variable fixed models; the economic residuals differ.
-"""
+# Numerical Stage 3 solver: finite-difference Jacobian, Broyden updates,
+# and adaptive globalization for the same 399/599 GE equations.
 """
 A Levenberg–Marquardt direction for the SAME GE equations. This is only
 a globalization fallback after a freshly recomputed Jacobian fails to
