@@ -118,6 +118,27 @@ function main()
             # with the original MATLAB source's raw residual vector.
             prod=zeros(Float64,2*n-1)
             FMR2020.stage3_market_residual!(prod,w,case)
+            # Numerical identity check for the NEW 599-flex residual map:
+            # supplying the existing 399-map terms of trade as EXPLICIT
+            # unknowns must reproduce ALL 399 asset/labor residuals.
+            # Unlike the nested original, the last 200 new residuals
+            # are ACTUAL household goods-market clearing, not an
+            # assumed scalar fsolve root. This is a map test, NOT GE.
+            explicit_x=vcat(x,copy(w.terms))
+            explicit_res=zeros(Float64,3*n-1)
+            explicit_work=FMR2020.TransitionWorkspace(case.economy)
+            FMR2020.stage3_flexible_full_residual!(
+                explicit_res,explicit_x,case,explicit_work)
+            error399=maximum(abs.(explicit_res[1:2*n-1].-prod))
+            error399<1e-8 ||
+                error("Explicit flexible map's 399 K/L conditions differ: $error399")
+            @assert all(isfinite,explicit_res)
+            goods_max=maximum(abs,view(explicit_res,2*n:3*n-1))
+            println("EXPLICIT 599 FLEX NUMERICAL MAP PASS: " *
+                    "legacy_KL_maxdifference=",error399,
+                    " actual_household_goods_maxscaled=",goods_max,
+                    " new_residual_dimension=",length(explicit_res),
+                    "; candidate is NOT a solved GE.")
             raw=similar(prod)
             stage3_unscale_residual!(raw,prod,case)
             savecsv(joinpath(directory,"julia_raw_399.csv"),raw)
