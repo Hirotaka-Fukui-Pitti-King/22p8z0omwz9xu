@@ -40,6 +40,25 @@ using FMR2020
             -10.0,1.0,1.0,3.0)
     end
 
+    @testset "Regularized nonlinear direction remains descent near singular Jacobian" begin
+        # The user's full GE stopped because the 399-variable Broyden
+        # Jacobian was not refreshed after many near-zero damped steps.
+        # The LM rescue direction must lower the local least-squares
+        # objective even for a nearly singular finite-difference J.
+        J=[1.0 1.0; 1.0 1.0+1e-11]
+        residual=[0.02,-0.01]
+        for λ in (1e-6,1e-4,1e-2,1.0,100.0)
+            step=FMR2020.stage3_lm_direction(J,residual,λ)
+            @test all(isfinite,step)
+            grad=transpose(J)*residual
+            @test sum(grad.*step)<0
+        end
+        @test_throws ArgumentError FMR2020.stage3_lm_direction(
+            J,residual,0.0)
+        @test_throws DimensionMismatch FMR2020.stage3_lm_direction(
+            ones(2,3),residual,1e-3)
+    end
+
     @testset "Zero exchange-rate shock preserves household net wealth" begin
         grid=Float64[-2,-1,0,1,2,3,4]
         mu=zeros(7,2)
