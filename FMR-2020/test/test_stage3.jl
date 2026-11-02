@@ -20,7 +20,7 @@ using FMR2020
         D=1.0149463596999195
         theta_star=3.0
         f(x)=C+E/x-D/x^theta_star
-        xpeak=sqrt(3D/E)
+        xpeak=sqrt(3*D/E)
         @test f(0.001)<0
         @test f(1000.0)<0
         @test f(xpeak)>0
