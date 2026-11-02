@@ -46,7 +46,7 @@
     }
   ],
   "current_status": {
-    "phase": "stage3_positive_mass_budget_feasibility_root_choice_patch_waiting_pc",
+    "phase": "stage3_399_newton_stagnation_adaptive_fresh_jacobian_and_lm_committed_pending_pc",
     "files_written": [
       "README.md",
       "ALGORITHM.md",
@@ -657,7 +657,7 @@
       "syntax_files_passed": 34,
       "stage1_tests_passed": 2420,
       "stage2_tests_passed": 37,
-      "stage3_tests_passed": 15,
+      "stage3_tests_passed": 27,
       "smoke_599_fixed_prices_pass": true,
       "foreign_expansion_max_scaled_residual": 3.551030838266911e-7,
       "foreign_expansion_max_goods_level": 5.376718812399872e-7,
@@ -696,8 +696,23 @@
       "solved_fixed_sudden_stop": false,
       "fixed_price_block_smoke_passed": true,
       "patch": "select actual first-period trade root by feasibility of every positive-mass revalued household node; avoid MATLAB c=1e-5 floor that violates budget",
-      "patch_owner_pc_tested": false
+      "patch_owner_pc_tested": false,
+      "latest_files_parsed": 34,
+      "latest_module_loaded": true,
+      "latest_trade_roots": {
+        "low": 0.7865895866917804,
+        "high": 1.037916643090368
+      },
+      "latest_trade_min_budget": {
+        "low": -0.1826131304704792,
+        "high": 0.48493043012136894
+      },
+      "full_flexible_reversal_first_iteration_scaled": 0.021003904982795363,
+      "full_flexible_reversal_failure_scaled": 0.021569342187721885,
+      "full_flexible_reversal_failure_iteration": 12,
+      "prior_jacobian_refresh_interval": 15,
+      "adaptive_jacobian_refresh_and_lm_patch_committed": true
     },
-    "verification": "modified first-period root selection by positive-mass budget feasibility; Stage 3 nonlinear GE yet unverified"
+    "verification": "corrected numerics with stagnation-triggered fresh finite-difference Jacobian and LM fallback; PC syntax/tests and nonlinear GE rerun pending"
   }
 }

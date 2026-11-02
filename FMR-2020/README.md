@@ -329,3 +329,24 @@ julia --project=. scripts/run_sudden_stop.jl
 The full run first recalibrates the original three steady states, then re-solves the initial foreign-denominated expansion, then solves the flexible sudden stop, then the 599-equation fixed regime. It **does not** create new figures from an unconverged solution. If the root does not converge or a positive-mass household's revalued wealth is infeasible, the program reports an error instead of clipping or declaring success.
 
 See `docs/STAGE3_AUDIT.md` for complete source-to-Julia formula mapping and unresolved numerical acceptance requirements.
+
+
+## 2026-11-03: owner-PC 399-variable solver stagnation and adaptive Jacobian repair
+
+Windows 11 Julia 1.12.6 logs on preceding commit:
+
+- All 34 Julia files parsed; `using FMR2020` precompiled and loaded successfully.
+- Stage 1 2420/2420, Stage 2 37/37, Stage 3 27/27 unit tests passed, total 2484.
+- Recomputed foreign-currency-denominated expansion passed (maximum scaled GE residual 3.5510e-7, maximum independent interior goods gap 5.3767e-7).
+- For the leveraged surprise reversal, the first-period trade equation yielded two roots: **low=0.7865895866917804, high=1.037916643090368**. Post-revaluation minimum household budget resources: **low=-0.1826131304704792**, **high=+0.48493043012136894**. High root is the admissible candidate under the implemented household budget constraint.
+- The full flexible sudden-stop **did not converge**: max normalized residual at iteration 0=0.021003904982795363; iteration 11=0.021569342187721885. The backtracking line search failed at iteration 12, after multiple highly damped steps. No 399-equation solution or fixed 599-equation run resulted.
+
+**Specific numerical design issue:** The Stage 3 nonlinear solver computed one 399×399 finite-difference Jacobian at its first iteration and then only applied Broyden rank-one updates; the refresh schedule of 15 iterations never triggered before failure. A sequence of tiny damped steps can make these quasi-Newton updates increasingly uninformative for the piecewise nonlinear FX revaluation and mass-splitting mapping. This **could explain** the stagnation, but the log does not establish that a budget-feasible zero of all 399 GE equations exists. The original MATLAB uses `fsolve` with numerical Jacobians and globalization.
+
+**Focused numeric correction committed:** 
+1. Print maximum-residual equation index and market block, Euclidean residual norm, accepted damping α, rejected trial count and achieved improvement; never report a solver return as convergence without the 399 residual tolerance.
+2. Recompute full finite-difference Jacobian when two consecutive steps improve norm less than 2%, after a small damping α<1/8, on the original refresh schedule, or immediately after a failed Broyden line search. A failed forward finite difference can use the valid backward difference instead; failure of both is explicitly reported.
+3. After rebuilding the Jacobian, retry the exact Newton direction, then — **only if necessary** — apply positive-regularization Levenberg–Marquardt directions to the **same** 399/599 economic residual system. The regularized direction is only a numerical globalization of MATLAB's `fsolve`-class algorithm, not a different household/aggregate model.
+4. Add a near-singular-Jacobian unit regression testing LM descent. Keep positive-mass household feasibility, currency revaluation, borrowing bounds, market residuals and all tolerances unchanged.
+
+**Validation status:** This numerical patch is committed but has NOT been run on the user's PC. Syntax, runtime and convergence of patched code are unverified. Previous 2484 passed tests apply only to the preceding code. Full Stage 3 Figures 1/4/5 remain unverified. If refreshed Jacobians and LM globalization still cannot lower the market residual, investigate the economic closure and root-selection feasibility; do not invent a converged result.
