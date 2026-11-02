@@ -161,6 +161,46 @@ function main()
         error("Calibrated terminal source fixture missing: expected both " *
               "calibrated_input and calibrated_output")
     end
+    # Compare ORIGINAL source basefun.m revaluation of the REAL shock-date
+    # 769x7 household distribution, for both roots and leverage regimes.
+    fx_input=joinpath(dir,"fx_input")
+    fx_output=joinpath(dir,"fx_output")
+    isdir(fx_input) && isdir(fx_output) ||
+        error("FX distribution source comparison fixture missing")
+    fine=vec(read_numeric_csv(joinpath(fx_input,"fine_grid.csv")))
+    mu_pre=read_numeric_csv(joinpath(fx_input,"mu_pre.csv"))
+    metadata=read_numeric_csv(joinpath(fx_input,"metadata.csv"))
+    matlab_fsolve=vec(read_numeric_csv(joinpath(fx_output,
+                                               "original_fsolve_root.csv")))
+    size(metadata)==(2,11) && size(mu_pre)==(length(fine),7) ||
+        throw(DimensionMismatch("FX fixture metadata or distribution dimensions"))
+    for i in 1:2
+        dat=view(metadata,i,:)
+        labels=i==1 ? "unleveraged" : "leveraged"
+        f(x)=dat[6]+dat[7]/x-dat[8]/x^dat[9]
+        abs(f(matlab_fsolve[i]))<1e-8 ||
+            error("Original source fsolve trade root residual exceeded 1e-8")
+        roots=FMR2020.foreign_debt_trade_roots(dat[6],dat[7],dat[8],dat[9])
+        selected=abs(matlab_fsolve[i]-roots.low) <
+                 abs(matlab_fsolve[i]-roots.high) ? "low" : "high"
+        println("ORIGINAL MATLAB TRADE ROOT leverage=",dat[5],
+                " from_x0_0.8=",matlab_fsolve[i],
+                " selected_branch=",selected,
+                " Julia_low=",roots.low," Julia_high=",roots.high)
+        for (j,label) in enumerate(("low","high"))
+            current=j==1 ? roots.low : roots.high
+            result=zeros(Float64,size(mu_pre))
+            FMR2020.revalue_foreign_debt!(result,mu_pre,fine,
+                dat[1],dat[2],dat[3],dat[4],current,dat[5])
+            author=read_numeric_csv(joinpath(fx_output,labels*"_"+
+                                               label*"_distribution.csv"))
+            assert_fixture("FX source basefun "*labels*" "*label,
+                           result,author;atol=1e-9)
+            abs(sum(result)-sum(mu_pre))<1e-10 ||
+                error("FX source mass conservation failed")
+        end
+    end
+    println("FX ORIGINAL BASEFUN VS JULIA NUMERIC COMPARISON PASS")
     println("SOURCE EGM NUMERICAL COMPARISON PASS. This alone does NOT verify GE.")
 end
 

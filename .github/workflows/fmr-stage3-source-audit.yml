@@ -70,6 +70,13 @@ jobs:
       - name: Reevaluate original source solve_R at actual calibrated Julia prices
         run: |
           octave --no-gui --quiet --eval "addpath('julia-replication/FMR-2020/matlab'); export_calibrated_terminal_fixture('HANKSOME','julia-replication/FMR-2020/results/matlab_egm_fixture/calibrated_input','julia-replication/FMR-2020/results/matlab_egm_fixture/calibrated_output');"
+      - name: Export real shock-date foreign-debt portfolios and both trade-price roots
+        working-directory: julia-replication/FMR-2020
+        run: |
+          julia --project=. scripts/export_stage3_fx_fixture.jl results/matlab_egm_fixture/fx_input
+      - name: Revalue original shock-date household portfolios with original MATLAB basefun
+        run: |
+          octave --no-gui --quiet --eval "addpath('julia-replication/FMR-2020/matlab'); export_stage3_fx_fixture('HANKSOME','julia-replication/FMR-2020/results/matlab_egm_fixture/fx_input','julia-replication/FMR-2020/results/matlab_egm_fixture/fx_output');"
       - name: Compare source MATLAB fixture and Julia full-grid EGM numerically
         working-directory: julia-replication/FMR-2020
         run: |
