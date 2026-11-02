@@ -46,7 +46,7 @@
     }
   ],
   "current_status": {
-    "phase": "stage3_399_newton_stagnation_adaptive_fresh_jacobian_and_lm_committed_pending_pc",
+    "phase": "stage3_second_docstring_fixed_full_34_file_static_audit_pass_pending_pc",
     "files_written": [
       "README.md",
       "ALGORITHM.md",
@@ -149,7 +149,7 @@
     "stage2_julia_runtime_verified_scope": "2420 Stage1 + 37 Stage2 unit tests, calibrated shock-free limit, full 200-quarter 399-variable nonlinear GE, independent market tests and SVG generation",
     "stage3_source_committed": true,
     "stage3_syntax_verified": false,
-    "stage3_runtime_verified": true,
+    "stage3_runtime_verified": false,
     "stage3_399_flexible_ge_solved": false,
     "stage3_599_fixed_ge_solved": false,
     "stage3_figures_generated": false,
@@ -711,8 +711,14 @@
       "full_flexible_reversal_failure_scaled": 0.021569342187721885,
       "full_flexible_reversal_failure_iteration": 12,
       "prior_jacobian_refresh_interval": 15,
-      "adaptive_jacobian_refresh_and_lm_patch_committed": true
+      "adaptive_jacobian_refresh_and_lm_patch_committed": true,
+      "second_docstring_failure": "precompile cannot document string at sudden_stop_equilibrium.jl:439; malformed consecutive docstrings",
+      "numerical_solver_was_executed_on_last_attempt": false,
+      "all_34_files_checked_adjacent_docstrings_static": true,
+      "remaining_adjacent_docstrings": 0,
+      "checker_has_guard_and_selftest": true,
+      "post_fix_owner_pc_verified": false
     },
-    "verification": "corrected numerics with stagnation-triggered fresh finite-difference Jacobian and LM fallback; PC syntax/tests and nonlinear GE rerun pending"
+    "verification": "removed duplicated orphan LM docstring and added static guard; owner-PC Julia parse/precompile/test/numerical run not yet performed on this code"
   }
 }
