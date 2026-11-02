@@ -7,6 +7,12 @@ if nargin~=4
 end
 addpath(fullfile(original_root,'Transition'));
 addpath(fullfile(original_root,'Exogenous_files'));
+% Octave has fsolve but lacks MATLAB's optimoptions. This compatibility
+% adapter only translates the scalar fsolve options; the ORIGINAL author
+% economics and residual function files are unchanged.
+if exist('OCTAVE_VERSION','builtin')
+    addpath(fullfile(fileparts(mfilename('fullpath')),'octave_compat'));
+end
 if ~exist('solve_transition_bis','file') || ~exist('basefun','file')
     error('Original source Transition/solve_transition_bis.m or basefun.m missing');
 end
