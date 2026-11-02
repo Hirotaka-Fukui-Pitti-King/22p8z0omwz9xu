@@ -90,10 +90,38 @@ function main()
     boom_x=reference_vector(dir,"original_boom_candidate")
     length(boom_x)==2*length(expansion.economy.B)-1 ||
         error("Original boom x has wrong dimension")
-    # Warm-start expansion at the author's ACTUAL saved MATLAB boom solution.
-    # Only a converged preliminary equilibrium may supply inherited states.
-    boom=solve_stage3_flexible(expansion;x0=boom_x,
-                                tolerance=1e-6,maxiter=5,verbose=false)
+    # The original boom X is itself a useful cross-language test, but
+    # its scalar inner trade map can disagree with Julia's strict map.
+    # If that candidate is not a valid Julia boom, use the previously
+    # validated Stage 2 CSV and *independently require* convergence.
+    boom=try
+        solve_stage3_flexible(expansion;x0=boom_x,
+                              tolerance=1e-6,maxiter=5,verbose=false)
+    catch err
+        println("Original saved MATLAB boom is not an accepted JULIA " *
+                "pre-shock GE: ",sprint(showerror,err))
+        saved=joinpath(@__DIR__,"..","results",
+                       "stage2_transition_expansion.csv")
+        isfile(saved) || rethrow()
+        rows=readlines(saved)
+        length(rows)==201 || error("Stage 2 validated CSV wrong time horizon")
+        headers=split(strip(rows[1]),",")
+        ik=findfirst(==("K"),headers)
+        il=findfirst(==("L"),headers)
+        (ik===nothing || il===nothing) &&
+            error("Stage 2 CSV lacks K or L")
+        K=Float64[]
+        L=Float64[]
+        for row in rows[2:end]
+            cells=split(strip(row),",")
+            push!(K,parse(Float64,cells[ik]))
+            push!(L,parse(Float64,cells[il]))
+        end
+        warm=vcat(K[2:end],L)
+        solve_stage3_flexible(expansion;x0=warm,
+                              tolerance=1e-6,maxiter=5,verbose=false)
+    end
+    boom.converged || error("Pre-shock Julia GE has not converged")
     println("PRE-SHOCK JULIA GE accepted residual=",
             boom.maximum_scaled_residual)
     source_mu=reference_matrix(dir,"shock_pre_distribution")
