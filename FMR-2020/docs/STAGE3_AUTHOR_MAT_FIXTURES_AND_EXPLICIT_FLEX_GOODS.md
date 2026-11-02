@@ -8,7 +8,7 @@ On **Windows PowerShell** (not the MATLAB Command Window), run the following fro
 
 ```powershell
 Set-Location C:\github\22p8z0omwz9xu\FMR-2020
-matlab -batch "addpath(fullfile(pwd,'matlab')); export_author_reference_fixtures('C:\github\HANKSOME',fullfile(pwd,'results','author_reference'))"
+matlab -sd "C:\github\22p8z0omwz9xu\FMR-2020" -batch "addpath(fullfile(pwd,'matlab')); export_author_reference_fixtures('C:\github\HANKSOME',fullfile(pwd,'results','author_reference'))"
 ```
 
 If `matlab` is not on PATH, replace `matlab` with the installed MATLAB executable path (e.g. `& 'C:\Program Files\MATLAB\<version>\bin\matlab.exe' -batch "..."`), or enter these commands into the **MATLAB Command Window**:
