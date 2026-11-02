@@ -463,16 +463,32 @@ end
 function stage3_nonlinear_solve(ctx::Stage3Context{T},x0::Vector{T};
                                 fixed::Bool=false,tolerance::T=T(1e-6),
                                 maxiter::Int=70,refresh::Int=15,
+                                max_evaluations::Int=5000,
                                 verbose::Bool=true) where {T}
     n=length(x0)
     expected=fixed ? 3*length(ctx.economy.B)-1 :
                      2*length(ctx.economy.B)-1
     n==expected || throw(DimensionMismatch("Stage3 unknown dimensions"))
     refresh>0 || throw(ArgumentError("Jacobian refresh period must be positive"))
+    max_evaluations>0 ||
+        throw(ArgumentError("max_evaluations must be positive"))
     work=TransitionWorkspace(ctx.economy)
-    evaluation! = fixed ?
-        ((res,x)->stage3_fixed_residual!(res,x,ctx,work)) :
-        ((res,x)->stage3_residual!(res,x,ctx,work))
+    # Original MATLAB MIT_transition.m uses MaxFunEvals=5000 for
+    # the unexpected credit contraction. Count every trial and every
+    # Jacobian probe; never silently continue tens of thousands of
+    # expensive household GE evaluations.
+    evaluation! = function (res,x)
+        work.function_evals<max_evaluations ||
+            throw(ErrorException("Stage3 MATLAB-aligned residual evaluation " *
+                "budget exhausted at $(work.function_evals)/$(max_evaluations), " *
+                "before 399/599-equation convergence"))
+        if fixed
+            stage3_fixed_residual!(res,x,ctx,work)
+        else
+            stage3_residual!(res,x,ctx,work)
+        end
+        return nothing
+    end
     x=copy(x0)
     f=zeros(T,n)
     trialres=similar(f)

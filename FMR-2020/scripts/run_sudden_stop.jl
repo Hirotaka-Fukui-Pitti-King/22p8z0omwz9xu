@@ -134,12 +134,24 @@ function main()
         end
         guess[n:end].=steady.calibrated.L
         println("STAGE3 author protocol: UNLEVERAGED surprise reversal")
+        # Reuse a previously verified no-leverage result as a warm start
+        # without assuming that an existing CSV proves GE convergence.
+        unleveraged_file=joinpath(out,"stage3_unleveraged_transition.csv")
+        if isfile(unleveraged_file)
+            println("STAGE3 using saved no-leverage path as starting values; " *
+                    "all 399 residuals will be verified again")
+            guess=warmstart_from_stage2(unleveraged_file,n)
+        end
         flex_noleverage=solve_stage3_flexible(ctx_noleverage;
                                               x0=guess,tolerance=1e-6,
                                               maxiter=60,verbose=true)
         unleveraged_diag=verify_stage3(flex_noleverage,ctx_noleverage;fixed=false)
-        stage3_write_csv(flex_noleverage,ctx_noleverage,
-                         joinpath(out,"stage3_unleveraged_transition.csv"))
+        stage3_write_csv(flex_noleverage,ctx_noleverage,unleveraged_file)
+        if "--unleveraged-only" in ARGS
+            println("STAGE3 UNLEVERAGED ACCEPTED: saved and independently " *
+                    "verified. Leveraged and fixed regimes NOT attempted.")
+            return nothing
+        end
 
         reversal_ctx=stage3_reversal_context(steady,boom;
                                               shock_start=41,
