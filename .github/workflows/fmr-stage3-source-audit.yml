@@ -36,3 +36,36 @@ jobs:
         run: julia --project=. test/runtests.jl
       - name: Independent Stage 3 shock and price-block smoke
         run: julia --project=. scripts/validate_sudden_stop.jl
+
+  matlab-octave-fixture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: julia-replication
+      - uses: actions/checkout@v4
+        with:
+          repository: kurtmitman/HANKSOME
+          path: HANKSOME
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.12.6'
+      - name: Install GNU Octave to evaluate original MATLAB routines
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends octave
+      - name: Evaluate original-source Rouwenhorst and source PCHIP one-step EGM
+        run: |
+          octave --no-gui --quiet --eval "addpath('julia-replication/FMR-2020/matlab'); export_source_egm_fixture('HANKSOME','julia-replication/FMR-2020/results/matlab_egm_fixture');"
+      - name: Compare source MATLAB fixture and Julia full-grid EGM numerically
+        working-directory: julia-replication/FMR-2020
+        run: |
+          julia --project=. -e 'using Pkg; Pkg.instantiate()'
+          julia --project=. scripts/compare_matlab_egm_fixture.jl results/matlab_egm_fixture
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fmr-matlab-octave-full-grid-egm-fixture
+          if-no-files-found: ignore
+          path: julia-replication/FMR-2020/results/matlab_egm_fixture/
