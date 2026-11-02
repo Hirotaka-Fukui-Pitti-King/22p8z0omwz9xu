@@ -78,6 +78,9 @@ function main()
         # This identifies a policy-map difference without root-finding.
         if lev==0.0
             FMR2020.stage3_household_backward!(w,case)
+            # Evaluate occupied probabilities under the ORIGINAL
+            # Julia candidate path, without claiming it is a GE.
+            FMR2020.stage3_distribution_forward!(w,case)
             calibrated=st.calibrated
             refpolicy=source_matlab_stationary_egm(
                 st.grids,st.chain,p,calibrated.beta,calibrated.r,
@@ -88,7 +91,8 @@ function main()
             open(comparison,"w") do io
                 println(io,"t,max_coarse_abs_diff,max_fine_defined_abs_diff," *
                            "reference_fine_nan,production_fine_nan," *
-                           "occupied_source_nan_mass,max_occupied_source_budget_gap")
+                           "occupied_source_nan_mass,max_occupied_source_budget_gap," *
+                           "max_occupied_fine_abs_diff,weighted_occupied_fine_abs_diff")
                 for t in (n-1):-1:1
                     step=source_matlab_egm_step(
                         st.grids,st.chain,p,future,calibrated.beta,
@@ -105,31 +109,36 @@ function main()
                                          oldfine[mask]))
                     invalidmass=0.0
                     maxbudget=0.0
-                    if t==1
-                        initialmass=view(w.distribution,:,:,1)
-                        for j in axes(initialmass,2),i in axes(initialmass,1)
-                            mass=initialmass[i,j]
-                            mass>0 || continue
-                            if !isfinite(step.fine_consumption[i,j]) ||
-                               !isfinite(step.fine_savings[i,j])
-                                invalidmass+=mass
-                            else
-                                maxbudget=max(maxbudget,
-                                              abs(step.budget_gap[i,j]))
-                            end
+                    maxoccupied=0.0
+                    meanoccupied=0.0
+                    distribution=view(w.distribution,:,:,t)
+                    for j in axes(distribution,2),i in axes(distribution,1)
+                        mass=distribution[i,j]
+                        mass>0 || continue
+                        if !isfinite(step.fine_consumption[i,j]) ||
+                           !isfinite(step.fine_savings[i,j])
+                            invalidmass+=mass
+                        else
+                            dc=abs(step.fine_consumption[i,j]-oldfine[i,j])
+                            maxoccupied=max(maxoccupied,dc)
+                            meanoccupied+=mass*dc
+                            maxbudget=max(maxbudget,abs(step.budget_gap[i,j]))
                         end
                     end
                     println(io,join((t,maxcoarse,maxfine,
                                      count(isnan,step.fine_consumption),
                                      count(isnan,oldfine),
-                                     invalidmass,maxbudget),","))
+                                     invalidmass,maxbudget,
+                                     maxoccupied,meanoccupied),","))
                     if t in (1,2,10,50,100,n-1)
                         println("SOURCE vs PRODUCTION BACKWARD EGM t=",t,
                                 " coarse_max=",maxcoarse,
                                 " fine_defined_max=",maxfine,
                                 " source_nan=",count(isnan,step.fine_consumption),
                                 " occupied_source_nan_mass=",invalidmass,
-                                " occupied_budget_gap=",maxbudget)
+                                " occupied_budget_gap=",maxbudget,
+                                " occupied_max_fine_diff=",maxoccupied,
+                                " occupied_weighted_fine_diff=",meanoccupied)
                     end
                     future=step.coarse_consumption
                 end
