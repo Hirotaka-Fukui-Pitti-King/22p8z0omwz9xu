@@ -30,9 +30,13 @@ function assert_fixture(label::String, ours::AbstractArray, theirs::AbstractArra
     println(label,": undefined MATLAB=",count(mmiss),
             " undefined Julia=",count(omiss),
             " unmatched_undefined=",omission_diff)
-    omission_diff==0 ||
+    if omission_diff!=0
+        println("MATLAB undefined indices: ",findall(mmiss))
+        println("Julia undefined indices: ",findall(omiss))
+        println("NaN disagreement indices: ",findall(omiss .!= mmiss))
         error("SOURCE PCHIP DOMAIN DISAGREEMENT in $label; " *
               "NaN status must match at every asset/productivity index")
+    end
     valid=.!mmiss
     all(isfinite.(ours[valid])) && all(isfinite.(theirs[valid])) ||
         error("Nonfinite source-policy values outside expected NaN mask")
