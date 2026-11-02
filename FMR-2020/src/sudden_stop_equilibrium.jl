@@ -441,6 +441,28 @@ Dense damped finite-difference Broyden/Newton solves the exact heterogeneous
 household general equilibrium each trial. Shared between the 399-variable
 flexible and 599-variable fixed models; the economic residuals differ.
 """
+"""
+A Levenberg–Marquardt direction for the SAME GE equations. This is only
+a globalization fallback after a freshly recomputed Jacobian fails to
+produce a decreasing Newton step. A nonzero residual is never accepted
+as an equilibrium.
+"""
+function stage3_lm_direction(J::Matrix{T}, f::Vector{T}, factor::T) where {T}
+    n=length(f)
+    size(J)==(n,n) || throw(DimensionMismatch("square GE Jacobian"))
+    factor>zero(T) || throw(ArgumentError("LM damping must be positive"))
+    gram=transpose(J)*J
+    scale=max(one(T),sum(abs2,J)/T(n))
+    @inbounds for j in 1:n
+        gram[j,j]+=factor*scale
+    end
+    rhs=-(transpose(J)*f)
+    direction=gram\rhs
+    all(isfinite,direction) ||
+        throw(ErrorException("nonfinite regularized GE direction"))
+    return direction
+end
+
 function stage3_nonlinear_solve(ctx::Stage3Context{T},x0::Vector{T};
                                 fixed::Bool=false,tolerance::T=T(1e-6),
                                 maxiter::Int=70,refresh::Int=15,
@@ -449,47 +471,33 @@ function stage3_nonlinear_solve(ctx::Stage3Context{T},x0::Vector{T};
     expected=fixed ? 3*length(ctx.economy.B)-1 :
                      2*length(ctx.economy.B)-1
     n==expected || throw(DimensionMismatch("Stage3 unknown dimensions"))
+    refresh>0 || throw(ArgumentError("Jacobian refresh period must be positive"))
     work=TransitionWorkspace(ctx.economy)
     evaluation! = fixed ?
         ((res,x)->stage3_fixed_residual!(res,x,ctx,work)) :
         ((res,x)->stage3_residual!(res,x,ctx,work))
-    x=copy(x0); f=zeros(T,n); temp=similar(f); trial=similar(x)
+    x=copy(x0)
+    f=zeros(T,n)
+    trialres=similar(f)
+    trial=similar(x)
+    jacprobe=similar(x)
     J=Matrix{T}(undef,n,n)
     evaluation!(f,x)
-    evaluations=1
-    for iter in 1:maxiter
-        error_max=maximum(abs,f)
-        verbose && println("STAGE3 ",fixed ? "FIXED" : "FLEX",
-                            " iteration=",iter-1," scaled=",error_max,
-                            " evaluations=",work.function_evals)
-        if error_max<=tolerance
-            evaluation!(f,x)
-            return TransitionSolveResult(ctx.economy,work,x,copy(f),
-                        iter-1,work.function_evals,maximum(abs,f),true)
-        end
-        if iter==1 || (iter-1)%refresh==0
-            @inbounds for j in 1:n
-                copyto!(trial,x)
-                dx=T(1e-5)*max(one(T),abs(x[j]))
-                trial[j]+=dx
-                evaluation!(temp,trial)
-                for i in 1:n
-                    J[i,j]=(temp[i]-f[i])/dx
-                end
-            end
-            evaluation!(f,x)
-        end
-        direction=-(J\f)
-        all(isfinite,direction) || error("nonfinite Stage3 Newton direction")
-        accepted=false
-        alpha=one(T)
-        for _ in 1:18
-            @inbounds for j in 1:n
-                trial[j]=x[j]+alpha*direction[j]
-            end
+    small_progress=0
+    stale=false
+
+    # The original MATLAB fsolve uses a numerical Jacobian and
+    # globalization. A Broyden-only Jacobian can become uninformative
+    # after repeated small damped steps in the piecewise-linear wealth
+    # mass-splitting problem. Refresh *on observed stagnation*.
+    function rebuild_jacobian!()
+        @inbounds for j in 1:n
+            copyto!(jacprobe,x)
+            dx=T(1e-5)*max(one(T),abs(x[j]))
+            jacprobe[j]+=dx
             valid=true
             try
-                evaluation!(temp,trial)
+                evaluation!(trialres,jacprobe)
             catch err
                 if err isa DomainError || err isa ArgumentError
                     valid=false
@@ -497,24 +505,142 @@ function stage3_nonlinear_solve(ctx::Stage3Context{T},x0::Vector{T};
                     rethrow()
                 end
             end
-            if valid && norm(temp)<(one(T)-T(1e-4)*alpha)*norm(f)
-                accepted=true
-                break
+            if !valid
+                jacprobe[j]=x[j]-dx
+                try
+                    evaluation!(trialres,jacprobe)
+                catch err
+                    if err isa DomainError || err isa ArgumentError
+                        throw(ErrorException(
+                            "Jacobian column $j lacks a feasible finite perturbation; " *
+                            "current GE candidate lies on a feasibility boundary"))
+                    end
+                    rethrow()
+                end
+                dx=-dx
             end
-            alpha/=T(2)
+            @inbounds for i in 1:n
+                J[i,j]=(trialres[i]-f[i])/dx
+            end
         end
-        accepted || error("Stage3 line search failed at iteration=$iter; max=$(maximum(abs,f))")
-        step=alpha.*direction
-        correction=(temp.-f).-J*step
-        denom=dot(step,step)
-        denom>0 || error("vanishing Stage3 nonlinear step")
-        @inbounds for j in 1:n, i in 1:n
-            J[i,j]+=correction[i]*step[j]/denom
-        end
-        copyto!(x,trial)
-        copyto!(f,temp)
+        # EGM and distributions are stateful; restore the *center*
+        # evaluation rather than leaving the last Jacobian probe in work.
+        evaluation!(f,x)
+        stale=false
+        return nothing
     end
-    error("Stage3 GE not converged: max=$(maximum(abs,f)), evaluations=$(work.function_evals)")
+
+    function try_step!(direction::Vector{T})
+        all(isfinite,direction) || return (false,zero(T),0)
+        base=norm(f)
+        α=one(T)
+        rejected=0
+        for _ in 1:22
+            @inbounds for j in 1:n
+                trial[j]=x[j]+α*direction[j]
+            end
+            valid=true
+            try
+                evaluation!(trialres,trial)
+            catch err
+                if err isa DomainError || err isa ArgumentError
+                    valid=false
+                else
+                    rethrow()
+                end
+            end
+            if valid && all(isfinite,trialres) &&
+               norm(trialres)<(one(T)-T(1e-4)*α)*base
+                return (true,α,rejected)
+            end
+            rejected+=1
+            α/=T(2)
+        end
+        return (false,zero(T),rejected)
+    end
+
+    for iter in 1:maxiter
+        maxres=maximum(abs,f)
+        maxat=argmax(abs.(f))
+        tag=maxat<length(ctx.economy.B) ? "asset" :
+            maxat<2*length(ctx.economy.B) ? "labor" : "goods"
+        oldnorm=norm(f)
+        verbose && println("STAGE3 ",fixed ? "FIXED" : "FLEX",
+                           " iteration=",iter-1,
+                           " scaled_max=",maxres," max_at=",maxat,
+                           " market=",tag," norm=",oldnorm,
+                           " evaluations=",work.function_evals)
+        if maxres<=tolerance
+            evaluation!(f,x)
+            maximum(abs,f)<=tolerance ||
+                error("Stage3 root residual changed on repeat evaluation")
+            return TransitionSolveResult(ctx.economy,work,copy(x),copy(f),
+                        iter-1,work.function_evals,maximum(abs,f),true)
+        end
+        if iter==1 || (iter-1)%refresh==0 || small_progress>=2 || stale
+            verbose && println("STAGE3 JACOBIAN refresh at iteration=",iter-1,
+                               " reason=",iter==1 ? "initial" :
+                               small_progress>=2 ? "stagnation" :
+                               stale ? "small accepted step" : "scheduled")
+            rebuild_jacobian!()
+            small_progress=0
+        end
+        direction=-(J\f)
+        accepted,α,rejects=try_step!(direction)
+
+        if !accepted
+            # First eliminate stale quasi-Newton curvature before
+            # trying the author's fsolve-style trust-region fallback.
+            verbose && println("STAGE3 Newton line search failed; " *
+                               "recomputing full numerical Jacobian")
+            rebuild_jacobian!()
+            direction=-(J\f)
+            accepted,α,rejects=try_step!(direction)
+        end
+
+        if !accepted
+            for λ in (T(1e-6),T(1e-4),T(1e-2),T(1e-1),one(T),T(10),T(100))
+                direction=stage3_lm_direction(J,f,λ)
+                accepted,α,rejects=try_step!(direction)
+                if accepted
+                    verbose && println("STAGE3 LM globalization accepted λ=",λ,
+                                       " damping=",α)
+                    break
+                end
+            end
+        end
+
+        accepted || throw(ErrorException(
+            "Stage3 cannot reduce full GE residual even with fresh Jacobian " *
+            "and source-compatible regularized steps. " *
+            "max_index=$maxat max_level=$maxres norm=$oldnorm " *
+            "evaluations=$(work.function_evals). " *
+            "Do not treat this as a converged equilibrium."))
+        dx=α.*direction
+        change=trialres.-f
+        correction=change.-J*dx
+        denominator=dot(dx,dx)
+        denominator>zero(T) || error("vanishing Stage3 GE step")
+        @inbounds for j in 1:n
+            weight=dx[j]/denominator
+            for i in 1:n
+                J[i,j]+=correction[i]*weight
+            end
+        end
+        newnorm=norm(trialres)
+        progress=one(T)-newnorm/oldnorm
+        small_progress=progress<T(0.02) ? small_progress+1 : 0
+        stale=α<T(0.125)
+        verbose && println("STAGE3 STEP alpha=",α," rejected=",rejects,
+                           " relative_norm_improvement=",progress,
+                           " next_max=",maximum(abs,trialres))
+        copyto!(x,trial)
+        copyto!(f,trialres)
+    end
+    evaluation!(f,x)
+    throw(ErrorException(
+        "Stage3 GE not converged after $maxiter iterations: " *
+        "max=$(maximum(abs,f)), evaluations=$(work.function_evals)"))
 end
 
 function solve_stage3_flexible(ctx::Stage3Context{T};
