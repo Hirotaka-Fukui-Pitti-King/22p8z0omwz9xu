@@ -59,9 +59,17 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends octave
+      - name: Export actual calibrated 161-node Julia terminal and 193-node source inputs
+        working-directory: julia-replication/FMR-2020
+        run: |
+          julia --project=. -e 'using Pkg; Pkg.instantiate()'
+          julia --project=. scripts/export_calibrated_terminal_fixture.jl results/matlab_egm_fixture/calibrated_input
       - name: Evaluate original-source Rouwenhorst and source PCHIP one-step EGM
         run: |
           octave --no-gui --quiet --eval "addpath('julia-replication/FMR-2020/matlab'); export_source_egm_fixture('HANKSOME','julia-replication/FMR-2020/results/matlab_egm_fixture');"
+      - name: Reevaluate original source solve_R at actual calibrated Julia prices
+        run: |
+          octave --no-gui --quiet --eval "addpath('julia-replication/FMR-2020/matlab'); export_calibrated_terminal_fixture('HANKSOME','julia-replication/FMR-2020/results/matlab_egm_fixture/calibrated_input','julia-replication/FMR-2020/results/matlab_egm_fixture/calibrated_output');"
       - name: Compare source MATLAB fixture and Julia full-grid EGM numerically
         working-directory: julia-replication/FMR-2020
         run: |

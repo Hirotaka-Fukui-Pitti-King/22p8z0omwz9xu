@@ -104,6 +104,63 @@ function main()
                    st.fine_consumption,
                    read_numeric_csv(joinpath(dir,"stationary_fine_consumption.csv"));
                    atol=1e-6)
+    # Original-source evaluation at the ACTUAL calibrated terminal price
+    # vector. The synthetic test above alone cannot show how much the
+    # existing 161-node Julia production policy differs at author prices.
+    calibrated_input=joinpath(dir,"calibrated_input")
+    calibrated_output=joinpath(dir,"calibrated_output")
+    if isdir(calibrated_input) && isdir(calibrated_output)
+        pv=vec(read_numeric_csv(joinpath(calibrated_input,"prices.csv")))
+        length(pv)==9 || error("calibrated source-price vector must have 9 scalars")
+        full_coarse=vec(read_numeric_csv(joinpath(calibrated_input,"coarse_grid.csv")))
+        full_fine=vec(read_numeric_csv(joinpath(calibrated_input,"fine_grid.csv")))
+        source_grid=AssetGrids(full_coarse,full_fine,gr.coarse,
+                               full_fine,full_coarse[33],full_coarse[end])
+        supplied_ex=vec(read_numeric_csv(joinpath(calibrated_input,"productivity.csv")))
+        supplied_P=read_numeric_csv(joinpath(calibrated_input,"transition.csv"))
+        supplied_chain=ProductivityChain(supplied_ex,supplied_P,ch.invariant)
+        stc=source_matlab_stationary_egm(
+            source_grid,supplied_chain,params,pv[1],pv[2],pv[3],
+            pv[4],pv[5],pv[6];tolerance=1e-9,maxiter=5000)
+        println("CALIBRATED SOURCE TERMINAL iterations=",stc.iterations,
+                " update_error=",stc.update_error)
+        assert_fixture("calibrated source terminal full coarse",
+            stc.coarse_consumption,
+            read_numeric_csv(joinpath(calibrated_output,"source_coarse_policy.csv"));
+            atol=1e-6)
+        assert_fixture("calibrated source terminal full fine",
+            stc.fine_consumption,
+            read_numeric_csv(joinpath(calibrated_output,"source_fine_policy.csv"));
+            atol=1e-6)
+        old_coarse=read_numeric_csv(joinpath(calibrated_input,
+                                            "julia_active_coarse_policy.csv"))
+        original_active=stc.coarse_consumption[33:end,:]
+        size(original_active)==size(old_coarse) ||
+            throw(DimensionMismatch("161-node terminal policy dimensions differ"))
+        difference=abs.(original_active.-old_coarse)
+        maxgap=maximum(difference)
+        imax=argmax(difference)
+        println("CALIBRATED TERMINAL 193-source versus 161-production " *
+                "max_abs_difference=",maxgap,
+                " active_index=",Tuple(imax),
+                " source=",original_active[imax],
+                " current=",old_coarse[imax])
+        isfinite(maxgap) || error("Nonfinite source/production active comparison")
+        old_fine=read_numeric_csv(joinpath(calibrated_input,
+                                          "julia_active_fine_policy.csv"))
+        original_fine=stc.fine_consumption[129:end,:]
+        size(original_fine)==size(old_fine) ||
+            throw(DimensionMismatch("641-node terminal fine policy dimensions differ"))
+        vmask=isfinite.(original_fine)
+        any(vmask) || error("No defined source terminal fine policy nodes")
+        finitegap=maximum(abs.(original_fine[vmask].-old_fine[vmask]))
+        println("CALIBRATED TERMINAL FINE source vs production finite_max_difference=",
+                finitegap," source_nan_count=",count(.!vmask))
+        isfinite(finitegap) || error("Nonfinite source/production fine comparison")
+    else
+        error("Calibrated terminal source fixture missing: expected both " *
+              "calibrated_input and calibrated_output")
+    end
     println("SOURCE EGM NUMERICAL COMPARISON PASS. This alone does NOT verify GE.")
 end
 
