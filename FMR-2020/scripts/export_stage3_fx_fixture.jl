@@ -87,6 +87,12 @@ function main()
                 calibrated.terms,calibrated.wage,calibrated.L,
                 calibrated.profits;tolerance=1e-9,maxiter=5000)
             future=refpolicy.coarse_consumption
+            nf=length(case.economy.grids.fine)
+            ns=length(case.economy.chain.levels)
+            source_fine_c=Array{Float64}(undef,nf,ns,n)
+            source_fine_a=Array{Float64}(undef,nf,ns,n)
+            source_fine_c[:,:,n].=refpolicy.fine_consumption
+            source_fine_a[:,:,n].=refpolicy.fine_savings
             comparison=joinpath(directory,"unleveraged_backward_egm.csv")
             open(comparison,"w") do io
                 println(io,"t,max_coarse_abs_diff,max_fine_defined_abs_diff," *
@@ -98,6 +104,8 @@ function main()
                         st.grids,st.chain,p,future,calibrated.beta,
                         w.rate[t],w.rate[t+1],w.terms[t],w.wage[t],
                         w.L[t],w.profits[t])
+                    source_fine_c[:,:,t].=step.fine_consumption
+                    source_fine_a[:,:,t].=step.fine_savings
                     oldcoarse=view(w.coarse_consumption,:,:,t)
                     sourceactive=view(step.coarse_consumption,33:193,:)
                     maxcoarse=maximum(abs.(sourceactive.-oldcoarse))
@@ -144,6 +152,82 @@ function main()
                 end
             end
             println("BACKWARD EGM COMPARISON COMPLETE: ",comparison)
+            # Source-style full 399-element market residual comparison.
+            # Prices/K/L/initial FX mass are held fixed, while source
+            # 193-node EGM and its induced 769-node distribution evolve
+            # independently. The result is NOT a solved equilibrium.
+            mu_source=copy(view(w.distribution,:,:,1))
+            next_source=similar(mu_source)
+            source_ch=zeros(Float64,n)
+            source_a=zeros(Float64,n)
+            first_invalid=0
+            for t in 1:n
+                for j in axes(mu_source,2),i in axes(mu_source,1)
+                    mass=mu_source[i,j]
+                    mass>0 || continue
+                    cc=source_fine_c[i,j,t]
+                    aa=source_fine_a[i,j,t]
+                    if !(isfinite(cc) && cc>0 && isfinite(aa) &&
+                         aa>=case.economy.grids.borrowing_limit)
+                        first_invalid=t
+                        break
+                    end
+                    source_ch[t]+=mass*cc
+                    source_a[t]+=mass*aa
+                end
+                first_invalid>0 && break
+                if t<n
+                    FMR2020.distribution_step!(
+                        next_source,mu_source,view(source_fine_a,:,:,t),
+                        case.economy.grids.fine,case.economy.chain.transition)
+                    mu_source,next_source=next_source,mu_source
+                end
+            end
+            if first_invalid>0
+                println("SOURCE 399-MAP INFEASIBLE: positive-mass original " *
+                        "policy at t=",first_invalid,
+                        "; cannot claim an economically valid GE")
+            else
+                scaleK=max(1.0,case.economy.initial.K)
+                scaleL=max(1.0,case.economy.initial.L)
+                unionfactor=p.chi*(p.epsilon_w-1)/p.epsilon_w
+                ra=zeros(Float64,n-1)
+                rl=zeros(Float64,n)
+                for t in 1:n-1
+                    ra[t]=(source_a[t]-w.aggregate_savings[t])/
+                           w.q[t]/scaleK
+                end
+                for t in 1:n
+                    source_l=unionfactor*w.wage[t]/
+                             (case.economy.reference.chi_dis*source_ch[t])
+                    production_l=unionfactor*w.wage[t]/
+                             (case.economy.reference.chi_dis*w.aggregate_home[t])
+                    rl[t]=(source_l-production_l)/scaleL
+                end
+                maxa=maximum(abs,ra)
+                maxl=maximum(abs,rl)
+                ai=argmax(abs.(ra))
+                li=argmax(abs.(rl))
+                println("SOURCE 399 RESIDUAL MAP vs PRODUCTION SAME X " *
+                        "max_asset_scaled_diff=",maxa,
+                        " at_t=",ai," max_labor_scaled_diff=",maxl,
+                        " at_t=",li)
+                println("SOURCE 399 RESIDUAL MAP t1 source_A=",source_a[1],
+                        " current_A=",w.aggregate_savings[1],
+                        " source_CH=",source_ch[1],
+                        " current_CH=",w.aggregate_home[1])
+                open(joinpath(directory,"unleveraged_source_399_map.csv"),"w") do io
+                    println(io,"t,source_CH,production_CH,source_assets,production_assets," *
+                               "source_minus_production_asset_residual_scaled," *
+                               "source_minus_production_labor_residual_scaled")
+                    for t in 1:n
+                        av=t<n ? ra[t] : NaN
+                        println(io,join((t,source_ch[t],w.aggregate_home[t],
+                                         source_a[t],w.aggregate_savings[t],
+                                         av,rl[t]),","))
+                    end
+                end
+            end
         end
         println("FX REAL INITIAL CASE leverage=",lev,
                 " roots=(",roots.low,",",roots.high,")",
