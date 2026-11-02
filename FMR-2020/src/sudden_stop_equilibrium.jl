@@ -444,6 +444,48 @@ a globalization fallback after a freshly recomputed Jacobian fails to
 produce a decreasing Newton step. A nonzero residual is never accepted
 as an equilibrium.
 """
+# Persist accepted but NOT YET CONVERGED GE paths, separately from
+# verified economic outputs. The next run reevaluates all residuals.
+function stage3_write_checkpoint(path::AbstractString,
+                                 x::AbstractVector{T},
+                                 residual::AbstractVector{T},
+                                 iteration::Int) where {T<:AbstractFloat}
+    length(x)==length(residual) && length(x)>0 ||
+        throw(DimensionMismatch("checkpoint needs paired GE vectors"))
+    iteration>0 || throw(ArgumentError("checkpoint iteration must be positive"))
+    all(isfinite,x) && all(isfinite,residual) ||
+        throw(ArgumentError("checkpoint contains nonfinite values"))
+    temp=string(path,".tmp")
+    open(temp,"w") do io
+        println(io,"# STAGE3_UNCONVERGED_CHECKPOINT v1")
+        println(io,"# n=",length(x))
+        println(io,"# iter=",iteration)
+        println(io,"# max_scaled_residual=",maximum(abs,residual))
+        for value in x
+            println(io,repr(value))
+        end
+    end
+    mv(temp,path;force=true)
+    return path
+end
+
+function stage3_read_checkpoint(path::AbstractString,n::Int)
+    n>0 || throw(ArgumentError("checkpoint dimension must be positive"))
+    lines=readlines(path)
+    length(lines)==n+4 ||
+        throw(DimensionMismatch("checkpoint dimension differs from current GE"))
+    lines[1]=="# STAGE3_UNCONVERGED_CHECKPOINT v1" ||
+        throw(ArgumentError("invalid Stage 3 checkpoint signature"))
+    lines[2]=="# n=$(n)" ||
+        throw(DimensionMismatch("checkpoint source horizon differs"))
+    startswith(lines[3],"# iter=") &&
+    startswith(lines[4],"# max_scaled_residual=") ||
+        throw(ArgumentError("checkpoint metadata invalid"))
+    x=parse.(Float64,lines[5:end])
+    all(isfinite,x) || throw(ArgumentError("nonfinite checkpoint vector"))
+    return x
+end
+
 function stage3_lm_direction(J::Matrix{T}, f::Vector{T}, factor::T) where {T}
     n=length(f)
     size(J)==(n,n) || throw(DimensionMismatch("square GE Jacobian"))
@@ -464,6 +506,7 @@ function stage3_nonlinear_solve(ctx::Stage3Context{T},x0::Vector{T};
                                 fixed::Bool=false,tolerance::T=T(1e-6),
                                 maxiter::Int=70,refresh::Int=15,
                                 max_evaluations::Int=5000,
+                                on_accepted_step::Union{Nothing,Function}=nothing,
                                 verbose::Bool=true) where {T}
     n=length(x0)
     expected=fixed ? 3*length(ctx.economy.B)-1 :
@@ -497,7 +540,6 @@ function stage3_nonlinear_solve(ctx::Stage3Context{T},x0::Vector{T};
     J=Matrix{T}(undef,n,n)
     evaluation!(f,x)
     small_progress=0
-    stale=false
 
     # The original MATLAB fsolve uses a numerical Jacobian and
     # globalization. A Broyden-only Jacobian can become uninformative
@@ -539,7 +581,6 @@ function stage3_nonlinear_solve(ctx::Stage3Context{T},x0::Vector{T};
         # EGM and distributions are stateful; restore the *center*
         # evaluation rather than leaving the last Jacobian probe in work.
         evaluation!(f,x)
-        stale=false
         return nothing
     end
 
@@ -590,23 +631,28 @@ function stage3_nonlinear_solve(ctx::Stage3Context{T},x0::Vector{T};
             return TransitionSolveResult(ctx.economy,work,copy(x),copy(f),
                         iter-1,work.function_evals,maximum(abs,f),true)
         end
-        if iter==1 || (iter-1)%refresh==0 || small_progress>=2 || stale
+        did_refresh=false
+        # A tiny accepted alpha is NOT evidence that an expensive 399-column
+        # Jacobian is stale. Use measured residual progress, not alpha alone,
+        # to decide when another full matrix must be computed.
+        if iter==1 || (iter-1)%refresh==0 || small_progress>=2
             verbose && println("STAGE3 JACOBIAN refresh at iteration=",iter-1,
                                " reason=",iter==1 ? "initial" :
-                               small_progress>=2 ? "stagnation" :
-                               stale ? "small accepted step" : "scheduled")
+                               small_progress>=2 ? "stagnation" : "scheduled")
             rebuild_jacobian!()
+            did_refresh=true
             small_progress=0
         end
         direction=-(J\f)
         accepted,α,rejects=try_step!(direction)
 
-        if !accepted
-            # First eliminate stale quasi-Newton curvature before
-            # trying the author's fsolve-style trust-region fallback.
+        if !accepted && !did_refresh
+            # Refresh a STALE Broyden Jacobian at most once in this
+            # iteration. If it was just computed, try LM directly.
             verbose && println("STAGE3 Newton line search failed; " *
                                "recomputing full numerical Jacobian")
             rebuild_jacobian!()
+            did_refresh=true
             direction=-(J\f)
             accepted,α,rejects=try_step!(direction)
         end
@@ -643,12 +689,16 @@ function stage3_nonlinear_solve(ctx::Stage3Context{T},x0::Vector{T};
         newnorm=norm(trialres)
         progress=one(T)-newnorm/oldnorm
         small_progress=progress<T(0.02) ? small_progress+1 : 0
-        stale=α<T(0.125)
         verbose && println("STAGE3 STEP alpha=",α," rejected=",rejects,
                            " relative_norm_improvement=",progress,
                            " next_max=",maximum(abs,trialres))
         copyto!(x,trial)
         copyto!(f,trialres)
+        # The checkpoint is explicitly NOT a converged equilibrium. Only
+        # fully accepted iterations are persisted, after f and x agree.
+        if on_accepted_step!==nothing
+            on_accepted_step(x,f,iter)
+        end
     end
     evaluation!(f,x)
     throw(ErrorException(

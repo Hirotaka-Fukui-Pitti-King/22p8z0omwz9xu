@@ -142,11 +142,24 @@ function main()
                     "all 399 residuals will be verified again")
             guess=warmstart_from_stage2(unleveraged_file,n)
         end
+        checkpoint_file=joinpath(out,"stage3_unleveraged_UNCONVERGED.checkpoint")
+        if !isfile(unleveraged_file) && isfile(checkpoint_file)
+            println("STAGE3 RESUME: unverified accepted path will be " *
+                    "reevaluated under the current 399 GE equations")
+            guess=FMR2020.stage3_read_checkpoint(checkpoint_file,2*n-1)
+        end
+        function save_progress(accepted_x,accepted_f,iteration)
+            FMR2020.stage3_write_checkpoint(checkpoint_file,
+                                             accepted_x,accepted_f,iteration)
+        end
         flex_noleverage=solve_stage3_flexible(ctx_noleverage;
                                               x0=guess,tolerance=1e-6,
+                                              max_evaluations=5000,
+                                              on_accepted_step=save_progress,
                                               maxiter=60,verbose=true)
         unleveraged_diag=verify_stage3(flex_noleverage,ctx_noleverage;fixed=false)
         stage3_write_csv(flex_noleverage,ctx_noleverage,unleveraged_file)
+        isfile(checkpoint_file) && rm(checkpoint_file)
         if "--unleveraged-only" in ARGS
             println("STAGE3 UNLEVERAGED ACCEPTED: saved and independently " *
                     "verified. Leveraged and fixed regimes NOT attempted.")

@@ -59,6 +59,24 @@ using FMR2020
             ones(2,3),residual,1e-3)
     end
 
+    @testset "Unconverged checkpoint is never accepted as GE" begin
+        mktempdir() do dir
+            path=joinpath(dir,"stage3_unverified.chk")
+            x=[1.0,2.0,3.0]
+            res=[0.1,-0.03,0.02]
+            FMR2020.stage3_write_checkpoint(path,x,res,2)
+            @test isfile(path)
+            @test FMR2020.stage3_read_checkpoint(path,3)==x
+            @test_throws DimensionMismatch FMR2020.stage3_read_checkpoint(path,2)
+            @test_throws DimensionMismatch FMR2020.stage3_write_checkpoint(
+                path,x,[0.1],1)
+            @test_throws ArgumentError FMR2020.stage3_write_checkpoint(
+                path,x,res,0)
+            @test_throws ArgumentError FMR2020.stage3_write_checkpoint(
+                path,[NaN,2.0],[0.0,0.0],1)
+        end
+    end
+
     @testset "Zero exchange-rate shock preserves household net wealth" begin
         grid=Float64[-2,-1,0,1,2,3,4]
         mu=zeros(7,2)
