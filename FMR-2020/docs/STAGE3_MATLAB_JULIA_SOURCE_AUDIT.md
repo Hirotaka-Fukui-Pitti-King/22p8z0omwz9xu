@@ -96,3 +96,32 @@ DO NOT infer full calibrated steady-state or 399-variable GE matching. These are
 
 Remaining gates: original stationary full 193/769 policy under author prices, production Stage3 terminal policy matching, FX root branch from source fsolve(0.8), distribution and raw 399 market residual equality. Do not run another 399 root solver until these gates are established.
 PR #9 remains Draft.
+
+
+## Exact run evidence, 2026-11-03 — full-grid error is too small to explain initial 399 residual
+
+Read CI job log of [run 41539508608](https://github.com/Hirotaka-Fukui-Pitti-King/22p8z0omwz9xu/actions/runs/41539508608). Both Julia 1.12.6 and the author's MATLAB routines under GNU Octave ran successfully. The full source-style calibrated policy (193 coarse, 769 fine) **matched the original solve_R.m** at calibrated Julia prices: maximum coarse error 1.1368683772161603e-12 and maximum finite fine error 1.1937117960769683e-12. Comparing the source policy against the existing **161-node production** stationary policy, the active coarse maximum difference was only 2.984211278089788e-8; active fine maximum 2.4454461765632818e-5.
+
+On the same **initial candidate** K/L path, the entire full-grid source-style backward transition and independently propagated full-grid 769-node distribution produced:
+- Maximum **scaled asset residual-map difference**, full source-style minus production: **5.0586683097967915e-9** (period 199).
+- Maximum **scaled labor residual-map difference**: **4.7197567187851064e-8** (period 1).
+- Period-1 aggregate assets: source 21.665907683451184 vs production 21.665907578130664.
+- Period-1 domestic consumption: source 1.3952003883065274 vs production 1.3952004514988403.
+- Maximum all-node fine policy difference around 0.1948–0.2412, but the difference over **occupied household nodes** was at most about 2.58e-5 and their mass-weighted difference about 6.3e-8 at period 1. Zero-mass tail policy differences must not be confused with their effect on equilibrium residuals.
+- Occupied source-invalid mass **0**, maximum occupied budget gap **<=2.5e-16** in the tested candidate path.
+
+**Decision:** The 161-versus-193 coarse grid is a REAL source algorithm difference, but at the tested initial path its effect on the 399 residual map is many orders of magnitude smaller than the observed minimum unsolved residual (~0.005). Do **not** replace the production grid or interpret it as the proven root cause of nonconvergence on this evidence. A source-map comparison at the **last accepted but unconverged checkpoint** is the next discriminating observation; the original-versus-production difference may grow along the GE iterations.
+
+**Original author trade-price branch:** At the same opening candidate, the unmodified original scalar `fsolve(aggr,0.8)` returned **0.7865895853334468** for both no-leverage and leverage=1/16. The analytic roots are ~0.7865895866917804 and 1.037916643090368. Current budget-strict Julia selects the lower root with no leverage but **the upper root under leverage=1/16**, because the lower root puts positive-mass households into an infeasible budget state (min resources -0.1826131304704792 in owner log). This is a **verified source branch mismatch**, distinct from the grid difference. The original source's consumption floor cannot automatically be called a valid economic solution.
+
+**Original basefun FX map numerical equality:** For the real shock-date 769x7 distribution, maximum distribution differences between the original MATLAB basefun and Julia were 3.56e-17 (no leverage low), 9.97e-18 (no leverage high), 7.98e-17 (1/16 low) and 1.21e-17 (1/16 high). The FX mass-splitting implementation is therefore validated for these candidate roots; generic revaluation debugging is not the immediate bottleneck.
+
+This successful experiment evaluated source-faithful **Julia reference** residual maps, not yet the original `solve_transition_bis.m` 399-vector end-to-end. Direct source output can still diverge because of 0*NaN propagation and fsolve branch details. The next commit adds a direct one-pass source `solve_transition_bis.m` evaluation using identical Julia-exported 399-vector, B path, terminal 193-node policy and household distribution. It must FAIL loudly for nonfinite or mismatching source residuals, rather than implying full replication.
+
+**Next discriminating command on owner's Windows system (without GE root finding):**
+
+```powershell
+julia --project=. scripts/export_stage3_fx_fixture.jl results/checkpoint_399_audit --checkpoint
+```
+
+This reads `results/stage3_unleveraged_UNCONVERGED.checkpoint`, recomputes the current Julia production map and original-source-like full-grid EGM/distribution at that **same 399-vector**, and exports per-period residual discrepancies. This checkpoint is an accepted iterate, **not** an equilibrium. The source-vs-production 399-map difference there will determine whether the full-grid discretization materially explains the actual nonlinear solver failure.
