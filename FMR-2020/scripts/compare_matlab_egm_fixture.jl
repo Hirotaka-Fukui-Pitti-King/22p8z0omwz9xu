@@ -192,7 +192,7 @@ function main()
             result=zeros(Float64,size(mu_pre))
             FMR2020.revalue_foreign_debt!(result,mu_pre,fine,
                 dat[1],dat[2],dat[3],dat[4],current,dat[5])
-            author=read_numeric_csv(joinpath(fx_output,labels*"_"+
+            author=read_numeric_csv(joinpath(fx_output,labels*"_"*
                                                label*"_distribution.csv"))
             assert_fixture("FX source basefun "*labels*" "*label,
                            result,author;atol=1e-9)
