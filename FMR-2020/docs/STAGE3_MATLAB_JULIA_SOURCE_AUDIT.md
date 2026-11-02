@@ -68,3 +68,31 @@ Source scalar trade fsolve from 0.8 does not encode the model selection in Julia
 The owner verified before this patch: 35 Julia files parse and module load, 2502 unit tests pass, 399-variable unleveraged does **not** converge. The author original source blocks were read and compared by code inspection. A lightweight independent Python count confirms the grid indices implied by linspace, but **neither MATLAB nor Julia are executable in this coding environment**. Therefore the new source audit code, MATLAB fixture, Julia fixture comparator and amended tests are UNEXECUTED and must not be called passed or complete. No new GE computation was attempted.
 
 The central question remains: *Does the Julia 399-dimensional GE residual map match the original MATLAB map on the same complete asset grid and initial conditions?* Answer: not yet; several demonstrable differences remain.
+
+## 2026-11-03: Empirical source verification (supersedes earlier unexecuted note)
+
+The cross-language experiment executes Julia 1.12.6 plus GNU Octave with the ORIGINAL author Exogenous_files/rouwenhorst.m.
+GitHub Actions run: https://github.com/Hirotaka-Fukui-Pitti-King/22p8z0omwz9xu/actions/runs/41531154396
+The synthetic one-step 193/769-grid EGM comparison PASSED. 37 Julia files parsed and loaded, 2420+37+64=2521 tests passed, original shock smoke passed.
+
+| Block | Maximum absolute MATLAB-vs-Julia error |
+|---|---:|
+| Original coarse grid, 193 | 5.4569682106375694e-12 |
+| Original fine grid, 769 | 7.275957614183426e-12 |
+| Original 7 productivity levels | 6.719247380715387e-11 |
+| Original 7x7 Markov matrix | 6.938893903907228e-18 |
+| One-step coarse consumption | 7.257444645247801e-11 |
+| One-step fine consumption | 8.558898034749518e-11 |
+| One-step fine savings | 1.2005330063402653e-10 |
+| One-step fine household budget gaps | 1.2110490388295148e-10 |
+
+The positive asset-increasing synthetic future policy avoids an artificial source PCHIP out-of-support boundary in the earlier constant-consumption probe.
+
+Original-source economic issue: source-consumption flooring and setting constrained fine savings exactly to bmin can produce large negative household budget gaps on below-bmin current asset nodes (around -197 in the synthetic probe). Those points may be unoccupied; positive mass after FX revaluation must be checked before claiming a valid economic equilibrium. Original-source numerical matching and a budget-valid model must be reported separately.
+
+Stationary reference: Julia and Octave each iterated the original full-grid solve_R-style policy to convergence after 933 iterations for synthetic parameters. The coarse stationary policy matched to 7.257444645247801e-11. The original Octave stationary fine-grid c_fine contained FOUR NA states. The first Julia reference erroneously extrapolated at these states rather than preserving original interp1 undefined output. A follow-up patch returns source NaN outside the endogenous knot range, and comparator reports NaN mask equality; that second check is pending.
+
+DO NOT infer full calibrated steady-state or 399-variable GE matching. These are controlled source one-step and synthetic stationary experiments, not the author's full calibrated source simulation.
+
+Remaining gates: original stationary full 193/769 policy under author prices, production Stage3 terminal policy matching, FX root branch from source fsolve(0.8), distribution and raw 399 market residual equality. Do not run another 399 root solver until these gates are established.
+PR #9 remains Draft.
