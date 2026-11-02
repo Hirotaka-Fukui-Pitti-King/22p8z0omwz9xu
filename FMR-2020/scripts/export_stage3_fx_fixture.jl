@@ -72,6 +72,70 @@ function main()
         meta[row,:].=[w.K[1],case.economy.q_initial,
                       case.economy.B_initial,case.terms_pre,
                       lev,C,E,D,p.theta_star,roots.low,roots.high]
+        # The unleveraged case selects the SAME low trade root in
+        # original source and current Julia. Hold the entire candidate
+        # K/L and price path fixed and compare all 199 backward EGM steps.
+        # This identifies a policy-map difference without root-finding.
+        if lev==0.0
+            FMR2020.stage3_household_backward!(w,case)
+            calibrated=st.calibrated
+            refpolicy=source_matlab_stationary_egm(
+                st.grids,st.chain,p,calibrated.beta,calibrated.r,
+                calibrated.terms,calibrated.wage,calibrated.L,
+                calibrated.profits;tolerance=1e-9,maxiter=5000)
+            future=refpolicy.coarse_consumption
+            comparison=joinpath(directory,"unleveraged_backward_egm.csv")
+            open(comparison,"w") do io
+                println(io,"t,max_coarse_abs_diff,max_fine_defined_abs_diff," *
+                           "reference_fine_nan,production_fine_nan," *
+                           "occupied_source_nan_mass,max_occupied_source_budget_gap")
+                for t in (n-1):-1:1
+                    step=source_matlab_egm_step(
+                        st.grids,st.chain,p,future,calibrated.beta,
+                        w.rate[t],w.rate[t+1],w.terms[t],w.wage[t],
+                        w.L[t],w.profits[t])
+                    oldcoarse=view(w.coarse_consumption,:,:,t)
+                    sourceactive=view(step.coarse_consumption,33:193,:)
+                    maxcoarse=maximum(abs.(sourceactive.-oldcoarse))
+                    oldfine=view(w.fine_consumption,:,:,t)
+                    mask=isfinite.(step.fine_consumption) .&
+                         isfinite.(oldfine)
+                    any(mask) || error("No jointly defined fine policies at time $t")
+                    maxfine=maximum(abs.(step.fine_consumption[mask].-
+                                         oldfine[mask]))
+                    invalidmass=0.0
+                    maxbudget=0.0
+                    if t==1
+                        initialmass=view(w.distribution,:,:,1)
+                        for j in axes(initialmass,2),i in axes(initialmass,1)
+                            mass=initialmass[i,j]
+                            mass>0 || continue
+                            if !isfinite(step.fine_consumption[i,j]) ||
+                               !isfinite(step.fine_savings[i,j])
+                                invalidmass+=mass
+                            else
+                                maxbudget=max(maxbudget,
+                                              abs(step.budget_gap[i,j]))
+                            end
+                        end
+                    end
+                    println(io,join((t,maxcoarse,maxfine,
+                                     count(isnan,step.fine_consumption),
+                                     count(isnan,oldfine),
+                                     invalidmass,maxbudget),","))
+                    if t in (1,2,10,50,100,n-1)
+                        println("SOURCE vs PRODUCTION BACKWARD EGM t=",t,
+                                " coarse_max=",maxcoarse,
+                                " fine_defined_max=",maxfine,
+                                " source_nan=",count(isnan,step.fine_consumption),
+                                " occupied_source_nan_mass=",invalidmass,
+                                " occupied_budget_gap=",maxbudget)
+                    end
+                    future=step.coarse_consumption
+                end
+            end
+            println("BACKWARD EGM COMPARISON COMPLETE: ",comparison)
+        end
         println("FX REAL INITIAL CASE leverage=",lev,
                 " roots=(",roots.low,",",roots.high,")",
                 " Julia selected=",w.terms[1])
