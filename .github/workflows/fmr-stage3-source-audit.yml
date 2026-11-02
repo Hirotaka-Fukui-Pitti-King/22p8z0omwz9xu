@@ -5,6 +5,8 @@ on:
       - research/fmr-2020-stage3-sudden-stop-exchange-regimes
     paths:
       - 'FMR-2020/src/**'
+      - 'FMR-2020/matlab/**'
+      - 'FMR-2020/scripts/compare_matlab_egm_fixture.jl'
       - 'FMR-2020/test/**'
       - 'FMR-2020/scripts/check_syntax.jl'
       - 'FMR-2020/scripts/validate_sudden_stop.jl'
@@ -12,6 +14,8 @@ on:
   pull_request:
     paths:
       - 'FMR-2020/src/**'
+      - 'FMR-2020/matlab/**'
+      - 'FMR-2020/scripts/compare_matlab_egm_fixture.jl'
       - 'FMR-2020/test/**'
       - '.github/workflows/fmr-stage3-source-audit.yml'
   workflow_dispatch:
