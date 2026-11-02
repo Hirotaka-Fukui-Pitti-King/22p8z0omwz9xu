@@ -12,6 +12,28 @@ using FMR2020
         @test isapprox(result[2],-4+(40+4)*(1-1/199)^4;atol=1e-12)
         @test_throws ArgumentError credit_reversal_path(B,-4.0;shock_start=1)
     end
+    @testset "Positive trade-price roots with same-sign far endpoints" begin
+        # This is the actual coefficient vector implied by the failed
+        # T=200 initial aggregate guess in the owner's Windows log.
+        C=-2.7782230139198565
+        E=3.8257097540368417
+        D=1.0149463596999195
+        theta_star=3.0
+        f(x)=C+E/x-D/x^theta_star
+        xpeak=sqrt(3D/E)
+        @test f(0.001)<0
+        @test f(1000.0)<0
+        @test f(xpeak)>0
+        root=FMR2020.foreign_debt_trade_root(C,E,D,theta_star)
+        @test isapprox(root,0.7865895839646455;atol=1e-9)
+        @test root<xpeak
+        @test abs(f(root))<1e-9
+        # Opposite signs at two arbitrary far endpoints are NOT
+        # required, but genuine lack of any positive root still fails.
+        @test_throws DomainError FMR2020.foreign_debt_trade_root(
+            -10.0,1.0,1.0,3.0)
+    end
+
     @testset "Zero exchange-rate shock preserves household net wealth" begin
         grid=Float64[-2,-1,0,1,2,3,4]
         mu=zeros(7,2)

@@ -45,3 +45,13 @@ New: `src/foreign_debt_revaluation.jl`, `src/sudden_stop_equilibrium.jl`, `src/t
 All Julia source is freshly authored, and **no Julia execution is performed by the assistant**. The owner runs Julia 1.12.6 on Windows. At time of commit: syntax unverified, Stage 3 unit tests unverified, smoke test unverified, 399- and 599-dimensional GE numerical convergence unverified, SVG generation unverified and numerical correspondence with author figures unverified.
 
 Previous Stage 2 owner-PC verification remains true only for the Stage 2 source, and cannot be reused as proof that Stage 3 works. A completed source implementation is not a verified replication. If the owner's first smoke test fails on distribution support or the fixed Rotemberg block, the user-PC stack trace controls the precise subsequent fix; there is no warrant for loosening bounds or claiming success.
+
+## 2026-11-03 owner-PC first-run failure: first-period foreign-debt trade root
+
+Owner ran Julia 1.12.6 on Windows: 34/34 Julia files parsed, 2,420 Stage 1, 37 Stage 2 and 15 Stage 3 tests passed; no-revaluation and fixed-price-block smoke passed (599 unknowns). Recalculated foreign-debt expansion converged immediately from the Stage 2 solution (max scaled GE residual 3.55103e-7, max goods level 5.37672e-7). The 399-variable surprise-reversal solver failed **before its first nonlinear iteration** in stage3_positive_trade_root: the implementation required opposite signs at x=0.001*xprev and x=1000*xprev.
+
+On the actual failed initial aggregate guess, the trade-price residual f(x)=C+E/x-D/x^theta_star has approximately C=-2.77822301392, E=3.82570975404, D=1.01494635970, theta_star=3. It has a maximum at x_peak=0.89212593177 with f_peak=+0.08064822670, and two genuine positive roots, x_low=0.78658958396 and x_high=1.03791664536. Both far endpoints have negative f, so the previous code made a mathematically false no-root inference.
+
+The original source solve_transition_bis.m uses MATLAB fsolve with an initial 0.8 in the final price iteration; the observed initial-guesstimate 0.8 lies near x_low and a Newton step leads to the lower root. Correction: compute the unique positive maximum, construct a strict sign-changing bracket only on (0,x_peak), and solve the lower-price branch with the same original budget/resource equation; explicitly throw when no maximum above zero exists. The independent residual and household/distribution constraints stay unchanged. A unit test and short smoke test now cover the exact observed two-positive-root failure. This is a direct defect repair, not a new numerical economic model.
+
+**The source patch is committed but not yet run on the owner's PC.** The macro GE and Figures 1/4/5 have NOT been solved/generated and remain unverified.

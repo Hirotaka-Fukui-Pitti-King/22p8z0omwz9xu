@@ -31,6 +31,14 @@ function main()
     @assert all(isfinite,workspace.rate)
     @assert minimum(workspace.terms)>0
     @assert length(fixedguess)==3*n-1
+    # Original PC 200-quarter initial guess. Its trade equation has
+    # two positive roots, even though distant endpoints share a sign.
+    C=-2.7782230139198565
+    E=3.8257097540368417
+    D=1.0149463596999195
+    root=FMR2020.foreign_debt_trade_root(C,E,D,3.0)
+    @assert isapprox(root,0.7865895839646455;atol=1e-9)
+    println("Shock trade-price double-root regression PASS: x=",root)
     println("Fixed-rate price block PASS, dimension=",length(fixedguess))
     println("STAGE3 SMOKE PASSED; full GE remains unverified until separate solve.")
 end

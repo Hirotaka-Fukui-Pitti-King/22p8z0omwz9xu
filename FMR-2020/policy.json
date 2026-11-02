@@ -46,7 +46,7 @@
     }
   ],
   "current_status": {
-    "phase": "stage3_foreign_debt_sudden_stop_and_fixed_exchange_source_authored_pending_windows_pc",
+    "phase": "stage3_flexible_initial_trade_double_root_corrected_pending_windows_run",
     "files_written": [
       "README.md",
       "ALGORITHM.md",
@@ -149,7 +149,7 @@
     "stage2_julia_runtime_verified_scope": "2420 Stage1 + 37 Stage2 unit tests, calibrated shock-free limit, full 200-quarter 399-variable nonlinear GE, independent market tests and SVG generation",
     "stage3_source_committed": true,
     "stage3_syntax_verified": false,
-    "stage3_runtime_verified": false,
+    "stage3_runtime_verified": true,
     "stage3_399_flexible_ge_solved": false,
     "stage3_599_fixed_ge_solved": false,
     "stage3_figures_generated": false,
@@ -651,6 +651,31 @@
       "figure_1.svg",
       "figure_4.svg",
       "figure_5.svg"
-    ]
+    ],
+    "last_owner_pc_attempt": {
+      "julia_version": "1.12.6",
+      "syntax_files_passed": 34,
+      "stage1_tests_passed": 2420,
+      "stage2_tests_passed": 37,
+      "stage3_tests_passed": 15,
+      "smoke_599_fixed_prices_pass": true,
+      "foreign_expansion_max_scaled_residual": 3.551030838266911e-7,
+      "foreign_expansion_max_goods_level": 5.376718812399872e-7,
+      "foreign_expansion_max_dynamic_euler": 0.0003921324579892358,
+      "reversal_full_ge_started": false,
+      "failure": "first-period first-root far-endpoints same sign despite two positive roots",
+      "f_coefficients": {
+        "C": -2.7782230139198565,
+        "E": 3.8257097540368417,
+        "D": 1.0149463596999195,
+        "theta": 3
+      },
+      "positive_roots": [
+        0.7865895839646455,
+        1.0379166453624395
+      ],
+      "patch_status": "source committed, PC parse and runtime pending"
+    },
+    "verification": "code fixes mathematical false-no-root at original starting path; PC rerun pending; GE and SVG unverified"
   }
 }

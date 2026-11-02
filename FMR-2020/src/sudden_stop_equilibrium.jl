@@ -4,35 +4,69 @@ Stage 3 reuses the Stage 2 399-variable economic closure, but introduces
 the source author's foreign-debt revaluation INSIDE EVERY candidate-path
 evaluation. Its household policies and distributions are recomputed each time.
 """
+"""
+For negative opening foreign bonds, the source trade-price equation is
+
+    f(x) = C + E/x - D/x^theta_star = 0, E > 0, D > 0.
+
+For theta_star > 1 its only interior stationary point is a MAXIMUM at
+x_peak=(theta_star*D/E)^(1/(theta_star-1)). If C < 0 it can have
+TWO positive roots despite f(lower)<0 and f(upper)<0.
+
+The original MATLAB solve_transition_bis.m calls fsolve(aggr,0.8) in
+its final iteration. Preserve the LOW-price branch (the one reached
+from 0.8 in the observed PC initial candidate), rather than
+incorrectly testing opposite signs at arbitrary far-apart endpoints.
+Do not change aggregate paths or clip households to manufacture a root.
+"""
+function foreign_debt_trade_root(C::T,E::T,D::T,theta_star::T) where {T<:AbstractFloat}
+    isfinite(C) && isfinite(E) && isfinite(D) && isfinite(theta_star) ||
+        throw(DomainError((C,E,D,theta_star),"nonfinite scalar trade coefficients"))
+    E>zero(T) && D>zero(T) && theta_star>one(T) ||
+        throw(DomainError((E,D,theta_star),
+                          "root-branch formula requires foreign debt E>0, D>0, theta_star>1"))
+    xpeak=(theta_star*D/E)^(inv(theta_star-one(T)))
+    f(x)=C+E/x-D*x^(-theta_star)
+    fpeak=f(xpeak)
+    isfinite(xpeak) && xpeak>zero(T) && isfinite(fpeak) && fpeak>zero(T) ||
+        throw(DomainError((C,E,D,xpeak,fpeak),
+            "no two-sided positive lower-branch trade root at the proposed aggregate path"))
+    low=xpeak/T(2)
+    flow=f(low)
+    for _ in 1:100
+        isfinite(flow) && flow<zero(T) && break
+        low/=T(2)
+        flow=f(low)
+    end
+    isfinite(flow) && flow<zero(T) ||
+        throw(DomainError((low,flow),"failed to bracket positive low-price branch"))
+    root=bracketed_root(f,low,xpeak;tol=T(1e-11),maxiter=110)
+    isfinite(root.root) && zero(T)<root.root<xpeak ||
+        throw(DomainError(root.root,"invalid source low-price root"))
+    abs(f(root.root))<=T(1e-9)*
+                          max(one(T),abs(C),abs(E/root.root),abs(D/root.root^theta_star)) ||
+        throw(ErrorException("foreign-debt trade root has unacceptable equation residual"))
+    return root.root
+end
+
 function stage3_positive_trade_root(w::TransitionWorkspace{T},
                                    ctx::Stage3Context{T}) where {T}
     inp=ctx.economy
     p=inp.params
-    # First-period household balance sheet after FX revaluation:
-    # (q_initial*K_initial + B_initial/(x/terms_pre))*(1+r[1]).
-    # The theta=1 budget and export-demand condition are otherwise
-    # the identical nonlinear scalar equation in solve_transition_bis.m.
     expenditure=w.Y[1]-w.I[1]-w.adjustment[1]
     outwealth=inp.B[1]+w.q[1]*w.K[2]
     other=w.wage[1]*w.L[1]+w.profits[1]
     gross=one(T)+w.rate[1]
-    function scalar_error(x::T)
-        x>0 || throw(DomainError(x,"terms of trade must be positive"))
-        initial_wealth=inp.q_initial*w.K[1]+inp.B_initial*ctx.terms_pre/x
-        ch=p.chi*(gross*initial_wealth-outwealth+other)
-        return expenditure-inp.reference.export_shift*x^(-p.theta_star)-ch
+    # Exactly the original first-period household wealth revaluation
+    # q_initial*K_initial+B_initial*terms_pre/x. No missing return factor.
+    C=expenditure-p.chi*(gross*inp.q_initial*w.K[1]-outwealth+other)
+    E=-p.chi*gross*inp.B_initial*ctx.terms_pre
+    D=inp.reference.export_shift
+    if E<=zero(T)
+        throw(DomainError(E,
+            "negative inherited foreign bonds required for lower-branch rule; audit other-sign debt case"))
     end
-    # A wide positive bracket is a diagnostic; we do not force a sign
-    # change by clipping a household or its debt.
-    lower=T(1e-3)*ctx.terms_pre
-    upper=T(1e3)*ctx.terms_pre
-    left=scalar_error(lower)
-    right=scalar_error(upper)
-    isfinite(left) && isfinite(right) &&
-        signbit(left)!=signbit(right) ||
-        throw(ArgumentError("foreign-denominated trade-price root not bracketed"))
-    root=bracketed_root(scalar_error,lower,upper;tol=T(1e-11),maxiter=110)
-    return root.root
+    return foreign_debt_trade_root(C,E,D,p.theta_star)
 end
 
 function stage3_flexible_prices!(w::TransitionWorkspace{T},
