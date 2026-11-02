@@ -10,6 +10,7 @@ if nargin < 2
         'results', 'matlab_egm_fixture');
 end
 addpath(fullfile(original_root,'Exogenous_files'));
+addpath(fullfile(original_root,'Steady_State_Ayagari'));
 if ~exist('rouwenhorst','file')
     error('Original Exogenous_files/rouwenhorst.m not found');
 end
@@ -101,6 +102,24 @@ dlmwrite(fullfile(output_dir,'coarse_consumption.csv'),coarse_consumption,'preci
 dlmwrite(fullfile(output_dir,'fine_consumption.csv'),fine_consumption,'precision','%.17g');
 dlmwrite(fullfile(output_dir,'fine_savings.csv'),fine_savings,'precision','%.17g');
 dlmwrite(fullfile(output_dir,'fine_budget.csv'),fine_budget,'precision','%.17g');
+
+% Independently test the full-grid stationary policy produced by the
+% original solve_R.m. Same positive increasing initial c0 as Julia.
+params.nA=193; params.nA_fine=769; params.ns=7;
+params.Agrid=Agrid; params.Agrid_fine=Agrid_fine;
+params.Index_b_min=33;
+params.bmin=bmin;
+params.ex=ex; params.piex=P;
+params.gamma=gamma; params.theta=theta; params.omega=omega;
+params.beta=beta; params.tol=1e-9; params.maxIter=5000;
+initial_cpol=future;
+[~,cpol_source,~,cfine_source]=solve_R( ...
+    r_now,ex,labor,wage,terms,profits,initial_cpol,params);
+dlmwrite(fullfile(output_dir,'stationary_coarse_consumption.csv'), ...
+         cpol_source,'precision','%.17g');
+dlmwrite(fullfile(output_dir,'stationary_fine_consumption.csv'), ...
+         cfine_source,'precision','%.17g');
+fprintf('MATLAB source solve_R stationary fixture complete\n');
 fprintf('MATLAB EGM FIXTURE SAVED: %s\n',output_dir);
 fprintf('GRID: %d coarse, %d fine, constraint indices 33 and 129\n', ...
         length(Agrid),length(Agrid_fine));

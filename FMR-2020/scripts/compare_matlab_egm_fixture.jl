@@ -62,6 +62,22 @@ function main()
                    read_numeric_csv(joinpath(dir,"fine_savings.csv")))
     assert_fixture("source fine budget",step.budget_gap,
                    read_numeric_csv(joinpath(dir,"fine_budget.csv")))
+
+    # This second experiment checks all fixed-point updates, rather
+    # than merely one backward EGM evaluation.
+    st=source_matlab_stationary_egm(gr,ch,params,0.98,0.01,
+                                    1.0,1.8,1.0,0.25;
+                                    tolerance=1e-9,maxiter=5000)
+    println("SOURCE STATIONARY iterations=",st.iterations,
+            " max_update=",st.update_error)
+    assert_fixture("source stationary coarse policy",
+                   st.coarse_consumption,
+                   read_numeric_csv(joinpath(dir,"stationary_coarse_consumption.csv"));
+                   atol=1e-6)
+    assert_fixture("source stationary fine policy",
+                   st.fine_consumption,
+                   read_numeric_csv(joinpath(dir,"stationary_fine_consumption.csv"));
+                   atol=1e-6)
     println("SOURCE EGM NUMERICAL COMPARISON PASS. This alone does NOT verify GE.")
 end
 

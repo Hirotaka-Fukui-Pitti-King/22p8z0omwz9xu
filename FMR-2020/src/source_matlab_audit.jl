@@ -131,3 +131,47 @@ function stage3_unscale_residual!(dest::AbstractVector{T},
     end
     return dest
 end
+
+
+# Source solve_R.m stationary fixed-point policy iteration on complete
+# 193×7 asset/productivity policy grid. This is NOT the Julia
+# budget-strict stationary equilibrium and is not used in GE yet.
+function source_matlab_stationary_egm(gr::AssetGrids{T},
+                                      chain::ProductivityChain{T},
+                                      p::ModelParams{T},beta::T,
+                                      rate::T,terms::T,wage::T,labor::T,
+                                      profits::T;
+                                      tolerance::T=T(1e-9),
+                                      maxiter::Int=5000) where {T<:AbstractFloat}
+    tolerance>zero(T) && maxiter>0 ||
+        throw(ArgumentError("source stationary iteration controls invalid"))
+    active=gr.coarse_full
+    ns=length(chain.levels)
+    now=Matrix{T}(undef,length(active),ns)
+    # A positive increasing reference initial policy avoids artificial
+    # source interp1 NaN at the huge off-grid upper tail on iteration 1.
+    for j in 1:ns,i in eachindex(active)
+        now[i,j]=one(T)+T(0.02)*max(active[i],zero(T))
+    end
+    last_gap=T(Inf)
+    for iteration in 1:maxiter
+        step=source_matlab_egm_step(gr,chain,p,now,beta,
+                                   rate,rate,terms,wage,labor,profits)
+        last_gap=maximum(abs.(step.coarse_consumption.-now))
+        if last_gap<tolerance
+            # In original solve_R.m, cpol=c0; the stopping c_new is
+            # NOT copied to c0 when maxDiff<tol. Preserve this detail.
+            return (coarse_consumption=copy(now),
+                    fine_consumption=step.fine_consumption,
+                    fine_savings=step.fine_savings,
+                    iterations=iteration,update_error=last_gap)
+        end
+        weight=last_gap<T(1e-4) ? T(0.5) : T(0.9)
+        @inbounds for j in 1:ns,i in eachindex(active)
+            now[i,j]=weight*step.coarse_consumption[i,j]+
+                     (one(T)-weight)*now[i,j]
+        end
+    end
+    throw(ErrorException("Full-grid source stationary EGM did not " *
+                         "converge in $maxiter iterations, last=$last_gap"))
+end
