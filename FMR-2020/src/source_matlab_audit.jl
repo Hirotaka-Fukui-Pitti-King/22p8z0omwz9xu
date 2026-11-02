@@ -92,7 +92,11 @@ function source_matlab_egm_step(gr::AssetGrids{T},
             # Source MATLAB interp1(...,'pchip') without 'extrap'
             # returns NaN outside the endogenous-knot range.
             c=if binding
-                pchip_evaluate(coarse,constrained,constrained_slopes,a)
+                # Source interp1(Agrid, c_constrained, Agrid_fine)
+                # returns NaN even for a tiny lower-end grid roundoff
+                # outside [Agrid[1],Agrid[end]] without extrapolation.
+                (a<coarse[1] || a>coarse[end]) ? T(NaN) :
+                    pchip_evaluate(coarse,constrained,constrained_slopes,a)
             elseif a<a_today[1] || a>a_today[end]
                 T(NaN)
             else

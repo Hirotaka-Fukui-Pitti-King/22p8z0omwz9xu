@@ -67,11 +67,18 @@ function main()
                    read_numeric_csv(joinpath(dir,"productivity.csv")))
     assert_fixture("original Markov probabilities",ch.transition,
                    read_numeric_csv(joinpath(dir,"transition.csv"));atol=1e-12)
+    # For the exact source-side PCHIP boundary and NA mask, use
+    # the MATLAB-exported original grid endpoints, rather than
+    # Julia-generated coordinates that differ by <= 1e-11.
+    matlab_coarse=vec(read_numeric_csv(joinpath(dir,"coarse_grid.csv")))
+    matlab_fine=vec(read_numeric_csv(joinpath(dir,"fine_grid.csv")))
+    source_grid=AssetGrids(matlab_coarse,matlab_fine,gr.coarse,
+                           matlab_fine,matlab_coarse[33],matlab_coarse[end])
     # Same positive increasing source future policy as the MATLAB fixture.
     # Keeps the tested EGM interpolation inside the endogenous-knot range.
     future=repeat(reshape(1.0 .+ 0.02 .* max.(gr.coarse_full,0.0),:,1),
                   1,params.n_s)
-    step=source_matlab_egm_step(gr,ch,params,future,0.98,0.01,0.01,
+    step=source_matlab_egm_step(source_grid,ch,params,future,0.98,0.01,0.01,
                                 1.0,1.8,1.0,0.25)
     assert_fixture("source coarse consumption",step.coarse_consumption,
                    read_numeric_csv(joinpath(dir,"coarse_consumption.csv")))
@@ -84,7 +91,7 @@ function main()
 
     # This second experiment checks all fixed-point updates, rather
     # than merely one backward EGM evaluation.
-    st=source_matlab_stationary_egm(gr,ch,params,0.98,0.01,
+    st=source_matlab_stationary_egm(source_grid,ch,params,0.98,0.01,
                                     1.0,1.8,1.0,0.25;
                                     tolerance=1e-9,maxiter=5000)
     println("SOURCE STATIONARY iterations=",st.iterations,
