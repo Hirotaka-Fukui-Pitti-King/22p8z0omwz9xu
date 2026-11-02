@@ -77,6 +77,40 @@ using FMR2020
         end
     end
 
+    @testset "MATLAB full-grid and constrained EGM reference" begin
+        params=default_parameters()
+        gr=make_asset_grids(params,baseline_reference(params).K)
+        layout=source_matlab_grid_layout(gr)
+        @test layout.coarse_total==193
+        @test layout.fine_total==769
+        @test layout.coarse_borrow_index==33
+        @test layout.fine_borrow_index==129
+        @test layout.coarse_below==32
+        @test layout.fine_below==128
+        @test layout.coarse_active==161
+        @test layout.fine_active==641
+        @test length(gr.coarse)==161
+        @test length(gr.coarse_full)==193
+        @test gr.coarse_full[33]==gr.borrowing_limit
+        chain=rouwenhorst(params)
+        full_future=fill(10.0,193,params.n_s)
+        source=source_matlab_egm_step(
+            gr,chain,params,full_future,0.98,0.01,0.01,
+            1.0,1.8,1.0,0.25)
+        @test size(source.coarse_consumption)==(193,7)
+        @test size(source.fine_consumption)==(769,7)
+        @test all(isfinite,source.fine_consumption)
+        @test minimum(source.fine_consumption)>0
+        @test all(source.fine_savings .>= gr.borrowing_limit)
+        # Enforced lower saving bound in the constrained region follows
+        # author backsolve_egm.m, not a blanket household-debt clip.
+        @test all(source.endogenous_threshold .> gr.borrowing_limit)
+        @test all(source.fine_savings[129,:].==gr.borrowing_limit)
+        @test_throws DimensionMismatch source_matlab_egm_step(
+            gr,chain,params,full_future[33:end,:],0.98,0.01,0.01,
+            1.0,1.8,1.0,0.25)
+    end
+
     @testset "Zero exchange-rate shock preserves household net wealth" begin
         grid=Float64[-2,-1,0,1,2,3,4]
         mu=zeros(7,2)

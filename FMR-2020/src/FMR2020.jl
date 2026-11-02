@@ -18,6 +18,7 @@ include("transition_equilibrium.jl")
 include("transition_diagnostics.jl")
 include("foreign_debt_revaluation.jl")
 include("sudden_stop_equilibrium.jl")
+include("source_matlab_audit.jl")
 include("transition_fixed_exchange.jl")
 include("stage3_figures.jl")
 
@@ -36,5 +37,6 @@ export Stage3Context, stage3_expansion_context, stage3_reversal_context
 export credit_reversal_path, revalue_foreign_debt!, stage3_residual!
 export solve_stage3_flexible, solve_stage3_fixed, stage3_diagnostics
 export stage3_figure_1, stage3_figures_4_5, stage3_write_csv
+export source_matlab_grid_layout, source_matlab_egm_step, stage3_unscale_residual!
 
 end
