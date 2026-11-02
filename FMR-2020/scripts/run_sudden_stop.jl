@@ -117,20 +117,38 @@ function main()
         boom=solve_stage3_flexible(boomctx;x0=base_guess,
                                    tolerance=1e-6,maxiter=60,verbose=true)
         expansion_diag=verify_stage3(boom,boomctx;fixed=false)
-        reversal_ctx=stage3_reversal_context(steady,boom;
-                                             shock_start=41,
-                                             leverage_hat=1/16)
-        inp=reversal_ctx.economy
+        # Source Main.m 127-154 solves the unleveraged unexpected
+        # contraction FIRST. Only Main.m 342-351 then sets 1/16
+        # leverage and warm-starts from that solved unleveraged path.
+        # Solving the leveraged 399-equation system directly from a
+        # calibrated steady-state path skips this economic continuation.
+        ctx_noleverage=stage3_reversal_context(steady,boom;
+                                                shock_start=41,
+                                                leverage_hat=0.0)
+        inp=ctx_noleverage.economy
         n=length(inp.B)
         guess=zeros(Float64,2*n-1)
         for t in 1:n-1
             guess[t]=steady.calibrated.K+
-                 (inp.initial.K-steady.calibrated.K)*0.8^t
+                     (inp.initial.K-steady.calibrated.K)*0.8^t
         end
         guess[n:end].=steady.calibrated.L
-        println("STAGE3 surprise credit reversal — flexible exchange rate")
-        flex=solve_stage3_flexible(reversal_ctx;x0=guess,
-                                   tolerance=1e-6,maxiter=80,verbose=true)
+        println("STAGE3 author protocol: UNLEVERAGED surprise reversal")
+        flex_noleverage=solve_stage3_flexible(ctx_noleverage;
+                                              x0=guess,tolerance=1e-6,
+                                              maxiter=60,verbose=true)
+        unleveraged_diag=verify_stage3(flex_noleverage,ctx_noleverage;fixed=false)
+        stage3_write_csv(flex_noleverage,ctx_noleverage,
+                         joinpath(out,"stage3_unleveraged_transition.csv"))
+
+        reversal_ctx=stage3_reversal_context(steady,boom;
+                                              shock_start=41,
+                                              leverage_hat=1/16)
+        println("STAGE3 author protocol: LEVERAGED reversal (1/16), " *
+                "warm-starting from solved unleveraged GE")
+        flex=solve_stage3_flexible(reversal_ctx;
+                                   x0=copy(flex_noleverage.x),
+                                   tolerance=1e-6,maxiter=60,verbose=true)
         flexdiag=verify_stage3(flex,reversal_ctx;fixed=false)
         println("STAGE3 surprise credit reversal — fixed exchange rate")
         fixed=solve_stage3_fixed(reversal_ctx,flex;
@@ -157,7 +175,9 @@ function main()
         open(diagfile,"w") do io
             println(io,"scenario,metric,value")
             for (name,d) in (("expansion",expansion_diag),
-                             ("flexible",flexdiag),("fixed",fixdiag))
+                             ("unleveraged",unleveraged_diag),
+                             ("flexible_leveraged",flexdiag),
+                             ("fixed",fixdiag))
                 for (k,v) in pairs(d)
                     println(io,join((name,k,v),","))
                 end
@@ -169,7 +189,8 @@ function main()
         open(logpath,"w") do io
             println(io,"Stage3 verification on Julia ",VERSION)
             for (name,sol,di) in (("expansion",boom,expansion_diag),
-                                  ("flexible",flex,flexdiag),
+                                  ("unleveraged",flex_noleverage,unleveraged_diag),
+                                  ("flexible_leveraged",flex,flexdiag),
                                   ("fixed",fixed,fixdiag))
                 println(io,name,": converged=",sol.converged,
                            " max=",sol.maximum_scaled_residual,
