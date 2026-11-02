@@ -1,2 +1,2 @@
-STAGE3 FAILED: Stage3 MATLAB-aligned residual evaluation budget exhausted at 5000/5000, before 399/599-equation convergence
+STAGE3 FAILED: Stage3 cannot reduce full GE residual even with fresh Jacobian and source-compatible regularized steps. max_index=1 max_level=0.0051466392021841875 norm=0.03289858309733816 evaluations=3499. Do not treat this as a converged equilibrium.
 No solution or figure may be claimed from this failure.
