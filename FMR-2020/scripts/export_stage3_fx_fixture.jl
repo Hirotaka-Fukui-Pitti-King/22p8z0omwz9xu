@@ -197,11 +197,15 @@ function main()
                     ra[t]=(source_a[t]-w.aggregate_savings[t])/
                            w.q[t]/scaleK
                 end
+                # Source solve_transition_bis.m:163 extends the
+                # penultimate aggregate consumption to final t=n:
+                # c_t=[c_t';c_t(end)]. This matters for labor residual n.
                 for t in 1:n
+                    ct=t<n ? t : n-1
                     source_l=unionfactor*w.wage[t]/
-                             (case.economy.reference.chi_dis*source_ch[t])
+                             (case.economy.reference.chi_dis*source_ch[ct])
                     production_l=unionfactor*w.wage[t]/
-                             (case.economy.reference.chi_dis*w.aggregate_home[t])
+                             (case.economy.reference.chi_dis*w.aggregate_home[ct])
                     rl[t]=(source_l-production_l)/scaleL
                 end
                 maxa=maximum(abs,ra)
