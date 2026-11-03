@@ -190,6 +190,63 @@ function stage9_terminal_summary(w::FMR2020.TransitionWorkspace{T},
     ))
 end
 
+"""
+    stage9_distribution_moment_audit(work, ctx)
+
+Independently compare aggregate NEXT-period wealth on the 769-node
+fine distribution grid with the CURRENT distribution's exact optimal
+saving first moment. The existing adjacent-node lottery must preserve
+both population and first moment at every interior date. No endpoint
+clipping, mass deletion or renormalization is done here.
+"""
+function stage9_distribution_moment_audit(
+        w::FMR2020.TransitionWorkspace{T},
+        ctx::Stage3Context{T}) where {T<:AbstractFloat}
+    n=length(ctx.economy.B)
+    grid=ctx.economy.grids.fine
+    maxmoment=zero(T)
+    maxmass=zero(T)
+    maxmoment_time=0
+    for t in 1:n-1
+        expected=zero(T)
+        observed=zero(T)
+        mass_current=zero(T)
+        mass_next=zero(T)
+        for j in axes(w.distribution,2),i in eachindex(grid)
+            mu=w.distribution[i,j,t]
+            mutomorrow=w.distribution[i,j,t+1]
+            mu>=zero(T) && mutomorrow>=zero(T) ||
+                throw(DomainError((t,i,j),"negative mass in forward distribution"))
+            if mu>zero(T)
+                s=w.fine_savings[i,j,t]
+                s>=grid[1]-T(1e-10) &&
+                s<=grid[end]+T(1e-10) ||
+                    throw(DomainError((t,i,j,s),"positive-mass saving outside distribution grid"))
+                expected+=mu*s
+            end
+            if mutomorrow>zero(T)
+                observed+=mutomorrow*grid[i]
+            end
+            mass_current+=mu
+            mass_next+=mutomorrow
+        end
+        gap=abs(expected-observed)
+        if gap>maxmoment
+            maxmoment=gap
+            maxmoment_time=t
+        end
+        maxmass=max(maxmass,abs(mass_current-mass_next))
+        gap<=T(1e-9)*max(one(T),abs(expected)) ||
+            throw(ErrorException("Stage 9 distribution lottery failed first-moment preservation at t="*
+                 string(t)*" expected="*string(expected)*" realized="*string(observed)))
+        abs(mass_current-mass_next)<=T(1e-10) ||
+            throw(ErrorException("Stage 9 distribution loses probability mass at t="*string(t)))
+    end
+    return (max_asset_first_moment_error=maxmoment,
+            worst_asset_first_moment_period=maxmoment_time,
+            max_probability_transition_error=maxmass)
+end
+
 function stage9_save_metrics(path,values)
     stage8_store_metrics(path,values)
 end
@@ -211,6 +268,9 @@ function stage9_audit_guess(ctx::Stage3Context{T},
     if eval.ok
         for (k,v) in pairs(stage9_terminal_summary(eval.work,ctx))
             push!(rows,"terminal_"*string(k)=>v)
+        end
+        for (k,v) in pairs(stage9_distribution_moment_audit(eval.work,ctx))
+            push!(rows,"distribution_"*string(k)=>v)
         end
     end
     return eval,rows
@@ -393,6 +453,7 @@ function stage9_solve_one(b,branch::String)
     diag=FMR2020.stage3_diagnostics(
         checked,b.long;explicit_flexible=true)
     term=stage9_terminal_summary(work,b.long)
+    moments=stage9_distribution_moment_audit(work,b.long)
     market=(diag.max_asset_market_level<=1e-4 &&
             diag.max_labor_market_level<=1e-4 &&
             diag.max_goods_market_level<=1e-4 &&
@@ -419,6 +480,9 @@ function stage9_solve_one(b,branch::String)
     ]
     for (k,v) in pairs(term)
         push!(metrics,"terminal_"*string(k)=>v)
+    end
+    for (k,v) in pairs(moments)
+        push!(metrics,"distribution_"*string(k)=>v)
     end
     stage9_save_metrics(
         joinpath(b.paths.dir,branch*"_T300_economic_certification.csv"),
