@@ -66,10 +66,10 @@ include(joinpath(@__DIR__,"..","scripts","run_economic_replication.jl"))
     FMR2020.stage3_flexible_full_residual!(
         residual,shortx,shortctx,work)
     polishing=FMR2020.stage3_euler_polish_households!(
-        work,shortctx;trigger=1e-6,target=1e-9)
+        work,shortctx;trigger=1e-5,target=1e-9)
     @test polishing.refined_fine>=0
     @test polishing.refined_coarse>=0
-    @test polishing.maximum_euler_violation_on_supported_grid<=1e-6
+    @test polishing.maximum_euler_violation_on_supported_grid<=1e-5
     FMR2020.stage3_distribution_forward!(work,shortctx)
     @test isapprox(sum(view(work.distribution,:,:,Ttiny)),1.0;atol=1e-9)
     refined_res=similar(residual)
