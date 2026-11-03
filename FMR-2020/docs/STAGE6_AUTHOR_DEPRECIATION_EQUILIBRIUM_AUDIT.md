@@ -41,6 +41,13 @@ Audited experiment: flexible FX, capital-intercept 1/16, shock immediately after
 | Post-interpolation probability mass violating affordability | 0 |
 | First-period maximum individual budget residual (absolute) | **0.00696134627379** |
 | Probability mass with individual budget errors above `1e-5` | **0.0468806276181 (4.6881%)** |
+| Probability mass at binding savings constraint, first period | 0.178220228629 (17.8220%) |
+| Budget-error mass above `1e-5` among binding states | **0.0468806276181 (4.6881%)** |
+| Budget-error mass above `1e-5` among nonbinding states | **0** |
+| Maximum budget error among nonbinding states | 5.83e-12 |
+| Worst budget-error state, 1-based (asset node, productivity) | **(116, 1)** |
+| Probability mass at worst budget-error state | 0.007622318496 |
+| Signed budget residual at worst state | −0.006961346274 |
 | Probability mass with nonpositive consumption | 0 |
 | Probability mass with original floor consumption `1e-5` | 0 |
 | Probability mass violating borrowing minimum in saved fine savings policy | 0 |
@@ -103,7 +110,7 @@ The function decreases before `x_min` and increases after it, so this is its glo
 
 The original gross-portfolio shortfall (`−0.03188894`) is independently measured on the actual inherited MATLAB distribution; it differs slightly from the previously measured Julia-distribution shortfall (`−0.03189366`). The two cannot be conflated. Saving / aggregate total-wealth clearing to `1e-8` does not by itself prove that *gross* capital and foreign liabilities have their assumed aggregate levels.
 
-At positive-mass saved fine-grid states, first-period budget residuals reach `0.00696135`, even though the stored consumption policies are positive and next-period savings do not breach the borrowing floor. Therefore neither initial household insolvency nor an active literal `1e-5` consumption floor explains the entire first-period discrepancy. A 4.6881% probability mass has first-period individual budget discrepancies exceeding `1e-5`. The independent audit exports every such positive-mass fine-grid state in `first_period_occupied_budget_errors.csv`, including its asset-grid index, productivity index, probability, saved consumption and savings, available resources, and signed budget residual. Pinpointing interpolation-versus-budget source mechanics requires comparing those exact states with the source constrained-savings and PCHIP expressions.
+At positive-mass saved fine-grid states, first-period budget residuals reach `0.00696135`, even though the stored consumption policies are positive and next-period savings do not breach the borrowing floor. Therefore neither initial household insolvency nor an active literal `1e-5` consumption floor explains the entire first-period discrepancy. A 4.6881% probability mass has first-period individual budget discrepancies exceeding `1e-5`. **Every one of these states has the borrowing constraint binding.** Across nonbinding positive-mass states the maximum budget error is only `5.83e-12`. Thus the source-level budget discrepancy is localized to the constrained fine-grid policy branch rather than the unconstrained saving identity. In `backsolve_egm.m`, fine constrained consumption is constructed by PCHIP interpolation of a *coarse-grid consumption floor/budget policy* while constrained savings is separately set to `bmin`; those two calculations need not satisfy the exact fine-state budget after interpolation, particularly near the floor kink. This identifies the problematic source component, but does not yet decompose interpolation error from activation of the coarse-grid floor. The worst occupied state is fine-grid asset index 116, productivity index 1, with mass `0.007622318496` and signed budget residual `−0.006961346274`. The independent audit exports every such positive-mass fine-grid state in `first_period_occupied_budget_errors.csv`, including its asset-grid index, productivity index, probability, saved consumption and savings, available resources, and signed budget residual. Pinpointing interpolation-versus-budget source mechanics requires comparing those exact states with the source constrained-savings and PCHIP expressions.
 
 ### Equilibrium status and what follows logically
 
