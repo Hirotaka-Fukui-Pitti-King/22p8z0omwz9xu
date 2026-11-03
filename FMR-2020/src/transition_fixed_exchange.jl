@@ -94,14 +94,15 @@ function stage3_fixed_residual!(res::AbstractVector{T},
                                 x::AbstractVector{T},
                                 ctx::Stage3Context{T},
                                 w::TransitionWorkspace{T};
-                                polish_households::Bool=false) where {T}
+                                polish_households::Bool=false,
+                                strict_portfolio::Bool=false) where {T}
     w.function_evals+=1
     stage3_fixed_prices!(w,ctx,x)
     stage3_household_backward!(w,ctx)
     if polish_households
         stage3_euler_polish_households!(w,ctx)
     end
-    stage3_distribution_forward!(w,ctx)
+    stage3_distribution_forward!(w,ctx;strict_portfolio=strict_portfolio)
     return stage3_market_residual!(res,w,ctx;fixed=true)
 end
 
