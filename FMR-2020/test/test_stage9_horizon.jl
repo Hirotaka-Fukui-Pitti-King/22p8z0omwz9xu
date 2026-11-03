@@ -23,7 +23,7 @@ include(joinpath(@__DIR__,"..","scripts","stage9_horizon_extension.jl"))
     @test isapprox(sum(long.mu_pre),1.0;atol=1e-10)
     @test maximum(abs,long.economy.B[1:200]-old.economy.B)==0
     @test maximum(abs,long.economy.z[1:200]-old.economy.z)==0
-    @test_throws DimensionMismatch stage3_prolong_aggregate_guess(
+    @test_throws DimensionMismatch FMR2020.stage3_prolong_aggregate_guess(
         zeros(598),old,long)
     @test FMR2020.stage3_extend_horizon(old,200)===old
     @test_throws ArgumentError FMR2020.stage3_extend_horizon(old,199)
