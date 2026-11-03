@@ -84,7 +84,8 @@ include(joinpath(@__DIR__,"..","scripts","run_economic_replication.jl"))
         integrated_res,shortx,shortctx,work2;
         polish_households=true)
     @test integrated_res≈refined_res atol=1e-10 rtol=1e-10
-    @test work2.fine_savings≈work.fine_savings atol=1e-10 rtol=1e-10
+    # NaN at infeasible zero-mass negative-asset nodes is intentional.
+    @test isequal(work2.fine_savings,work.fine_savings)
     @test work2.coarse_consumption≈work.coarse_consumption atol=1e-10 rtol=1e-10
     @test work2.aggregate_home≈work.aggregate_home atol=1e-10 rtol=1e-10
     @test all(isfinite,integrated_res)
