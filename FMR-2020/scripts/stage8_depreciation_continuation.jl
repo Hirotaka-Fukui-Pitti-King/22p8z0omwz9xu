@@ -126,6 +126,49 @@ function stage8_store_metrics(path::AbstractString, rows)
 end
 
 """
+    stage8_independent_micro_stats(work, ctx)
+
+Verify the independently reconstructed positive-mass interior household
+budget, borrowing limit and distribution without lying about GE convergence.
+"""
+function stage8_independent_micro_stats(w::FMR2020.TransitionWorkspace{T},
+                                        ctx::Stage3Context{T}) where {T<:AbstractFloat}
+    inp=ctx.economy
+    n=length(inp.B)
+    gr=inp.grids.fine
+    mmax=zero(T)
+    weighted=zero(T)
+    totalmass=zero(T)
+    mincons=T(Inf)
+    minborrowgap=T(Inf)
+    violatingmass=zero(T)
+    for t in 1:n-1,j in axes(w.distribution,2),i in eachindex(gr)
+        mass=w.distribution[i,j,t]
+        mass==zero(T) && continue
+        gross=one(T)+w.rate[t]
+        income=w.wage[t]*w.L[t]*inp.chain.levels[j]+w.profits[t]
+        m=one(T)+w.terms[t]^(inp.params.theta-one(T))*
+            inp.params.omega/(one(T)-inp.params.omega)
+        consum=w.fine_consumption[i,j,t]
+        saving=w.fine_savings[i,j,t]
+        balance=gross*gr[i]+income-m*consum-saving
+        mmax=max(mmax,abs(balance))
+        weighted+=mass*abs(balance)
+        totalmass+=mass
+        mincons=min(mincons,consum)
+        minborrowgap=min(minborrowgap,saving-inp.grids.borrowing_limit)
+        if saving<inp.grids.borrowing_limit-T(1e-9) || consum<=zero(T)
+            violatingmass+=mass
+        end
+    end
+    return (max_interior_household_budget=mmax,
+            mean_interior_weighted_budget=weighted/totalmass,
+            minimum_occupied_consumption=mincons,
+            minimum_occupied_borrowing_gap=minborrowgap,
+            total_positive_mass_with_borrow_or_consumption_violation=violatingmass)
+end
+
+"""
     stage8_one_residual(ctx, candidate; partials=true)
 
 Evaluate the exact polished strict-portfolio residual map that the Stage 5
@@ -198,6 +241,12 @@ function stage8_one_residual(ctx::Stage3Context{T},candidate::Vector{T};
     push!(values,"first_price_x"=>w.terms[1])
     push!(values,"first_revaluation_multiplier"=>ctx.terms_pre/w.terms[1])
     push!(values,"max_distribution_mass_error"=>maximum(w.distribution_error))
+    for (key,val) in pairs(stage8_independent_micro_stats(w,ctx))
+        push!(values,string(key)=>val)
+    end
+    push!(values,"terminal_K_gap"=>w.K[end]-ctx.economy.terminal.K)
+    push!(values,"terminal_L_gap"=>w.L[end]-ctx.economy.terminal.L)
+    push!(values,"terminal_terms_gap"=>w.terms[end]-ctx.economy.terminal.terms)
     if partials
         # A local 3x3 Jacobian for date-one asset/labor/goods residuals,
         # holding the OTHER 596 aggregate coordinates fixed. Never confuse
