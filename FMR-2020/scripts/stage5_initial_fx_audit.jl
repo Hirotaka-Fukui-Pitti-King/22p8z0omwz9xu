@@ -7,6 +7,67 @@ using FMR2020
 
 include(joinpath(@__DIR__,"run_economic_replication.jl"))
 
+# Direct support test BEFORE interpolation of post-shock net wealth onto
+# the fine asset grid. This distinguishes model-level infeasibility at
+# occupied original states from discretization-created infeasible nodes.
+# Factor prices are held fixed: candidate scalar root, NOT full GE.
+function stage5_exact_original_state_support(w,ctx,terms;
+                                             strict_portfolio::Bool=false)
+    inp=ctx.economy
+    grid=inp.grids.fine
+    mu=ctx.mu_pre
+    lev_positive=zero(eltype(grid))
+    gross_wealth=zero(eltype(grid))
+    for j in axes(mu,2),i in eachindex(grid)
+        m=mu[i,j]
+        m==0 && continue
+        if grid[i]>0
+            lev_positive+=m*grid[i]
+        end
+    end
+    lev=inp.B_initial==0 ? one(eltype(grid)) :
+        (1-ctx.leverage_hat)*inp.initial.K*inp.q_initial/lev_positive
+    kfixed=ctx.leverage_hat*inp.initial.K
+    for j in axes(mu,2),i in eachindex(grid)
+        m=mu[i,j]
+        m==0 && continue
+        gross_wealth+=m*max(lev*grid[i]+kfixed,zero(eltype(grid)))
+    end
+    scale=strict_portfolio ?
+          inp.q_initial*inp.initial.K/gross_wealth : one(eltype(grid))
+    ratio=ctx.terms_pre/terms
+    R=1+w.rate[1]
+    minresources=Inf
+    minstate=(0,0)
+    minpost=Inf
+    total_violating_mass=0.0
+    count_violating=0
+    for j in axes(mu,2),i in eachindex(grid)
+        mass=mu[i,j]
+        mass==0 && continue
+        a=grid[i]
+        capital=scale*max(lev*a+kfixed,zero(eltype(grid)))
+        bond=a-capital
+        a_post=capital+bond*ratio
+        income=w.wage[1]*w.L[1]*inp.chain.levels[j]+w.profits[1]
+        resources=R*a_post+income-inp.grids.borrowing_limit
+        if resources<minresources
+            minresources=resources
+            minstate=(i,j)
+            minpost=a_post
+        end
+        if resources<=0
+            total_violating_mass+=mass
+            count_violating+=1
+        end
+    end
+    return (minimum_resources=minresources,worst_original_state=minstate,
+            worst_postshock_wealth=minpost,
+            violating_original_mass=total_violating_mass,
+            violating_original_states=count_violating,
+            feasible=minresources>0)
+end
+
 function stage5_existing_boom(steady,root_dir::AbstractString)
     ctx=stage3_expansion_context(steady)
     csv=joinpath(root_dir,
@@ -147,6 +208,15 @@ function stage5_first_period_case(
     strict_upper=isnothing(roots.high) ? nothing :
         check_strict_branch(roots.high)
 
+    direct_lower=stage5_exact_original_state_support(
+        w,ctx,roots.low)
+    direct_strict_lower=stage5_exact_original_state_support(
+        w,ctx,roots.low;strict_portfolio=true)
+    direct_upper=stage5_exact_original_state_support(
+        w,ctx,roots.high)
+    direct_strict_upper=stage5_exact_original_state_support(
+        w,ctx,roots.high;strict_portfolio=true)
+
     return (
         economy=label,maximum_scaled_residual=maxres,
         terms_pre=ctx.terms_pre,terms_observed=w.terms[1],
@@ -170,6 +240,10 @@ function stage5_first_period_case(
         strict_portfolio_scaled_market_residual=strict_ge_residual,
         strict_lower_trade_feasibility=strict_lower,
         strict_upper_trade_feasibility=strict_upper,
+        direct_lower_trade_feasibility=direct_lower,
+        direct_strict_lower_trade_feasibility=direct_strict_lower,
+        direct_upper_trade_feasibility=direct_upper,
+        direct_strict_upper_trade_feasibility=direct_strict_upper,
         C=C,E=E,D=D,trade_price_peak=roots.peak,
         lower_trade_root=lower,upper_trade_root=upper,
         observed_feasibility=observed,
@@ -238,6 +312,11 @@ function stage5_audit_main(root_dir::AbstractString=
                 end
             end
             println(io)
+            println(io,"Direct (pre-interpolation) lower-root feasibility: ",
+                    row.direct_lower_trade_feasibility,
+                    "; strict portfolio: ",
+                    row.direct_strict_lower_trade_feasibility)
+            println(io)
             println(io,"Under aggregate-conserving portfolio mapping, ",
                     "lower-branch household affordability: ",
                     row.strict_lower_trade_feasibility.feasible,
@@ -273,6 +352,14 @@ function stage5_audit_main(root_dir::AbstractString=
                 c.strict_lower_trade_feasibility.minresource,
                 ", strict_lower_error=",
                 c.strict_lower_trade_feasibility.error,
+                ", directly_revalued_original_states_lower_min=",
+                c.direct_lower_trade_feasibility.minimum_resources,
+                ", directly_revalued_original_states_strict_lower_min=",
+                c.direct_strict_lower_trade_feasibility.minimum_resources,
+                ", direct_lower_violating_mass=",
+                c.direct_lower_trade_feasibility.violating_original_mass,
+                ", direct_strict_lower_violating_mass=",
+                c.direct_strict_lower_trade_feasibility.violating_original_mass,
                 ", legacy_lower_minresource=",
                 c.lower_trade_root.minimum_resources,
                 ", legacy_lower_error=",c.lower_trade_root.error)
