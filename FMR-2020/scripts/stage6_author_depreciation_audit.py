@@ -219,6 +219,15 @@ def audit(data):
         y=y, investment=I1, adj_cost=adj1, d_export=dex,
         theta_export=theta_star, omega=omega, theta=theta)
     f1 = f(x1)
+    # Exact scalar source form for theta=1: f(x) = C + E/x + D/x^theta_star.
+    # With foreign debt B0<0, E<0 and D>0, the stationary point is a
+    # GLOBAL MINIMUM on x>0 whenever theta_star>1. Scanning alone could miss
+    # two closely spaced roots around this minimum.
+    coefficient_E = B0 * xpre * gross / (1 + omega / (1 - omega)) if theta == 1 else math.nan
+    stationary_x = ((-theta_star * dex / coefficient_E) ** (1 / (theta_star - 1))
+                    if theta == 1 and theta_star > 1 and coefficient_E < 0 and dex > 0
+                    else math.nan)
+    stationary_f = float(f(stationary_x)) if np.isfinite(stationary_x) else math.nan
     h = max(1e-8, x1 * 1e-6)
     fderiv = (f(x1 + h) - f(x1 - h)) / (2 * h)
     saved_cbudget = vector(data["c_t_agg_exp"])[0]
@@ -241,6 +250,9 @@ def audit(data):
         "source_nominal_depreciation_100log": float(100 * math.log(xpre/x1)),
         "source_outer_max_absolute_residual": float(np.max(np.abs(saved_resid))),
         "source_scalar_goods_residual_t1": float(f1),
+        "source_scalar_stationary_price": float(stationary_x),
+        "source_scalar_stationary_residual": float(stationary_f),
+        "source_scalar_no_positive_root_certified": bool(np.isfinite(stationary_f) and stationary_f > 0 and theta == 1 and theta_star > 1 and coefficient_E < 0 and dex > 0),
         "source_scalar_derivative_t1": float(fderiv),
         "source_scalar_positive_roots": "|".join(f"{q:.15g}" for q in positive_roots(f)),
         "source_scalar_saved_C_gap": float(saved_cbudget - saved_netc),
@@ -263,6 +275,8 @@ def audit(data):
         "source_post_interpolation_violating_mass": float(np.sum(post[post_occupied & (source_resource <= 0)])),
         "source_first_period_max_budget_abs": float(np.max(np.abs(budget[good]))),
         "source_first_period_weighted_budget_abs": float(np.sum(post * np.abs(budget))),
+        "source_first_period_budget_error_mass_gt_1e5": float(np.sum(post[post_occupied & (np.abs(budget) > 1e-5)])),
+        "source_first_period_max_relative_budget_error": float(np.max((np.abs(budget) / np.maximum(1.0, np.abs(gross * grid[:, None] + labor_income[None, :] + prof)))[good])),
         "source_first_period_mass_with_nonpositive_c": float(np.sum(post[post_occupied & (c1 <= 0)])),
         "source_first_period_mass_at_c_floor": float(np.sum(post[post_occupied & np.isclose(c1, 1e-5, rtol=1e-8, atol=1e-10)])),
         "source_first_period_mass_borrowing_violation": float(np.sum(post[post_occupied & (s1 < scalar(p, "bmin") - 1e-9)])),
