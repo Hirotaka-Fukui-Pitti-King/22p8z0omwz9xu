@@ -1,8 +1,16 @@
 # HANKSOME Stage 8 — Depreciation-branch GE: original-path strict-system audit and controlled numerical decision
 
-**Research verdict (as of 2026-11-03): Outcome E. The original MATLAB depreciation candidate is an economically feasible starting point for the corrected strict-portfolio Julia problem but is not a full-market root. A separate valid depreciation equilibrium is not established or excluded. No new 599-variable nonlinear solution was run in the CI audit.**
+**Historical Stage 8 initialization verdict (before the successful owner-PC solve): Outcome E.** The original MATLAB candidate was feasible but not a market root; the later owner-PC solve has **since found a distinct depreciation-side finite-horizon market root**. See the updated latest-result section immediately below. Independent infinite-horizon certification remains outstanding.
 
 Paper: de Ferra, Mitman, and Romei (2020), *Journal of International Economics* 124, 103303, https://doi.org/10.1016/j.jinteco.2020.103303. Original source: https://github.com/kurtmitman/HANKSOME. Working scientific context: Stage 7 `STAGE7_CONSTRAINED_POLICY_AND_EQUILIBRIUM_RECONCILIATION.md`.
+
+## Latest Stage 8 result — BOTH strict 599 market roots obtained
+
+**The prior Outcome E is superseded for the finite-horizon market-root existence question.** On November 3, 2026, the owner actually ran the checkpoint-resumed Julia strict-portfolio 599 GE and obtained a converged **depreciation** market root, `x1=0.8686497873413118` (`+16.759578153334562` nominal depreciation log points; max scaled 599 residual `3.2355747795552657e-7`). This contrasts with the separately saved Stage 5 **appreciation** strict market root, `x1=1.1561011377550527` (`−11.827271575476795` log points; max residual `1.230285087794152e-7`).
+
+Both are **provisional 200-period market-clearing roots**, not yet certified infinite-horizon economic equilibria. In particular, their maximum terminal household budget residuals are `0.0765876825257692` (depreciation) and `0.011342184577642911` (appreciation). New read-only verification code `scripts/stage8_compare_saved_roots.jl` independently re-evaluates both saved 599-variable files against ONE identically reconstructed inherited state and measures the terminal stationary-policy, interest, wage, profit and consumption-cost contributions. This PC-only comparison has **not** yet been executed; CI has passed the comparison module's syntax and algebraic unit tests.
+
+**Current research record:** [STAGE8_TWO_MARKET_ROOTS_AND_TERMINAL_CERTIFICATION.md](STAGE8_TWO_MARKET_ROOTS_AND_TERMINAL_CERTIFICATION.md). Sections below retain their historical diagnostics of the original off-equilibrium guess and the five-step partial solve; their earlier Outcome E should not be read as the latest result.
 
 ## 0. Owner-PC Stage 8 full 599 solve and checkpoint recovery (2026-11-03)
 
