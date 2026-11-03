@@ -41,6 +41,52 @@ function compare_block(name::String,source::AbstractArray,
     return maxgap
 end
 
+function compare_terminal(name::String,source::Matrix{Float64},
+                          julia_policy::AbstractMatrix{Float64})
+    size(source,2)==size(julia_policy,2) ||
+        throw(DimensionMismatch("$name productivity dimension"))
+    if size(source,1)>size(julia_policy,1)
+        # Original 193/769 grid includes 32/128 pre-borrowing knots;
+        # Julia stationary household stores only 161/641 active knots.
+        active=view(source,(end-size(julia_policy,1)+1):size(source,1),:)
+        compare_block(name*" (active borrowing support)",active,julia_policy)
+    elseif size(source,1)==size(julia_policy,1)
+        compare_block(name,source,julia_policy)
+    else
+        throw(DimensionMismatch("$name original smaller than Julia policy"))
+    end
+end
+
+function compare_occupied_policy(name::String,source::Matrix{Float64},
+                                 production::AbstractMatrix{Float64},
+                                 mu::AbstractMatrix{Float64})
+    size(source)==size(production)==size(mu) ||
+        throw(DimensionMismatch("$name occupied policy dimensions"))
+    gap=zero(Float64)
+    weighted=zero(Float64)
+    mismatch_mass=zero(Float64)
+    maxat=(0,0)
+    @inbounds for j in axes(mu,2),i in axes(mu,1)
+        mass=mu[i,j]
+        mass==0 && continue
+        if !(isfinite(source[i,j]) && isfinite(production[i,j]))
+            mismatch_mass+=mass
+            continue
+        end
+        difference=abs(source[i,j]-production[i,j])
+        weighted+=mass*difference
+        if difference>gap
+            gap=difference
+            maxat=(i,j)
+        end
+    end
+    println("OCCUPIED FIXED ",name," max_abs_error=",gap,
+            " max_at_grid_state=",maxat,
+            " mass_weighted_abs_error=",weighted,
+            " probability_with_undefined_policy=",mismatch_mass)
+    return gap
+end
+
 function main_fixed()
     length(ARGS)==1 ||
         error("Usage: julia --project=. scripts/diagnose_author_fixed_map.jl FIXTURE_DIR")
@@ -63,6 +109,10 @@ function main_fixed()
     println("ORIGINAL FIXED 599 SOURCE discrepancy max_raw=",delta[idx],
             " residual_index=",idx," source=",author_market[idx],
             " julia=",raw[idx])
+    compare_terminal("terminal coarse cpol",source_matrix(dir,"fixed_src_terminal_coarse"),
+                     view(w.coarse_consumption,:,:,size(w.coarse_consumption,3)))
+    compare_terminal("terminal fine c_fine",source_matrix(dir,"fixed_src_terminal_fine"),
+                     st.calibrated.household.consumption_fine)
     compare_block("interest rate",source_vector(dir,"fixed_src_rate"),w.rate)
     compare_block("wage",source_vector(dir,"fixed_src_wage"),w.wage)
     compare_block("firm profits",source_vector(dir,"fixed_src_profits"),w.profits)
@@ -73,13 +123,17 @@ function main_fixed()
     compare_block("household aggregate savings",
                   source_vector(dir,"fixed_src_household_assets"),
                   view(w.aggregate_savings,1:199))
-    for t in (1,9)
-        compare_block("fine consumption at t=$t",
-                      finite_source_matrix(dir,"fixed_src_consumption_t$t"),
-                      view(w.fine_consumption,:,:,t))
-        compare_block("fine savings at t=$t",
-                      finite_source_matrix(dir,"fixed_src_savings_t$t"),
-                      view(w.fine_savings,:,:,t))
+    for t in (199,9,1)
+        src_c=finite_source_matrix(dir,"fixed_src_consumption_t$t")
+        src_a=finite_source_matrix(dir,"fixed_src_savings_t$t")
+        actual_c=view(w.fine_consumption,:,:,t)
+        actual_a=view(w.fine_savings,:,:,t)
+        compare_block("fine consumption at t=$t",src_c,actual_c)
+        compare_block("fine savings at t=$t",src_a,actual_a)
+        compare_occupied_policy("consumption t=$t",src_c,actual_c,
+                                view(w.distribution,:,:,t))
+        compare_occupied_policy("savings t=$t",src_a,actual_a,
+                                view(w.distribution,:,:,t))
     end
     println("FIXED SOURCE BLOCK AUDIT COMPLETE: all results are" *
             " SAME-PATH comparisons, NOT a claim of Julia equilibrium.")
