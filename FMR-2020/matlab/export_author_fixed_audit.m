@@ -22,7 +22,10 @@ assert(size(s.In_dis_fixed,1)==769 && size(s.In_dis_fixed,2)==7);
 assert(size(s.c_tran_fine_fixed,1)==769 && size(s.c_tran_fine_fixed,2)==7);
 assert(size(s.dec_tran_fine_fixed,1)==769 && size(s.dec_tran_fine_fixed,2)==7);
 assert(size(s.c_tran_fine_fixed,3)==T);
-assert(size(s.dec_tran_fine_fixed,3)==T);
+% Original backsolve_egm fills savings decisions only for t=1,...,T-1.
+% Its terminal consumption is supplied externally; no terminal savings policy
+% is constructed. The saved MATLAB savings array therefore has T-1 slices.
+assert(size(s.dec_tran_fine_fixed,3)==T-1);
 if ~exist(output_dir,'dir'), mkdir(output_dir); end
 save_csv(output_dir,'fixed_src_rate',s.r_t_fixed(:));
 save_csv(output_dir,'fixed_src_wage',s.w_nr_guess_fixed(:));
