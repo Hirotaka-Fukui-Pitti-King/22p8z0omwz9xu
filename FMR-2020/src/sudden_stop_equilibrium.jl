@@ -399,7 +399,10 @@ function stage3_market_residual!(res::AbstractVector{T},
     end
     unionfactor=p.chi*(p.epsilon_w-1)/p.epsilon_w
     @inbounds for t in 1:n
-        c=t<n ? w.aggregate_home[t] : w.aggregate_home[t-1]
+        # The terminal date is a real economic date, not a repeated t=T-1
+        # observation. Source MATLAB c_t=[c_t';c_t(end)] is NOT valid
+        # as a full-economy terminal goods/labor clearing condition.
+        c=w.aggregate_home[t]
         c>0 || throw(DomainError(c,"negative aggregate home consumption"))
         w.labor_implied[t]=unionfactor*w.wage[t]/
             (inp.reference.chi_dis*c)
