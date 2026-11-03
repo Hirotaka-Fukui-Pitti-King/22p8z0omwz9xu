@@ -346,13 +346,16 @@ function stage3_household_backward!(w::TransitionWorkspace{T},
 end
 
 function stage3_distribution_forward!(w::TransitionWorkspace{T},
-                                      ctx::Stage3Context{T}) where {T}
+                                      ctx::Stage3Context{T};
+                                      strict_portfolio::Bool=false) where {T}
     inp=ctx.economy
     grid=inp.grids.fine
     init=view(w.distribution,:,:,1)
     revalue_foreign_debt!(init,ctx.mu_pre,grid,w.K[1],
                           inp.q_initial,inp.B_initial,ctx.terms_pre,
-                          w.terms[1],ctx.leverage_hat;foreign=ctx.foreign)
+                          w.terms[1],ctx.leverage_hat;
+                          foreign=ctx.foreign,
+                          strict_portfolio=strict_portfolio)
     ns=length(inp.chain.levels); nf=length(grid); n=length(inp.B)
     @inbounds for t in 1:n
         mu=view(w.distribution,:,:,t)
@@ -515,6 +518,7 @@ end
 function stage3_nonlinear_solve(ctx::Stage3Context{T},x0::Vector{T};
                                 fixed::Bool=false,explicit_flexible::Bool=false,
                                 polish_households::Bool=false,
+                                strict_portfolio::Bool=false,
                                 tolerance::T=T(1e-6),
                                 maxiter::Int=70,refresh::Int=15,
                                 max_evaluations::Int=5000,
@@ -524,6 +528,8 @@ function stage3_nonlinear_solve(ctx::Stage3Context{T},x0::Vector{T};
     fixed && explicit_flexible && throw(ArgumentError("conflicting GE regimes"))
     polish_households && !(fixed || explicit_flexible) &&
         throw(ArgumentError("Euler-polished GE requires the explicit 3T-1 goods-market system"))
+    strict_portfolio && !(fixed || explicit_flexible) &&
+        throw(ArgumentError("strict household gross-portfolio conservation requires the explicit 3T-1 GE system"))
     expected=(fixed || explicit_flexible) ? 3*length(ctx.economy.B)-1 :
                      2*length(ctx.economy.B)-1
     n==expected || throw(DimensionMismatch("Stage3 unknown dimensions"))
@@ -542,10 +548,12 @@ function stage3_nonlinear_solve(ctx::Stage3Context{T},x0::Vector{T};
                 "before 399/599-equation convergence"))
         if explicit_flexible
             stage3_flexible_full_residual!(
-                res,x,ctx,work;polish_households=polish_households)
+                res,x,ctx,work;polish_households=polish_households,
+                strict_portfolio=strict_portfolio)
         elseif fixed
             stage3_fixed_residual!(
-                res,x,ctx,work;polish_households=polish_households)
+                res,x,ctx,work;polish_households=polish_households,
+                strict_portfolio=strict_portfolio)
         else
             stage3_residual!(res,x,ctx,work)
         end
