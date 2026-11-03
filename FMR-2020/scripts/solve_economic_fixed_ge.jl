@@ -36,6 +36,49 @@ function fixed_terminal_acceptance(diag,terminal_K::Float64,terminal_L::Float64)
            diag.terminal_terms_gap<=1e-6
 end
 
+"""
+    fixed_horizon_comparison(reference_csv, longer_workspace; first_periods=40)
+
+Compare the same early 40 quarters of an economic 200-date market root
+and a longer-horizon market root, using unchanged exogenous shocks.
+Reference CSVs are written by stage3_write_csv, with column names checked.
+The scale for each series is max(1, |reference level|).
+"""
+function fixed_horizon_comparison(
+    reference_csv::AbstractString, w::FMR2020.TransitionWorkspace{T};
+    first_periods::Int=40) where {T<:AbstractFloat}
+
+    isfile(reference_csv) ||
+        throw(ArgumentError("missing shorter-horizon comparison: "*reference_csv))
+    lines=readlines(reference_csv)
+    length(lines)>first_periods ||
+        throw(DimensionMismatch("shorter-horizon CSV too short"))
+    names=split(strip(lines[1]),",")
+    pairs=(
+        ("K",w.K),("L",w.L),("Y",w.Y),
+        ("w",w.wage),("r",w.rate),
+        ("terms",w.terms),
+        ("home_consumption",w.aggregate_home),
+        ("I",w.I))
+    deviations=Dict{String,T}()
+    for (name,series) in pairs
+        pos=findfirst(==(name),names)
+        pos===nothing && throw(ArgumentError("missing CSV column "*name))
+        maxchange=zero(T)
+        for t in 1:first_periods
+            cols=split(strip(lines[t+1]),",")
+            old=parse(T,cols[pos])
+            fresh=series[t]
+            isfinite(old) && isfinite(fresh) ||
+                throw(DomainError((old,fresh),"nonfinite horizon comparison"))
+            maxchange=max(maxchange,abs(fresh-old)/max(one(T),abs(old)))
+        end
+        deviations[name]=maxchange
+    end
+    return (by_variable=deviations,maximum=maximum(values(deviations)),
+            first_periods=first_periods)
+end
+
 function solve_economic_fixed_ge()
     length(ARGS) in (1,2) ||
         error("Usage: julia --project=. scripts/solve_economic_fixed_ge.jl FIXTURE_DIR [HORIZON]")
@@ -96,9 +139,20 @@ function solve_economic_fixed_ge()
         FMR2020.stage3_write_checkpoint(
             checkpoint,result.x,result.residual,result.iterations)
     end
+    reference_path=joinpath(dir,
+        "julia_$(3n0-1)_FIXED_TERMINAL_BC_EULER_PENDING.csv")
+    convergence=n>n0 && isfile(reference_path) ?
+        fixed_horizon_comparison(reference_path,result.workspace) : nothing
+    convergence===nothing ?
+        println("HORIZON CONVERGENCE NOT YET VERIFIED. Need valid 200- and " *
+                "longer-date paths with identical shock.") :
+        println("SAME-SHOCK 200-to-",n,
+                " DATE FIRST-40-QUARTER CONVERGENCE: ",convergence)
+    horizon_pass=convergence!==nothing && convergence.maximum<=1e-3
     if !(fixed_euler_acceptance(diag) &&
          fixed_terminal_acceptance(diag,ctx.economy.terminal.K,
-                                   ctx.economy.terminal.L))
+                                   ctx.economy.terminal.L) &&
+         horizon_pass)
         println("FIXED MARKET-CLEARING ROOT SAVED: ",provisional,
                 "; full dynamic GE certification pending.",
                 " Euler_max=",diag.max_dynamic_euler,
@@ -108,12 +162,15 @@ function solve_economic_fixed_ge()
                 " terminal_budget_max=",diag.max_terminal_household_budget,
                 " terminal_K_gap=",diag.terminal_K_gap,
                 " terminal_L_gap=",diag.terminal_L_gap,
-                " terminal_terms_gap=",diag.terminal_terms_gap)
+                " terminal_terms_gap=",diag.terminal_terms_gap,
+                " horizon_first40_relative_gap=",
+                convergence===nothing ? "not checked" : convergence.maximum)
         return nothing
     end
     certified=joinpath(dir,"julia_$(3n-1)_FIXED_TERMINAL_BC_VERIFIED.csv")
     FMR2020.stage3_write_csv(result,ctx,certified;fixed=true)
-    println("FIXED FULL GE VERIFIED (market, budget, mass, NKPC, Euler): ",
+    println("FIXED GE NUMERICALLY VERIFIED, including first-40-quarter " *
+            "same-shock horizon convergence: ",
             certified)
     return nothing
 end
