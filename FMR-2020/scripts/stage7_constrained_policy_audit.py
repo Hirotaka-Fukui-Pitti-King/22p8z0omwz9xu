@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import argparse
 import csv
-import math
 from pathlib import Path
 
 import numpy as np
@@ -80,7 +79,6 @@ def audit_stage7(data):
               *(1-scalar(p,"alpha"))*vector(data["y_agg_exp"])[0]
               *income_ex/scalar(p,"ex_mean"))+profits
     m = 1 + t ** (scalar(p,"theta")-1) * scalar(p,"omega")/(1-scalar(p,"omega"))
-    m > 0 or None
     if not m > 0: raise ValueError("Nonpositive home-good expenditure conversion")
 
     coarse_raw, coarse_floor = source_constrained_coarse(coarse,income,R,bmin,m)
