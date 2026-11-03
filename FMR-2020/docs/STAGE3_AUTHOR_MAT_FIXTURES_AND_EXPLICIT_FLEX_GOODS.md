@@ -70,3 +70,32 @@ A new physical capital / labor / terms solution is **not** certified until the r
 - Automatic GitHub Actions source/Julia tests are triggered by commits; check the latest run before claiming tests pass.
 - Do not mistake an accepted trial point, a source-author nonzero scalar goods gap, or merely matching the adapted original 399 map for a closed equilibrium.
 - No new 399 or 599 root is reported by this addition, and Figures 1/4/5 remain unverified until the independent GE checks succeed.
+
+
+## Owner-PC result: original saved MATLAB roots and new fixed audit (2026-11-03)
+
+The original author MATLAB MAT files were successfully converted into 12 CSV fixtures. The author's two flexible solutions satisfy its 399 external asset/labor conditions but do not satisfy the first-period goods equation. The direct Julia 599-equation evaluation found:
+
+| Actual author saved path | Julia scaled max K/L residual | Julia scaled max realized goods residual |
+|---|---:|---:|
+| Unleveraged flexible | 1.4041195863789824e-6 | 0.007946781106423637 |
+| Leveraged flexible 1/16 | 7.637305550045603e-5 | 0.0014468323869371936 |
+
+The source MATLAB fixed 599-root has raw max residual 5.962021987215849e-10, but Julia's raw asset residual differs by as much as **0.17427609901943697 (residual #9)**. The original and Julia date-1 trade terms exactly coincide, while the inherited fine-grid pre-distribution differs by at most 1.3604591926118757e-5. The fixed discrepancy must not be attributed to the missing nested flexible trade root.
+
+To locate the first fixed source-to-Julia mismatch (prices, initial revaluation, EGM, or mass transport), run from PowerShell in the FMR-2020 directory after pulling the branch:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\export_author_reference.ps1 -WithFixedAudit
+julia --project=. scripts\diagnose_author_fixed_map.jl results\author_reference
+```
+
+This extracts ORIGINAL saved fixed prices, profits, the t=1 shock-date household distribution, realized household savings, and t=1/t=9 fine consumption/savings matrices. It compares each block at exactly the same saved 599-vector. This is NOT root finding.
+
+For a genuine full 599-dimensional flexible goods-clearing solve initialized at the original leveraged saved path, use:
+
+```powershell
+julia --project=. scripts\evaluate_author_explicit_goods.jl results\author_reference --solve-leveraged
+```
+
+This solve has not converged or been validated in the current record. Unlike audit mode, solve mode requires asset, labor, goods, household budget, mass and Euler checks before accepting a candidate.
