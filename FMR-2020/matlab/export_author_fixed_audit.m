@@ -10,7 +10,7 @@ s=load(filename);
 needed={'k_l_t_fixed','resid','r_t_fixed','w_nr_guess_fixed', ...
         'Profits_fixed','q_agg_fixed','In_dis_fixed', ...
         'c_tran_fine_fixed','dec_tran_fine_fixed','tot_fixed', ...
-        'new_shock_b_agg'};
+        'new_shock_b_agg','cpol','c_fine'};
 for i=1:numel(needed)
     if ~isfield(s,needed{i})
         error('Fixed MATLAB saved workspace missing variable %s',needed{i});
@@ -27,6 +27,11 @@ assert(size(s.c_tran_fine_fixed,3)==T);
 % is constructed. The saved MATLAB savings array therefore has T-1 slices.
 assert(size(s.dec_tran_fine_fixed,3)==T-1);
 if ~exist(output_dir,'dir'), mkdir(output_dir); end
+% Source terminal policies are calibrated pre-shock SS cpol/c_fine.
+% Compare them BEFORE analyzing backwards recursion to distinguish boundary
+% mismatches from EGM interpolation errors.
+save_csv(output_dir,'fixed_src_terminal_coarse',s.cpol);
+save_csv(output_dir,'fixed_src_terminal_fine',s.c_fine);
 save_csv(output_dir,'fixed_src_rate',s.r_t_fixed(:));
 save_csv(output_dir,'fixed_src_wage',s.w_nr_guess_fixed(:));
 save_csv(output_dir,'fixed_src_profits',s.Profits_fixed(:));
@@ -38,7 +43,7 @@ Knext=s.k_l_t_fixed(1:T-1);
 assets=s.new_shock_b_agg(1:T-1) + ...
        s.q_agg_fixed(1:T-1).*(Knext+s.resid(1:T-1));
 save_csv(output_dir,'fixed_src_household_assets',assets(:));
-for t=[1 9]
+for t=[1 9 T-1]
     save_csv(output_dir,sprintf('fixed_src_consumption_t%d',t), ...
              s.c_tran_fine_fixed(:,:,t));
     save_csv(output_dir,sprintf('fixed_src_savings_t%d',t), ...
