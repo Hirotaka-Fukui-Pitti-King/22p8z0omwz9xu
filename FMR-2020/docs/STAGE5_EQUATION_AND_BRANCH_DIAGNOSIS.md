@@ -121,6 +121,56 @@ At the saved K/L path, a source-style lower-price root *is not financially feasi
 
 The full 599-equation equations can only be re-solved on a depreciation-initialized branch after correcting the aggregate portfolio accounting and checking the shock-date feasible set. Do NOT simply flip the sign of exchange-rate conversion or assert multiple equilibria.
 
+## 3.1. Decisive direct-state test: economic infeasibility versus grid interpolation
+
+The initial Stage 5 low-root feasibility test evaluates **post-interpolation**
+positive-mass fine-grid nodes, which is not by itself proof that the
+*underlying* shock-revalued household states are insolvent.
+
+To discriminate, commit `bc101fdac5f6d073218332784e4cda881d96413d`
+adds `stage5_exact_original_state_support`, which calculates directly
+for every positive-mass original state `(a_i,s_i)`:
+
+```
+k_i = capital_normalization * max(lev * a_i + kfixed, 0)
+b_i = a_i - k_i
+a_i_post = k_i + b_i * (x_pre / x_candidate)
+available_i = (1+r_1)*a_i_post + w_1*L_1*s_i + profits_1 - borrowing_limit
+```
+
+**No interpolation of `a_i_post` precedes this check.**
+GitHub Actions **#356 SUCCESS**, on saved 200-period roots, gives:
+
+| Low-price conditional branch | Minimum disposable income after grid interpolation | Minimum income at original household state (BEFORE interpolation) | Mass of original states with negative resources |
+|---|---:|---:|---:|
+| Flexible, no capital intercept | +0.50202019 | **+0.50213965** | 0% |
+| Flexible, capital intercept 1/16 | -0.46416575 | **-0.43030395** | **6.57173199%** |
+| Flexible, capital intercept 1/16, capital-conserving correction | -0.46416575 | **-0.43128630** | **6.57173199%** |
+| Fixed, capital intercept 1/16 (old fixed-price block) | -0.00092531 | **+0.02897273** | **0%** |
+
+**Conclusion for the flexible-FX leveraged low scalar root conditional
+on archived K/L/r/w/profits:** it violates the **model's own necessary
+household budget/borrowing feasibility condition for 6.57% of original
+positive-mass households**. This is not introduced by grid interpolation,
+nor does it depend on EGM versus fsolve. The original source's
+`max(c,1e-5)` does not repair a negative available budget.
+
+**Qualification 1:** This result does **NOT** prove that every
+depreciation-side full general-equilibrium path is impossible: another
+K/L/price/return path changes household income and may be feasible.
+A negative disposable resource for the same fixed aggregate path is
+a conditional impossibility, not a global equilibrium nonexistence
+theorem.
+
+**Qualification 2:** The "fixed-FX lower scalar root is infeasible"
+claim from the *interpolated* grid check must NOT be treated as an
+economic theorem. Its original micro states actually have
+**positive** disposable resources at the *archived* fixed-price block.
+Furthermore, changing x in a **fixed** regime changes inflation,
+Rotemberg marginal costs, factor prices and household returns. The
+earlier scalar low root holding these prices fixed is not a valid
+fixed-regime price-setting counterfactual.
+
 ## 4. Next numerical discrimination
 
 1. Run the saved-root first-period audit with **strict_portfolio=true** and separately record gross capital/bond clearing, first-period household budget aggregation and lower-price household affordability. This is one household distribution/market residual evaluation, **not** another large Newton solve.
