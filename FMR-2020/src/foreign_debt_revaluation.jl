@@ -204,13 +204,24 @@ Backsolve_egm.m capital/bond mapping, including source special case BG_shock=0.
 Revalued net wealth is capital + (bond / (x_new/x_pre)).
 The Jacobian of the wealth mapping is NOT a probability Jacobian:
 discrete mass is moved via neighboring-node weights, preserving total mass.
+
+The original gross-capital allocation does NOT generally satisfy
+sum(mu_i*k_i) == q_previous*K_initial when leverage_hat > 0. The explicit
+opt-in keyword strict_portfolio=true rescales ALL gross capital positions
+by the common factor (q_previous*K_initial)/sum(mu_i*k_i) BEFORE computing
+foreign bonds b_i=a_i-k_i. This preserves their relative capital exposure,
+ensures aggregate gross capital equals q_previous*K_initial, and makes
+total bonds equal the inherited B when the pre-shock asset market clears.
+The default remains false to reproduce and audit the earlier saved roots.
+Those roots are NOT equilibria of the strict-portfolio system.
 """
 function revalue_foreign_debt!(destination::AbstractMatrix{T},
                                original::AbstractMatrix{T},
                                grid::AbstractVector{T},
                                Kinit::T, qprev::T, Bprev::T,
                                xprev::T, xnew::T, leverage_hat::T;
-                               foreign::Bool=true) where {T}
+                               foreign::Bool=true,
+                               strict_portfolio::Bool=false) where {T}
     size(destination)==size(original) ||
         throw(DimensionMismatch("revaluation distribution"))
     size(original,1)==length(grid) ||
@@ -232,6 +243,32 @@ function revalue_foreign_debt!(destination::AbstractMatrix{T},
     isfinite(lev) && lev>0 ||
         throw(DomainError(lev,"invalid gross-asset leverage"))
     kfixed=leverage_hat*Kinit
+    target_capital=qprev*Kinit
+    target_capital>zero(T) ||
+        throw(DomainError(target_capital,"positive inherited capital value required"))
+    # The MATLAB-style raw allocation can under/over-allocate aggregate
+    # capital due to its fixed intercept and max(.,0) truncation.
+    # A single common scalar keeps relative portfolio exposures intact.
+    raw_capital=zero(T)
+    pre_wealth=zero(T)
+    @inbounds for j in axes(original,2),i in eachindex(grid)
+        mass=original[i,j]
+        mass==zero(T) && continue
+        raw_capital+=mass*max(lev*grid[i]+kfixed,zero(T))
+        pre_wealth+=mass*grid[i]
+    end
+    raw_capital>zero(T) && isfinite(raw_capital) ||
+        throw(DomainError(raw_capital,"gross capital allocation cannot be zero"))
+    capital_scale=strict_portfolio ? target_capital/raw_capital : one(T)
+    if strict_portfolio
+        # This checks the INHERITED t-1 asset market, not the future
+        # market. Only tiny numerical equilibrium error is admissible.
+        mismatch=pre_wealth-(target_capital+Bprev)
+        abs(mismatch)<=T(1e-5)*max(one(T),abs(pre_wealth),
+                                  abs(target_capital+Bprev)) ||
+            throw(DomainError(mismatch,
+                "pre-shock wealth does not equal inherited qK+B"))
+    end
     ratio=xnew/xprev
     fill!(destination,zero(T))
     total_capital=zero(T)
@@ -242,7 +279,7 @@ function revalue_foreign_debt!(destination::AbstractMatrix{T},
         mass==0 && continue
         mass>0 || throw(DomainError(mass,"negative pre-shock probability"))
         a=grid[i]
-        cap=max(lev*a+kfixed,zero(T))
+        cap=capital_scale*max(lev*a+kfixed,zero(T))
         bonds=a-cap
         new_a=foreign ? cap+bonds/ratio : a
         if new_a<grid[1]-T(1e-9) || new_a>grid[end]+T(1e-9)
@@ -276,8 +313,23 @@ function revalue_foreign_debt!(destination::AbstractMatrix{T},
     abs(actual_wealth-total_revalued)<=T(1e-8)*
          max(one(T),abs(total_revalued)) ||
         throw(ErrorException("wealth revaluation inconsistent with mass interpolation"))
+    if strict_portfolio
+        abs(total_capital-target_capital)<=T(1e-9)*
+             max(one(T),abs(target_capital)) ||
+            throw(ErrorException("strict gross-capital market does not clear"))
+        abs(total_bonds-Bprev)<=T(1e-5)*
+             max(one(T),abs(Bprev)) ||
+            throw(ErrorException("strict inherited foreign bond market does not clear"))
+    end
     return (mass_before=before,mass_after=after,
             capital=total_capital,bonds=total_bonds,
+            capital_target=target_capital,
+            capital_market_gap=total_capital-target_capital,
+            inherited_bond_target=Bprev,
+            inherited_bond_market_gap=total_bonds-Bprev,
+            legacy_gross_capital_gap=raw_capital-target_capital,
+            capital_normalization=capital_scale,
+            strict_portfolio=strict_portfolio,
             net_wealth_before=total_capital+total_bonds,
             net_wealth_after=actual_wealth,
             predicted_net_wealth=total_capital+total_bonds/ratio,
