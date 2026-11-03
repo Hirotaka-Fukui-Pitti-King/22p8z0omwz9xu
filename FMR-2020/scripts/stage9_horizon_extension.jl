@@ -533,6 +533,10 @@ function stage9_compare(b)
               100log(b.old.terms_pre/impact200))
         push!(results,branch*"_nominal_depreciation_T300"=>
               100log(b.long.terms_pre/impact300))
+        push!(results,branch*"_impact_foreign_liability_revaluation_T200"=>
+              b.old.terms_pre/impact200)
+        push!(results,branch*"_impact_foreign_liability_revaluation_T300"=>
+              b.long.terms_pre/impact300)
         push!(results,branch*"_full899_max_scaled"=>maximum(abs,e.residual))
         for horizon in (200,300)
             t=(horizon==200 ? term200 : term300)
@@ -548,6 +552,10 @@ function stage9_compare(b)
                 ("Y",w1.Y,w2.Y),
                 ("investment",w1.I,w2.I),
                 ("home_consumption",w1.aggregate_home,w2.aggregate_home),
+                ("aggregate_assets",w1.aggregate_savings,w2.aggregate_savings),
+                ("interest_rate",w1.rate,w2.rate),
+                ("wage",w1.wage,w2.wage),
+                ("profits",w1.profits,w2.profits),
             )
                 errorval=maximum(
                     abs(values2[i]-values1[i])/
@@ -555,6 +563,30 @@ function stage9_compare(b)
                 push!(results,branch*"_"*key*"_common_first"*
                       string(horizon)*"_max_relative_gap"=>errorval)
             end
+            # Compare the FULL asset-productivity joint distributions at
+            # unchanged fine-grid nodes. The total-variation distance is
+            # descriptive; never cut mass or renormalize either distribution.
+            max_tv=zero(eltype(before))
+            max_wealthmoment_gap=zero(eltype(before))
+            grid=b.old.economy.grids.fine
+            for t in 1:horizon
+                mu1=view(w1.distribution,:,:,t)
+                mu2=view(w2.distribution,:,:,t)
+                tv=sum(abs.(mu2.-mu1))/2
+                max_tv=max(max_tv,tv)
+                expected1=zero(eltype(before))
+                expected2=zero(eltype(before))
+                for j in axes(mu1,2),i in eachindex(grid)
+                    expected1+=mu1[i,j]*grid[i]
+                    expected2+=mu2[i,j]*grid[i]
+                end
+                max_wealthmoment_gap=max(
+                    max_wealthmoment_gap,abs(expected2-expected1))
+            end
+            push!(results,branch*"_joint_distribution_TV_first"*
+                  string(horizon)*"_max"=>max_tv)
+            push!(results,branch*"_joint_wealth_first_moment_first"*
+                  string(horizon)*"_max_gap"=>max_wealthmoment_gap)
         end
         println("STAGE9 HORIZON ROOT ",branch,
                 " x1 T200=",impact200,
