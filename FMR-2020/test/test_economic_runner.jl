@@ -32,6 +32,17 @@ include(joinpath(@__DIR__,"..","scripts","run_economic_replication.jl"))
         @test v[1:n-1]==K[2:end]
         @test v[n:2n-1]==L
         @test v[2n:3n-1]==terms
+        # The same forward-horizon helper must accept a corrected
+        # 200-date market root as its seed, without altering the first
+        # 200 dates of B or the aggregate K/L/terms guess.
+        extended=FMR2020.stage3_extend_horizon(ctx,204)
+        @test extended.economy.B[1:n]==ctx.economy.B
+        @test all(extended.economy.B[n+1:end] .== ctx.economy.terminal.B)
+        prolonged=FMR2020.stage3_prolong_aggregate_guess(v,ctx,extended)
+        @test length(prolonged)==3*204-1
+        @test prolonged[1:n-1]==v[1:n-1]
+        @test prolonged[204:204+n-1]==v[n:2n-1]
+        @test prolonged[2*204:2*204+n-1]==v[2n:3n-1]
         fake=(K=copy(K),L=copy(L),Y=ones(n),I=fill(0.1,n),
               wage=fill(0.5,n),rate=fill(0.01,n),
               terms=copy(terms),aggregate_home=ones(n))
