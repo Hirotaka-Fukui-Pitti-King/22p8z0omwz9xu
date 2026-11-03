@@ -108,4 +108,20 @@ include(joinpath(@__DIR__,"..","scripts","run_economic_replication.jl"))
     @test work2.coarse_consumption≈work.coarse_consumption atol=1e-10 rtol=1e-10
     @test work2.aggregate_home≈work.aggregate_home atol=1e-10 rtol=1e-10
     @test all(isfinite,integrated_res)
+    # The corrected gross-portfolio map must be selected in the
+    # aggregate residual/Jacobian operator, NOT just post-solve.
+    # This small 4-period test avoids a heavy new GE root calculation.
+    strictwork=TransitionWorkspace(short)
+    strictres=similar(residual)
+    FMR2020.stage3_flexible_full_residual!(
+        strictres,shortx,shortctx,strictwork;
+        polish_households=true,strict_portfolio=true)
+    @test all(isfinite,strictres)
+    @test isapprox(sum(view(strictwork.distribution,:,:,Ttiny)),1.0;
+                   atol=1e-9)
+    @test_throws ArgumentError FMR2020.stage3_nonlinear_solve(
+        shortctx,shortx[1:2Ttiny-1];
+        polish_households=true,strict_portfolio=true,
+        tolerance=1e-4,maxiter=1,max_evaluations=2,
+        verbose=false)
 end
