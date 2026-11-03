@@ -199,7 +199,16 @@ function stage8_one_residual(ctx::Stage3Context{T},candidate::Vector{T};
     push!(values,"first_revaluation_multiplier"=>ctx.terms_pre/w.terms[1])
     push!(values,"max_distribution_mass_error"=>maximum(w.distribution_error))
     if partials
-        for (name,col) in (("K2",1),("L1",n),("x1",2n))
+        # A local 3x3 Jacobian for date-one asset/labor/goods residuals,
+        # holding the OTHER 596 aggregate coordinates fixed. Never confuse
+        # its step with a 599-dimensional GE root or a policy comparative static.
+        columns=(1,n,2n)
+        names=("K2","L1","x1")
+        equation_indices=(1,n,2n)
+        Jfirst=zeros(T,3,3)
+        valid=true
+        for j in 1:3
+            col=columns[j]
             h=T(1e-5)*max(one(T),abs(candidate[col]))
             perturbed=copy(candidate)
             perturbed[col]+=h
@@ -209,11 +218,80 @@ function stage8_one_residual(ctx::Stage3Context{T},candidate::Vector{T};
                 FMR2020.stage3_flexible_full_residual!(
                     tmp,perturbed,ctx,ww;
                     polish_households=true,strict_portfolio=true)
-                push!(values,"dRgoods1_d"*name=>(tmp[2n]-res[2n])/h)
+                for i in 1:3
+                    Jfirst[i,j]=(tmp[equation_indices[i]]-
+                                 res[equation_indices[i]])/h
+                end
+                push!(values,"dRgoods1_d"*names[j]=>Jfirst[3,j])
+                push!(values,"dRasset1_d"*names[j]=>Jfirst[1,j])
+                push!(values,"dRlabor1_d"*names[j]=>Jfirst[2,j])
             catch err
-                push!(values,"dRgoods1_d"*name*"_status"=>
+                valid=false
+                push!(values,"partial_"*names[j]*"_status"=>
                       "UNDEFINED: "*sprint(showerror,err))
             end
+        end
+        if valid && all(isfinite,Jfirst)
+            firstres=T[res[1],res[n],res[2n]]
+            push!(values,"first_three_norm_before"=>norm(firstres))
+            push!(values,"local_three_condition_number"=>cond(Jfirst))
+            if cond(Jfirst)<T(1e10)
+                step=-(Jfirst\firstres)
+                for j in 1:3
+                    push!(values,"local_Newton_delta_"*names[j]=>step[j])
+                end
+                # Measure ONE damped step, not an iterative/hidden solver.
+                # The entire 599-vector and household distribution are
+                # recomputed at the trial candidate.
+                recorded=false
+                for alpha in (one(T),T(0.5),T(0.25),T(0.125),T(0.0625))
+                    trial=copy(candidate)
+                    for j in 1:3
+                        trial[columns[j]]+=alpha*step[j]
+                    end
+                    if !(all(isfinite,trial) &&
+                         all(>(zero(T)),trial) &&
+                         trial[2n]<ctx.terms_pre)
+                        continue
+                    end
+                    rr=zeros(T,3n-1)
+                    tw=FMR2020.TransitionWorkspace(ctx.economy)
+                    try
+                        FMR2020.stage3_flexible_full_residual!(
+                            rr,trial,ctx,tw;
+                            polish_households=true,strict_portfolio=true)
+                    catch err
+                        push!(values,"local_step_"*string(alpha)*"_infeasible"=>
+                              sprint(showerror,err))
+                        continue
+                    end
+                    newfirst=T[rr[1],rr[n],rr[2n]]
+                    if norm(newfirst)<norm(firstres)
+                        push!(values,"local_step_accepted"=>true)
+                        push!(values,"local_step_damping"=>alpha)
+                        push!(values,"local_step_x1"=>trial[2n])
+                        push!(values,"local_step_K2"=>trial[1])
+                        push!(values,"local_step_L1"=>trial[n])
+                        push!(values,"local_first_three_norm_after"=>norm(newfirst))
+                        push!(values,"local_first_asset_scaled_after"=>rr[1])
+                        push!(values,"local_first_labor_scaled_after"=>rr[n])
+                        push!(values,"local_first_goods_scaled_after"=>rr[2n])
+                        push!(values,"local_full599_max_scaled_after"=>maximum(abs,rr))
+                        push!(values,"local_first_household_C_H_after"=>tw.aggregate_home[1])
+                        recorded=true
+                        break
+                    end
+                end
+                if !recorded
+                    push!(values,"local_step_accepted"=>false)
+                end
+            else
+                push!(values,"local_step_accepted"=>false)
+                push!(values,"local_step_reason"=>"ill-conditioned three-variable local Jacobian")
+            end
+        else
+            push!(values,"local_step_accepted"=>false)
+            push!(values,"local_step_reason"=>"undefined three-variable Jacobian")
         end
     end
     return (ok=true,metrics=values,residual=res,work=w)
