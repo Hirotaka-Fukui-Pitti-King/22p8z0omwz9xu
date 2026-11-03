@@ -29,6 +29,48 @@ julia --project=. scripts/evaluate_author_matlab_solution.jl results/author_refe
 
 This Julia evaluator ALSO computes its own pre-shock boom GE. It can fail independently if that solve does not converge, even if the CSV bundle is complete. No positive result can be reported without its actual output. **Do not replace source reference data with arbitrary synthetic CSVs.**
 
+## Reliable PowerShell entry point and first saved-root goods test
+
+On Windows **PowerShell**, first update the working branch and run the
+checked-in launcher. It derives its paths from the script location, NOT
+MATLAB `pwd` (which may remain in OneDrive/Documents/MATLAB even after
+passing `matlab -sd`).
+
+```powershell
+Set-Location C:\github\22p8z0omwz9xu
+git pull --ff-only
+Set-Location FMR-2020
+powershell -ExecutionPolicy Bypass -File .\scripts\export_author_reference.ps1
+```
+
+The launcher checks all three author workspaces, launches MATLAB using
+absolute project paths, verifies all twelve expected nonempty CSV files,
+and exits on MATLAB failure. No author GE root-finding is repeated.
+
+```powershell
+julia --project=. scripts/evaluate_author_explicit_goods.jl results/author_reference
+```
+
+The new Julia script reconstructs the shock-date context directly from
+the saved MATLAB distribution and inherited scalars, **without first
+root-solving the credit expansion**. It evaluates the original unleveraged
+and leveraged `K,L,terms` paths on the explicit 599-dimensional goods
+map and prints the first-period goods gap, the maximum goods gap, and
+the 399 market-block residual. A strict household infeasibility is
+reported as such, not mistaken for a successful GE.
+
+To attempt an actual nonlinear 599-variable root find **only after
+reviewing the evaluation**, explicitly pass `--solve`:
+
+```powershell
+julia --project=. scripts/evaluate_author_explicit_goods.jl results/author_reference --solve
+```
+
+This is a potentially expensive numerical solve, not a claimed result.
+Its output is accepted and saved only after the implemented
+independent asset, labor, goods, budget and probability checks pass.
+The diagnostic evaluation is the recommended immediate first run.
+
 ## Failure of the author's nested 399-dimensional flexible-price solve
 
 The original `Transition/solve_transition_bis.m` solves the first-period terms of trade with `fsolve(aggr,0.8)` and does **not** check its scalar return residual or exit flag. At the actual saved author 399-vector, it can return the minimizer of a strictly positive goods-market gap. Therefore raw asset and labor residuals under 1e-8 are not proof of a completely closed GE. The unleveraged source goods residual at date 1 is ~0.024336; with 1/16 leverage it is ~0.002110, even though the source 399 asset/labor market conditions are small. Actual household goods-market gaps can be larger due to wealth revaluation/discrete PCHIP policy budgets.
