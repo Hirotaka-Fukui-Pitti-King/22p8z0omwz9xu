@@ -222,7 +222,7 @@ function main()
     valid=all(x->x in ("--boom-only","--audit-euler-refinement",
                         "--solve-polished-boom") ||
                startswith(x,"--horizon="),ARGS)
-    valid || error("Usage: julia --project=. scripts/run_economic_replication.jl [--boom-only] [--horizon=300] [--audit-euler-refinement] [--solve-polished-boom]")
+    valid || error("Usage: julia --project=. scripts/run_economic_replication.jl [--boom-only] [--horizon=300] [--audit-euler-refinement] [--solve-polished-boom] (the last two are mutually exclusive)")
     settings=filter(x->startswith(x,"--horizon="),ARGS)
     length(settings)<=1 || throw(ArgumentError("specify the horizon once"))
     requested_horizon=isempty(settings) ? 200 :
@@ -234,8 +234,8 @@ function main()
     polish_solve="--solve-polished-boom" in ARGS
     polish_audit && polish_solve &&
         throw(ArgumentError("choose either audit or polished equilibrium solve"))
-    polish_solve && (!boom_only || requested_horizon!=200) &&
-        throw(ArgumentError("polished equilibrium solve requires --boom-only and 200 dates"))
+    polish_solve && !boom_only &&
+        throw(ArgumentError("polished equilibrium solve requires --boom-only"))
     polish_audit && (!boom_only || requested_horizon!=200) &&
         throw(ArgumentError("Euler refinement audit requires --boom-only and the 200-date economic root"))
     requested_horizon>200 && !boom_only &&
@@ -250,7 +250,19 @@ function main()
                    fill(steady.initial.terms,n0))
     basefile=joinpath(outputdir,
         "economic_credit_expansion_MARKET_ROOT_UNCERTIFIED.csv")
-    if requested_horizon>n0
+    polishedbasefile=joinpath(outputdir,
+        "economic_credit_expansion_euler_polished_MARKET_ROOT_UNCERTIFIED.csv")
+    if requested_horizon>n0 && polish_solve
+        # The 300-date corrected household model must start from its own
+        # SOLVED 200-date corrected GE path. Never relabel an unpolished
+        # 300-date path as a corrected-household solution.
+        prior=read_economic_root_guess(polishedbasefile,originalctx)
+        prior===nothing && error("Missing 200-date EULER-POLISHED market root. Run --boom-only --solve-polished-boom before extending the same model to 300 dates.")
+        boomctx=FMR2020.stage3_extend_horizon(originalctx,requested_horizon)
+        guess=FMR2020.stage3_prolong_aggregate_guess(
+            prior,originalctx,boomctx)
+        boom_label="credit_expansion_euler_polished_h"*string(requested_horizon)
+    elseif requested_horizon>n0
         prior=read_economic_root_guess(basefile,originalctx)
         prior===nothing && error("Missing 200-date Julia boom market root. Run the default economic replication once before requesting --horizon=300.")
         boomctx=FMR2020.stage3_extend_horizon(originalctx,requested_horizon)
@@ -264,7 +276,9 @@ function main()
     end
     n=length(boomctx.economy.B)
     println("Solving full goods-clearing initial credit expansion T=",n)
-    boom=solve_or_recheck_economic(boomctx,guess,outputdir,boom_label)
+    boom=solve_or_recheck_economic(
+        boomctx,guess,outputdir,boom_label;
+        polish_households=polish_solve && requested_horizon>n0)
     boom_check=economic_validation(boom,boomctx,boom_label,outputdir)
     if polish_audit
         # A separate workspace protects the saved market root. Perform
@@ -294,7 +308,7 @@ function main()
                 "is non-negligible.")
         return nothing
     end
-    if polish_solve
+    if polish_solve && requested_horizon==n0
         # Compute NEW GE root with the corrected household map INSIDE
         # every market residual and every finite-difference Jacobian.
         # The old unpolished root is a starting guess, not an accepted
@@ -326,12 +340,21 @@ function main()
         return nothing
     end
     if requested_horizon>n0
-        horizon_report=compare_boom_horizons(basefile,boom.workspace)
+        # Always compare the SAME household algorithm in both horizons.
+        comparisonfile=polish_solve ? polishedbasefile : basefile
+        horizon_report=compare_boom_horizons(comparisonfile,boom.workspace)
         println("SAME-SHOCK BOOM HORIZON (first 40 quarters, 200 vs ",
-                n,") relative differences: ",horizon_report)
+                n,", household_map=",
+                polish_solve ? "Euler-polished" : "baseline-EGM",
+                ") relative differences: ",horizon_report)
         println("Max relative early-path difference: ",
-                horizon_report.maximum,
-                " (horizon approximation requires an additional refinement if not small)")
+                horizon_report.maximum)
+        println("TERMINAL DIAGNOSTICS for comparison: K_gap=",
+                boom_check.diagnostics.terminal_K_gap,
+                " terminal_budget_max=",
+                boom_check.diagnostics.max_terminal_household_budget,
+                " terminal_budget_mass_weighted=",
+                boom_check.diagnostics.weighted_terminal_household_budget)
     end
     if boom_only
         println("BOOM-ONLY economic market-root experiment finished. "*
