@@ -5,7 +5,8 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"scripts"))
-from stage7_full_transition_budget_audit import transport_one
+from stage7_full_transition_budget_audit import transport_one, audit_path
+from stage6_author_depreciation_audit import read_original
 
 
 class TestConservativeTransport(unittest.TestCase):
@@ -28,6 +29,14 @@ class TestConservativeTransport(unittest.TestCase):
         bad=np.array([[.5],[3.],[100.]])
         with self.assertRaisesRegex(ValueError,"outside"):
             transport_one(mu,bad,fine,np.array([[1.]]))
+
+    def test_real_saved_full_199_periods(self):
+        path=Path(__file__).resolve().parents[1]/"results"/"author_reference"/"exp_flex_lev16.mat"
+        records=audit_path(read_original(path))
+        self.assertEqual(len(records),199)
+        self.assertEqual([r["t"] for r in records if r["mass_old_budget_error_above_1e5"]>0],[1])
+        self.assertLess(max(r["max_corrected_budget_error"] for r in records),1e-10)
+        self.assertLess(max(r["mass_error"] for r in records),1e-12)
 
     def test_zero_mass_offgrid_is_ignored(self):
         fine=np.array([0.,1.,2.])
