@@ -358,4 +358,32 @@ end
         grid,future,Float64[0.4,0.6],1.0,1.0,1.0,2.0,1.0,0.0)
     @test_throws ArgumentError FMR2020.household_best_response_saving(
         grid,future,Float64[0.99],1.0,1.0,1.0,2.0,1.0,0.0)
+
+    # Coarse EGM interpolation can miss the continuous Euler optimum;
+    # the slope-reusing local corrector must recover the *same* independent
+    # 0.5 savings root without altering the household budget.
+    slopes=similar(future)
+    FMR2020.pchip_slopes!(view(slopes,:,1),grid,view(future,:,1))
+    corrected=FMR2020.euler_refine_one_saving(
+        grid,future,slopes,prob,1.0,1.0,1.0,2.0,1.0,0.0,0.48)
+    @test corrected.refined
+    @test !corrected.offgrid
+    @test isapprox(corrected.saving,0.5;atol=1e-8)
+    @test isapprox(corrected.consumption,1.5;atol=1e-8)
+    @test abs(corrected.relative_gap)<1e-9
+    @test isapprox(corrected.saving+corrected.consumption,2.0;atol=1e-12)
+    unchanged=FMR2020.euler_refine_one_saving(
+        grid,future,slopes,prob,1.0,1.0,1.0,2.0,1.0,0.0,0.5)
+    @test !unchanged.refined
+    @test !unchanged.offgrid
+    bound=FMR2020.euler_refine_one_saving(
+        grid,future,slopes,prob,1.0,1.0,1.0,0.5,1.0,0.0,0.1)
+    @test bound.refined
+    @test bound.saving==0.0
+    @test isapprox(bound.consumption,0.5;atol=1e-12)
+    # Off-grid constrained roots are not coerced into a fake solution.
+    outside=FMR2020.euler_refine_one_saving(
+        grid,future,slopes,prob,1.0,1.0,1.0,7.0,1.0,0.0,1.0)
+    @test outside.offgrid
+    @test outside.saving==1.0
 end
