@@ -346,3 +346,48 @@ operator inside every aggregate residual evaluation**. A post-hoc
 household correction is never claimed to be a new equilibrium.
 The implementation is initially a controlled audit, not the accepted
 full equilibrium solution.
+
+
+## Corrected household-policy operator inside the full GE residual (2026-11-03)
+
+The owner's independent fixed-price household-only experiment on the
+stored 200-quarter credit-expansion 599-market root showed:
+
+- 8,079 coarse household policies and 34,099 fine policies corrected
+  by solving the conditional Euler/KKT optimal saving choice directly;
+- 21 off-grid fine states were not clipped or relabeled optimal;
+- maximum Euler violation on the supported correction grid fell to
+  9.996579082528452e-6 (from 3.188352638396009e-4);
+- largest change in fine-grid saving was 3.241376478071989e-4;
+- maximum full 599-market residual increased from
+  5.950086127137766e-7 to 3.241547888277463e-5;
+- max componentwise market-residual shift was 3.2680082299951785e-5.
+
+**Thus the old GE root is NOT a root of the improved household-policy
+system.** A post-hoc household correction cannot be reported as GE.
+
+The fixed-FX and full flexible-FX market residual functions now accept
+`polish_households=true`, applying the independent
+backward Euler/KKT corrector BETWEEN the base EGM recursion and the
+forward distribution. The same corrected micro policy is used on every
+nonlinear iteration, Broyden trial step, finite-difference Jacobian
+column, and accepted root. No separate/generalized GE solver is created.
+
+Only a targeted 200-date credit-expansion recalculation is authorized
+at this stage, from the previously converged 599 aggregate path. This
+uses a DISTINCT output file; the source interpolation-only GE roots
+remain available and are never overwritten.
+
+```powershell
+Set-Location C:\github\22p8z0omwz9xu
+git pull --ff-only
+Set-Location FMR-2020
+julia --project=. scripts\run_economic_replication.jl --boom-only --solve-polished-boom
+```
+
+The command must report current market maximum, first-40 and overall
+Euler/KKT accuracy, the final-period household budget/asset gaps, and
+save its own explicitly unverified economic market-root CSV. The
+terminal budget gap, stationarity consistency and asset-grid convergence
+remain separate requirements. Do NOT plot or certify Figures 1/4/5
+solely because the corrected 599-market residual converges.
