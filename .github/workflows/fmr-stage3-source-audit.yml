@@ -14,6 +14,7 @@ on:
       - 'FMR-2020/scripts/diagnose_author_fixed_map.jl'
       - 'FMR-2020/scripts/solve_economic_fixed_ge.jl'
       - 'FMR-2020/scripts/run_economic_replication.jl'
+      - 'FMR-2020/scripts/report_polished_economic_results.jl'
       - 'FMR-2020/scripts/export_author_reference.ps1'
       - 'FMR-2020/test/**'
       - 'FMR-2020/scripts/check_syntax.jl'
@@ -31,6 +32,7 @@ on:
       - 'FMR-2020/scripts/diagnose_author_fixed_map.jl'
       - 'FMR-2020/scripts/solve_economic_fixed_ge.jl'
       - 'FMR-2020/scripts/run_economic_replication.jl'
+      - 'FMR-2020/scripts/report_polished_economic_results.jl'
       - 'FMR-2020/scripts/export_author_reference.ps1'
       - 'FMR-2020/test/**'
       - '.github/workflows/fmr-stage3-source-audit.yml'
@@ -75,6 +77,8 @@ jobs:
         run: julia --project=. test/runtests.jl
       - name: Economic runner reuse/inherited shock correctness
         run: julia --project=. test/test_economic_runner.jl
+      - name: Provisional economic model outcome and FX comparison report
+        run: julia --project=. test/test_economic_report.jl
       - name: Independent Stage 3 shock and price-block smoke
         run: julia --project=. scripts/validate_sudden_stop.jl
 
