@@ -15,6 +15,7 @@ on:
       - 'FMR-2020/scripts/solve_economic_fixed_ge.jl'
       - 'FMR-2020/scripts/run_economic_replication.jl'
       - 'FMR-2020/scripts/report_polished_economic_results.jl'
+      - 'FMR-2020/scripts/stage5_initial_fx_audit.jl'
       - 'FMR-2020/scripts/export_author_reference.ps1'
       - 'FMR-2020/test/**'
       - 'FMR-2020/scripts/check_syntax.jl'
@@ -33,6 +34,7 @@ on:
       - 'FMR-2020/scripts/solve_economic_fixed_ge.jl'
       - 'FMR-2020/scripts/run_economic_replication.jl'
       - 'FMR-2020/scripts/report_polished_economic_results.jl'
+      - 'FMR-2020/scripts/stage5_initial_fx_audit.jl'
       - 'FMR-2020/scripts/export_author_reference.ps1'
       - 'FMR-2020/test/**'
       - '.github/workflows/fmr-stage3-source-audit.yml'
@@ -81,6 +83,8 @@ jobs:
         run: julia --project=. test/test_economic_report.jl
       - name: Recompute actual four-root economic mechanism and published-direction audit
         run: julia --project=. scripts/report_polished_economic_results.jl
+      - name: Stage 5 first-period foreign-debt, gross-capital and trade-root audit
+        run: julia --project=. test/test_stage5_first_period_audit.jl
       - name: Independent Stage 3 shock and price-block smoke
         run: julia --project=. scripts/validate_sudden_stop.jl
 
