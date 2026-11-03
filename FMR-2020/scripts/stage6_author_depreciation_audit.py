@@ -298,13 +298,26 @@ def audit(data):
         goods = Ypath[t] - invest - adj - dex*Xpath[t]**(-theta_star) - Cpath[t]
         periods.append((t+1, float(goods), float(saved_resid[t]),
                         float(saved_resid[T-1+t])))
+    bad_budget = post_occupied & (np.abs(budget) > 1e-5)
+    household_rows = []
+    for ai, sj in zip(*np.where(bad_budget)):
+        household_rows.append((int(ai+1), int(sj+1), float(grid[ai]),
+                               float(ex[sj]), float(post[ai, sj]),
+                               float(c1[ai, sj]), float(s1[ai, sj]),
+                               float(source_resource[ai, sj]),
+                               float(budget[ai, sj])))
+    worst = np.unravel_index(np.argmax(np.where(post_occupied, np.abs(budget), -np.inf)), budget.shape)
+    metrics["source_first_period_worst_budget_grid_1based"] = int(worst[0]+1)
+    metrics["source_first_period_worst_budget_productivity_1based"] = int(worst[1]+1)
+    metrics["source_first_period_worst_budget_mass"] = float(post[worst])
+    metrics["source_first_period_worst_budget_signed_residual"] = float(budget[worst])
     metrics["source_first30_max_realized_goods_abs"] = float(max(abs(a) for _,a,_,_ in periods))
     metrics["source_first30_max_asset_residual_abs"] = float(max(abs(a) for _,_,a,_ in periods))
     metrics["source_first30_max_labor_residual_abs"] = float(max(abs(a) for _,_,_,a in periods))
-    return metrics, periods
+    return metrics, periods, household_rows
 
 
-def write_results(metrics, periods, folder):
+def write_results(metrics, periods, household_rows, folder):
     folder.mkdir(parents=True, exist_ok=True)
     with (folder/"first_period_metrics.csv").open("w", newline="", encoding="utf-8") as fp:
         w = csv.writer(fp)
@@ -314,6 +327,10 @@ def write_results(metrics, periods, folder):
         w = csv.writer(fp)
         w.writerow(["period", "goods_residual", "source_asset_residual", "source_labor_residual"])
         w.writerows(periods)
+    with (folder/"first_period_occupied_budget_errors.csv").open("w", newline="", encoding="utf-8") as fp:
+        w = csv.writer(fp)
+        w.writerow(["asset_grid_index_1based","productivity_index_1based","asset","productivity","probability_mass","consumption_H","savings","available_resources","signed_budget_error"])
+        w.writerows(household_rows)
     lines = ["# Stage 6 — Original authors' saved depreciation path",
              "", "Independent first-period economic diagnostics; **no GE solve**.",
              "The MATLAB source and its actual saved policies are used, not a conditional Julia branch.",
@@ -346,8 +363,8 @@ def main():
     args = ap.parse_args()
     if not args.source.is_file():
         ap.error("Original MATLAB saved workspace is missing: " + str(args.source))
-    metrics, periods = audit(read_original(args.source))
-    write_results(metrics, periods, args.output)
+    metrics, periods, household_rows = audit(read_original(args.source))
+    write_results(metrics, periods, household_rows, args.output)
 
 
 if __name__ == "__main__":
