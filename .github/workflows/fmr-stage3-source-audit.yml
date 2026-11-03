@@ -85,6 +85,13 @@ jobs:
         run: julia --project=. scripts/report_polished_economic_results.jl
       - name: Stage 5 first-period foreign-debt, gross-capital and trade-root audit
         run: julia --project=. test/test_stage5_first_period_audit.jl
+      - name: Archive independent Stage 5 monetary accounting and root-feasibility evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fmr-stage5-first-period-accounting
+          if-no-files-found: ignore
+          path: FMR-2020/results/economic_reproduction/STAGE5_INITIAL_FX_ACCOUNTING_AUDIT.md
       - name: Independent Stage 3 shock and price-block smoke
         run: julia --project=. scripts/validate_sudden_stop.jl
 
