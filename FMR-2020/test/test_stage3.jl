@@ -207,10 +207,9 @@ end
     @test n==200
     extended=FMR2020.stage3_extend_horizon(ctx,240)
     @test extended.economy.B[1:200]==ctx.economy.B
-    @test extended.economy.B[201:end]==credit_expansion_path(
-        params,steady.reference.Y;periods=240)[201:end]
-    @test abs(extended.economy.B[end]-ctx.economy.terminal.B) <
-          abs(ctx.economy.B[end]-ctx.economy.terminal.B)
+    @test all(extended.economy.B[201:end] .== ctx.economy.terminal.B)
+    @test isapprox(ctx.economy.B[end],ctx.economy.terminal.B;
+                   atol=1e-10,rtol=0)
     @test extended.mu_pre==ctx.mu_pre
     x0=vcat(FMR2020.initial_transition_guess(ctx.economy),ones(n))
     longer=FMR2020.stage3_prolong_aggregate_guess(x0,ctx,extended)
