@@ -5,12 +5,16 @@ on:
       - research/fmr-stage8-depreciation-continuation
     paths:
       - 'FMR-2020/scripts/stage8_depreciation_continuation.jl'
+      - 'FMR-2020/scripts/stage8_compare_saved_roots.jl'
+      - 'FMR-2020/test/test_stage8_two_roots.jl'
       - 'FMR-2020/test/test_stage8_depreciation.jl'
       - 'FMR-2020/docs/STAGE8_DEPRECIATION_BRANCH_EQUILIBRIUM.md'
       - '.github/workflows/fmr-stage8-depreciation-audit.yml'
   pull_request:
     paths:
       - 'FMR-2020/scripts/stage8_depreciation_continuation.jl'
+      - 'FMR-2020/scripts/stage8_compare_saved_roots.jl'
+      - 'FMR-2020/test/test_stage8_two_roots.jl'
       - 'FMR-2020/test/test_stage8_depreciation.jl'
       - '.github/workflows/fmr-stage8-depreciation-audit.yml'
   workflow_dispatch:
@@ -33,6 +37,8 @@ jobs:
         run: julia --project=. scripts/check_syntax.jl
       - name: Stage 8 pure unit tests
         run: julia --project=. test/test_stage8_depreciation.jl
+      - name: Stage 8 terminal mismatch decomposition unit tests (no PC root files required)
+        run: julia --project=. test/test_stage8_two_roots.jl
       - name: Reconstruct archived Euler-polished boom and audit ONE strict 599-vector at original MATLAB low-price guess
         run: julia --project=. scripts/stage8_depreciation_continuation.jl
       - name: Archive source-initialized strict residual or feasibility blocker
