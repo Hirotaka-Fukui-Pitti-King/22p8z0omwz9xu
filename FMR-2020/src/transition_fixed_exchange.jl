@@ -126,7 +126,7 @@ function stage3_diagnostics(sol::TransitionSolveResult{T},
     size(w.distribution,3)==n ||
         throw(DimensionMismatch("distribution horizon"))
     maxasset=zero(T); maxlabor=zero(T); maxgoods=zero(T)
-    maxbudget=zero(T); maxmass=zero(T)
+    maxbudget=zero(T); maxterminalbudget=zero(T); maxmass=zero(T)
     maxphillips=zero(T)
     maxeuler=zero(T); weul=zero(T); wmass=zero(T)
     euler_mass_above_1e4=zero(T)
@@ -208,6 +208,15 @@ function stage3_diagnostics(sol::TransitionSolveResult{T},
                 end
                 weul+=mass*violation
                 wmass+=mass
+            else
+                # Terminal c and a' come from the stationary continuation
+                # problem. Their budget feasibility at actual period-T
+                # prices is an independent horizon-truncation check,
+                # not a market-clearing equation to be hidden by using C[T-1].
+                m=consumption_cost(w.terms[t],inp.params)
+                income=w.wage[t]*w.L[t]*inp.chain.levels[j]+w.profits[t]
+                budget=(one(T)+w.rate[t])*a+income-m*c-saving
+                maxterminalbudget=max(maxterminalbudget,abs(budget))
             end
         end
     end
@@ -234,6 +243,7 @@ function stage3_diagnostics(sol::TransitionSolveResult{T},
             max_labor_market_level=maxlabor,
             max_goods_market_level=maxgoods,
             max_household_budget=maxbudget,
+            max_terminal_household_budget=maxterminalbudget,
             max_mass_deviation=maxmass,
             max_nonlinear_phillips=maxphillips,
             max_dynamic_euler=maxeuler,
