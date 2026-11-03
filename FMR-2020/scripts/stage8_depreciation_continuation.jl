@@ -518,6 +518,16 @@ function stage8_main()
                     "Its eventual convergence would not establish a second ",
                     "depreciation equilibrium.")
         end
+        # Preserve the exact PC-accepted fifth iterate before any new
+        # accepted step can update the rolling resume checkpoint.
+        snapshot=joinpath(output,"accepted_iteration_"*
+                          lpad(string(saved.iterations),4,'0')*".checkpoint")
+        if isfile(snapshot)
+            read(snapshot,String)==read(checkpoint,String) ||
+                error("Stage 8 immutable accepted-iterate snapshot differs: "*snapshot)
+        else
+            cp(checkpoint,snapshot)
+        end
         candidate=saved.x
         previous_iter=saved.iterations
     else
@@ -580,11 +590,18 @@ function stage8_main()
     # The existing solver rebuilds its full Jacobian at resumed iteration 0.
     # No implementation change or novel 599-dimensional solver is needed.
     last=(x,f,i)->begin
+        total=previous_iter+i
+        history=joinpath(output,"accepted_iteration_"*
+                         lpad(string(total),4,'0')*".checkpoint")
+        !isfile(history) || error(
+            "Refusing to overwrite an earlier accepted GE iterate: "*history)
+        # Retain the full path at EVERY accepted step. The rolling checkpoint
+        # is updated only after its immutable counterpart is safely written.
+        FMR2020.stage3_write_checkpoint(history,x,f,total)
+        FMR2020.stage3_write_checkpoint(checkpoint,x,f,total)
         stage8_append_accepted_step(
             trace,mode,previous_iter,i,x,f,ctx.terms_pre,n)
-        FMR2020.stage3_write_checkpoint(
-            checkpoint,x,f,previous_iter+i)
-        println("STAGE8 ACCEPTED total=",previous_iter+i,
+        println("STAGE8 ACCEPTED total=",total,
                 " x1=",x[2n],
                 " depreciation=",x[2n]<ctx.terms_pre,
                 " max_scaled=",maximum(abs,f))
