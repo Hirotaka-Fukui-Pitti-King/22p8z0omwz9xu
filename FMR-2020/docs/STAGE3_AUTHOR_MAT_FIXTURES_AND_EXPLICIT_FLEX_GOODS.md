@@ -279,3 +279,70 @@ first 40 dates and the last 20 transition dates, along with
 probability-weighted terminal budget errors and terminal wage/interest
 deviations. This distinguishes interior economic accuracy from the
 numerical truncation layer without hiding either.
+
+
+## Actual four-root and horizon-convergence evidence, November 3, 2026
+
+The user executed Julia 1.12.6 on their Windows PC after correcting
+the non-linear labor union FOC and the Stage3 full-goods residual system.
+**All four 599-market systems converged.** These are market roots,
+NOT yet households-and-terminal-certified infinite-horizon GE.
+
+| Experiment | Max scaled market residual | Max Euler/KKT | Terminal K gap |
+|---|---:|---:|---:|
+| Credit expansion 200 | 5.9500861271e-7 | 3.1883526384e-4 | 0.2808580561 |
+| Credit expansion 300 | 6.5743535060e-8 | 2.8449041937e-4 | 0.0419838752 |
+| No-leverage flexible reversal | 2.3264688896e-7 | 4.1055298560e-4 | 0.0136179332 |
+| Leveraged flexible reversal | 1.0497050917e-7 | 3.5860642911e-4 | 0.0106627800 |
+| Leveraged fixed reversal | 3.9370336404e-7 | 5.9554357097e-4 | 0.0012221678 |
+
+At identical **200-date exogenous paths**, the first 40 quarters of the
+credit expansion differ between T=200 and T=300 by at most
+**6.1709093302e-7** normalized, including investment and consumption.
+Thus there is no reason to rerun huge horizon extensions before
+repairing Euler interpolation. This does NOT prove the terminal steady
+household policy is exactly feasible at T=200 or T=300: the T=300
+terminal budget maximum is 0.2168190 and probability-weighted
+terminal budget absolute error is 0.0030172, both above tolerance.
+The large max terminal budget can be dominated by high-asset cells;
+the weighted and first-40 measures should be reported separately.
+
+The dominant outstanding **economic numerical error** is nonbinding
+Euler optimality at small asset values. Direct one-state conditional
+Euler roots differ from existing inverse-EGM decisions by
+0.00012 to 0.00024 savings units, in positive-mass cells.
+Do not downplay this as merely a printed diagnostic.
+
+### Independent one-pass Euler/KKT interpolation correction audit
+
+To avoid more ~600-column finite-difference GE solves just to
+test an interpolation hypothesis, the existing research runner now
+supports a **one-pass household-only audit** at the SAVED 200-date
+credit-expansion 599-market root:
+
+```powershell
+Set-Location C:\github\22p8z0omwz9xu
+git pull --ff-only
+Set-Location FMR-2020
+julia --project=. scripts\run_economic_replication.jl --boom-only --audit-euler-refinement
+```
+
+It reloads/re-evaluates the saved Julia 599-market root, calculates
+direct constrained Euler/KKT corrections using the *actual next-date
+coarse policy* and precomputed PCHIP slopes, first on coarse policies
+and then fine-grid policies, recursively from date 199 backward.
+It forward-transports the actual household distribution again and
+recomputes 599 aggregate market residuals at the UNCHANGED K/L/terms
+candidate. It prints how many policies were corrected, maximum
+correction in saving, supported-grid post-Euler violation, original
+market residual and after-correction market residual. No silent
+truncation of desired saving at the upper grid bound.
+
+**Interpretation:** If the post-correction maximum Euler violation is
+small and aggregate market residuals are still acceptably small,
+the numerical correction is promising. If market residuals shift,
+the GE must be solved AGAIN **with the corrected household policy
+operator inside every aggregate residual evaluation**. A post-hoc
+household correction is never claimed to be a new equilibrium.
+The implementation is initially a controlled audit, not the accepted
+full equilibrium solution.
