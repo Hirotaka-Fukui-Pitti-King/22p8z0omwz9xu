@@ -1,0 +1,44 @@
+name: FMR Stage 8 strict depreciation-candidate audit
+on:
+  push:
+    branches:
+      - research/fmr-stage8-depreciation-continuation
+    paths:
+      - 'FMR-2020/scripts/stage8_depreciation_continuation.jl'
+      - 'FMR-2020/test/test_stage8_depreciation.jl'
+      - 'FMR-2020/docs/STAGE8_DEPRECIATION_BRANCH_EQUILIBRIUM.md'
+      - '.github/workflows/fmr-stage8-depreciation-audit.yml'
+  pull_request:
+    paths:
+      - 'FMR-2020/scripts/stage8_depreciation_continuation.jl'
+      - 'FMR-2020/test/test_stage8_depreciation.jl'
+      - '.github/workflows/fmr-stage8-depreciation-audit.yml'
+  workflow_dispatch:
+
+jobs:
+  source-guess-strict-ge-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: FMR-2020
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.12.6'
+      - name: Julia dependencies
+        run: julia --project=. -e 'using Pkg; Pkg.instantiate()'
+      - name: Parse every Julia source file and load project
+        run: julia --project=. scripts/check_syntax.jl
+      - name: Stage 8 pure unit tests
+        run: julia --project=. test/test_stage8_depreciation.jl
+      - name: Reconstruct archived Euler-polished boom and audit ONE strict 599-vector at original MATLAB low-price guess
+        run: julia --project=. scripts/stage8_depreciation_continuation.jl
+      - name: Archive source-initialized strict residual or feasibility blocker
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fmr-stage8-strict-source-candidate-audit
+          if-no-files-found: warn
+          path: FMR-2020/results/stage8_depreciation/initial_candidate_residuals.csv
