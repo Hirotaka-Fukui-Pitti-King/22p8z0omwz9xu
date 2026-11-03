@@ -87,6 +87,30 @@ function read_economic_root_guess(path::AbstractString,
 end
 
 """
+Evaluate the identical aggregate residual map used by the selected
+household portfolio regime, both on resume and inside the fresh GE solve.
+A strict-portfolio CSV MUST NEVER be checked with legacy household
+balance sheets.
+"""
+function economic_recheck_residual!(
+    residual, candidate, ctx, work;
+    fixed::Bool=false, polish_households::Bool=false,
+    strict_portfolio::Bool=false)
+    if fixed
+        FMR2020.stage3_fixed_residual!(
+            residual,candidate,ctx,work;
+            polish_households=polish_households,
+            strict_portfolio=strict_portfolio)
+    else
+        FMR2020.stage3_flexible_full_residual!(
+            residual,candidate,ctx,work;
+            polish_households=polish_households,
+            strict_portfolio=strict_portfolio)
+    end
+    return residual
+end
+
+"""
 Recompute the full 599 residual at a saved Julia path before reuse.
 When the current economic equations are different, solve afresh from
 that candidate rather than assuming a stored convergence flag.
@@ -106,15 +130,10 @@ function solve_or_recheck_economic(
     if earlier!==nothing
         w=FMR2020.TransitionWorkspace(ctx.economy)
         residual=zeros(T,3n-1)
-        if fixed
-            FMR2020.stage3_fixed_residual!(
-                residual,candidate,ctx,w;polish_households=polish_households,
-                strict_portfolio=strict_portfolio)
-        else
-            FMR2020.stage3_flexible_full_residual!(
-                residual,candidate,ctx,w;polish_households=polish_households,
-                strict_portfolio=strict_portfolio)
-        end
+        economic_recheck_residual!(
+            residual,candidate,ctx,w;
+            fixed=fixed,polish_households=polish_households,
+            strict_portfolio=strict_portfolio)
         maxerror=maximum(abs,residual)
         println("RECHECK SAVED ",label,
                 " CURRENT 599-D MARKET MAX=",maxerror)
