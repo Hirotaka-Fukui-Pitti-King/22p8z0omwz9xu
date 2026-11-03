@@ -116,8 +116,8 @@ function main()
 
     # Fixed exchange rates: same current shocks and inherited balance
     # sheets, but theta_nr=100 Rotemberg costs and monetary rule applied.
-    # Source MATLAB paths, if available, can be used as numerical guesses
-    # without copying any source prices/policies; default is self-contained.
+    # The starting guess is constructed entirely from the computed
+    # flexible-price path and the inherited pre-shock terms.
     fxguess=vcat(flexible.x[1:2n-1],
                  fill(ctx.terms_pre,n))
     println("Solving fixed nominal exchange rate with nonlinear Rotemberg")
@@ -129,12 +129,16 @@ function main()
 
     # This output is explicitly marked as PROVISIONAL until independent
     # 200-vs-300 horizon and asset-grid stability checks are completed.
+    provisionaldir=joinpath(outputdir,"PROVISIONAL_NOT_HORIZON_GRID_VALIDATED")
+    mkpath(provisionaldir)
     figures=(
         stage3_figure_1(boom,ctx.economy.B,
-                        joinpath(outputdir,"figure_1_PROVISIONAL.svg")),
-        stage3_figures_4_5(boom,flexible,fixed,outputdir)...)
-    println("FIGURES GENERATED (one-horizon candidates only, not "*
-            "yet horizon/grid certified): ",figures)
+                        joinpath(provisionaldir,"figure_1.svg")),
+        stage3_figures_4_5(boom,flexible,fixed,provisionaldir)...)
+    println("PROVISIONAL FIGURES GENERATED (200-date candidates only): ",
+            figures)
+    println("Figures are NOT a completed replication until the same-shock "*
+            "horizon and asset-grid convergence checks pass.")
 end
 
 if abspath(PROGRAM_FILE)==abspath(@__FILE__)
