@@ -121,12 +121,14 @@ function inspect_author_path(steady,dir::String,mu::Matrix{Float64},
      diag.max_labor_market_level<1e-4 &&
      diag.max_goods_market_level<1e-4 &&
      diag.max_household_budget<1e-8 &&
-     diag.max_mass_deviation<1e-8) ||
+     diag.max_mass_deviation<1e-8 &&
+     diag.max_dynamic_euler<1e-4 &&
+     diag.weighted_mean_dynamic_euler<1e-5) ||
         error("Explicit 599 candidate failed independent economic checks")
     output=joinpath(dir,"julia_full_599_"*name*".csv")
     FMR2020.stage3_write_csv(sol,ctx,output)
     println("FULL 599 GE VERIFIED AND SAVED: ",output,
-            " (Euler diagnostics reported separately)")
+            " (including Euler/KKT tolerances)")
     return true
 end
 
