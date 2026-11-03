@@ -129,6 +129,13 @@ function inspect_author_path(steady,dir::String,mu::Matrix{Float64},
     # Preserve every genuinely market-clearing numerical root, even when
     # a stricter fine-grid Euler accuracy criterion is not yet met.
     # It is NOT an independently certified complete household GE.
+    market_pass=(diag.max_asset_market_level<1e-4 &&
+                 diag.max_labor_market_level<1e-4 &&
+                 diag.max_goods_market_level<1e-4 &&
+                 diag.max_household_budget<1e-8 &&
+                 diag.max_mass_deviation<1e-8 &&
+                 diag.maximum_scaled_solver_residual<1e-6)
+    market_pass || error("599 numerical root failed independent market/budget checks")
     market_path=joinpath(dir,"julia_599_MARKET_ROOT_EULER_PENDING_"*name*".csv")
     FMR2020.stage3_write_csv(sol,ctx,market_path)
     if sol.iterations>0
@@ -136,15 +143,8 @@ function inspect_author_path(steady,dir::String,mu::Matrix{Float64},
                                          sol.residual,sol.iterations)
     end
     println("599 MARKET ROOT SAVED (EULER NOT YET CERTIFIED): ",market_path)
-    market_pass=(diag.max_asset_market_level<1e-4 &&
-                 diag.max_labor_market_level<1e-4 &&
-                 diag.max_goods_market_level<1e-4 &&
-                 diag.max_household_budget<1e-8 &&
-                 diag.max_mass_deviation<1e-8 &&
-                 diag.maximum_scaled_solver_residual<1e-6)
     euler_pass=(diag.max_dynamic_euler<1e-4 &&
                 diag.weighted_mean_dynamic_euler<1e-5)
-    market_pass || error("599 numerical root failed independent market/budget checks")
     if !euler_pass
         println("MARKETS CLEAR, BUT STRICT EULER ACCURACY REMAINS UNVERIFIED: ",
                 "max=",diag.max_dynamic_euler,
