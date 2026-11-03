@@ -11,6 +11,12 @@ using FMR2020
         @test result[end]==-4.0
         @test isapprox(result[2],-4+(40+4)*(1-1/199)^4;atol=1e-12)
         @test_throws ArgumentError credit_reversal_path(B,-4.0;shock_start=1)
+        # Refining the horizon must not redefine the original shock.
+        oldshock=credit_reversal_path(B,-4.0;shock_start=41,periods=200)
+        extension=credit_reversal_path(B,-4.0;shock_start=41,
+                                       periods=300,decay_periods=200)
+        @test extension[1:200]==oldshock
+        @test all(extension[201:end] .== -4.0)
     end
     @testset "Positive trade-price roots with same-sign far endpoints" begin
         # This is the actual coefficient vector implied by the failed
@@ -199,7 +205,18 @@ end
     w=FMR2020.TransitionWorkspace(ctx.economy)
     n=length(ctx.economy.B)
     @test n==200
+    extended=FMR2020.stage3_extend_horizon(ctx,240)
+    @test extended.economy.B[1:200]==ctx.economy.B
+    @test all(extended.economy.B[201:end] .== ctx.economy.terminal.B)
+    @test extended.mu_pre==ctx.mu_pre
     x0=vcat(FMR2020.initial_transition_guess(ctx.economy),ones(n))
+    longer=FMR2020.stage3_prolong_aggregate_guess(x0,ctx,extended)
+    @test length(longer)==3*240-1
+    @test longer[1:199]==x0[1:199]
+    @test longer[240:439]==x0[200:399]
+    @test longer[479:678]==x0[400:599]
+    @test_throws ArgumentError FMR2020.stage3_prolong_aggregate_guess(
+        x0,ctx,extended;rho=1.0)
     @test length(x0)==599
     @test_throws DimensionMismatch FMR2020.stage3_flexible_full_prices!(
         w,ctx,x0[1:end-1])
