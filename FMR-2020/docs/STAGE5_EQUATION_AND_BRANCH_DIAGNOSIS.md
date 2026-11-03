@@ -222,7 +222,7 @@ entirely distinct research computation and should be undertaken
 only if needed to distinguish the remaining equilibrium-selection
 hypothesis.
 
-## 5. Controlled next experiment: one strict-portfolio 599-market solve
+## 6. Controlled experiment: one strict-portfolio 599-market solve
 
 After establishing the exact inherited-capital accounting failure and
 that simple reallocation at old macro prices **does not** clear the
@@ -268,14 +268,80 @@ Interpretation of results:
   do not interpret nonconvergence as proof of no equilibrium branch.
   Preserve the exception/trace for targeted diagnosis.
 
-This is a justified single GE run only *after* the cheap conditional
-equation/feasibility audit was completed. It has **not yet been run on
-the user's PC**, so there is no strict-portfolio general equilibrium
-claim.
+This justified one-economy GE experiment **has now been executed on
+the user's Windows PC**. Its outcome is documented below.
 
-## 5. Unresolved limitations
+## 7. Strict-portfolio flexible-FX root: actual user-PC numerical result
+
+The user ran from `FMR-2020/`:
+
+```powershell
+julia --project=. scripts\run_economic_replication.jl --stage5-solve-strict-flexible
+```
+
+The archived 200-quarter Euler-polished credit expansion was independently
+rechecked (scaled max residual **2.558332579e-8**). The single
+leveraged flexible-FX sudden-stop root was recomputed with inherited
+gross capital and foreign bonds clearing exactly, not just at an
+unchanged old aggregate path. The 599-equation solver required 3
+iterations and 605 residual evaluations.
+
+| Diagnostic | Archived leveraged flexible root (legacy portfolio) | Recomputed strict portfolio |
+|---|---:|---:|
+| Terms before the shock | 1.0271423614 | 1.0271423614 |
+| Impact terms x=P_H/P_F | **1.1584047924** | **1.1561011378** |
+| Nominal depreciation, 100 log(x_pre/x_1) | **-12.0263 log points** | **-11.82727 log points** |
+| Maximum scaled market residual | 2.650952e-7 | 1.230285e-7 |
+| Maximum raw asset-market discrepancy | 7.845209e-6 | 3.640897e-6 |
+| Maximum raw goods-market discrepancy | 1.520263e-7 | 6.674653e-8 |
+| Maximum household budget error, transition | 4.44e-16 | 4.44e-16 |
+| Maximum Euler/KKT violation | 9.997379e-6 | 9.997586e-6 |
+| Distribution mass conservation error | 1.25e-14 | 1.22e-14 |
+| Terminal capital level gap | 0.010511 | 0.010456 |
+| Terminal household budget max | 0.011091 | 0.011342 |
+
+The root remains a **substantial NOMINAL APPRECIATION** and thus
+benefits short foreign-currency debt positions under the current
+revaluation convention. Fixing the inherited household gross
+capital/bond accounting by itself changes the price response by only
+about **0.20 log points** and **DOES NOT** reproduce the
+depreciation-led balance-sheet mechanism in the paper.
+
+This result is **from the user's logged local execution**, not a
+full-GE root independently rerun on GitHub Actions.
+The separately saved root is at:
+
+`results/economic_reproduction/economic_flexible_leveraged_euler_polished_STRICT_PORTFOLIO_MARKET_ROOT_UNCERTIFIED.csv`
+
+The result has not passed all terminal, asset-grid or
+200-vs-300 sudden-stop horizon checks, and the existence of a
+**different full depreciation-side GE** remains open. The fact
+that the previously computed *conditional* low trade-price root
+makes 6.57% of inherited original-mass households insolvent
+under HIGH-BRANCH K/L/r/w/profits establishes only
+**conditional** impossibility, not a global nonexistence result.
+
+A separate resumption bug was corrected in
+`scripts/run_economic_replication.jl`: when rechecking this
+strict-portfolio CSV, flexible-FX residuals must receive
+`strict_portfolio=true`, just as fresh residual/Jacobian
+calls do. It does not change the first execution's valid
+strict-map solve, but prevents a repeat run from testing the
+wrong household portfolio mapping.
+
+**Decision:** Do not repeat the already converged
+strict-portfolio root. Investigate the original MATLAB's
+lower branch at its OWN prices, wages, and capital/labor paths,
+using the continuous pre-interpolation household budget test.
+Only if that is a feasible all-market root should a
+depreciation-side full-GE continuation be attempted.
+Any second-root search must vary the endogenous macro paths,
+rather than substitute the low scalar price root while
+holding the appreciation-branch prices/incomes fixed.
+
+## 8. Unresolved limitations
 
 - Which full GE branch, if any, corresponds to the original paper's depreciation scenario? **Not established.**
 - Is the authors' archived low-price MATLAB approximation feasible after removing consumption floors and enforcing all goods and asset equations? **Not established in the new strict system.**
-- Could a correctly constructed pre-shock portfolio that strictly clears gross capital restore the original paper's FX mechanism? **Needs numerical test; the portfolio wedge is small relative to the ~12-log-point appreciation.**
+- Does exact initial gross-capital portfolio conservation by itself restore the depreciation-led FX mechanism? **No. The user-PC strict GE still appreciates by 11.83 log points.**
 - Distributional welfare, the price-policy counterfactual, grid convergence and sudden-stop horizon convergence must be evaluated **after** the economic mechanism is resolved.
