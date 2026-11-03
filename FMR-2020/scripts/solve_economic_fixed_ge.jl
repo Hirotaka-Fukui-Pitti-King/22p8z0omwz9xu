@@ -29,6 +29,12 @@ function fixed_euler_acceptance(diag)
            diag.weighted_mean_dynamic_euler<=1e-5
 end
 
+function fixed_terminal_acceptance(diag,terminal_K::Float64,terminal_L::Float64)
+    return diag.max_terminal_household_budget<=1e-6 &&
+           diag.terminal_K_gap/max(1.0,abs(terminal_K))<=1e-4 &&
+           diag.terminal_L_gap/max(1.0,abs(terminal_L))<=1e-4
+end
+
 function solve_economic_fixed_ge()
     length(ARGS)==1 ||
         error("Usage: julia --project=. scripts/solve_economic_fixed_ge.jl FIXTURE_DIR")
@@ -76,14 +82,18 @@ function solve_economic_fixed_ge()
         FMR2020.stage3_write_checkpoint(
             checkpoint,result.x,result.residual,result.iterations)
     end
-    if !fixed_euler_acceptance(diag)
+    if !(fixed_euler_acceptance(diag) &&
+         fixed_terminal_acceptance(diag,ctx.economy.terminal.K,
+                                   ctx.economy.terminal.L))
         println("FIXED MARKET-CLEARING ROOT SAVED: ",provisional,
-                " ; STRICT EULER/KKT CERTIFICATION PENDING,",
-                " max=",diag.max_dynamic_euler,
-                " mean=",diag.weighted_mean_dynamic_euler,
-                " worst_state=",diag.max_dynamic_euler_state,
-                " probability_mass_above_1e-4=",
-                diag.euler_mass_above_1e4)
+                "; full dynamic GE certification pending.",
+                " Euler_max=",diag.max_dynamic_euler,
+                " Euler_mean=",diag.weighted_mean_dynamic_euler,
+                " Euler_worst=",diag.max_dynamic_euler_state,
+                " Euler_mass_above_1e-4=",diag.euler_mass_above_1e4,
+                " terminal_budget_max=",diag.max_terminal_household_budget,
+                " terminal_K_gap=",diag.terminal_K_gap,
+                " terminal_L_gap=",diag.terminal_L_gap)
         return nothing
     end
     certified=joinpath(dir,"julia_599_FIXED_FULL_GE_VERIFIED.csv")
