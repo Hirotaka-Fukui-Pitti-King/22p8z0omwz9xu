@@ -76,10 +76,17 @@ end
 function stage3_flexible_full_residual!(res::AbstractVector{T},
                                        x::AbstractVector{T},
                                        ctx::Stage3Context{T},
-                                       w::TransitionWorkspace{T}) where {T<:AbstractFloat}
+                                       w::TransitionWorkspace{T};
+                                       polish_households::Bool=false) where {T<:AbstractFloat}
     w.function_evals+=1
     stage3_flexible_full_prices!(w,ctx,x)
     stage3_household_backward!(w,ctx)
+    # Household optimality and aggregation must be computed by the SAME
+    # policy map in EVERY residual/Jacobian evaluation. A one-off policy
+    # correction performed only after a market root is not general equilibrium.
+    if polish_households
+        stage3_euler_polish_households!(w,ctx)
+    end
     stage3_distribution_forward!(w,ctx)
     return stage3_flexible_full_market_residual!(res,w,ctx)
 end
