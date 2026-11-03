@@ -6,6 +6,8 @@ on:
     paths:
       - 'FMR-2020/scripts/stage6_author_depreciation_audit.py'
       - 'FMR-2020/scripts/stage7_constrained_policy_audit.py'
+      - 'FMR-2020/scripts/stage7_full_transition_budget_audit.py'
+      - 'FMR-2020/test/test_stage7_distribution_transport.py'
       - 'FMR-2020/test/test_stage7_constrained_policy.py'
       - 'FMR-2020/test/test_stage6_author_depreciation.py'
       - 'FMR-2020/results/author_reference/**'
@@ -14,6 +16,8 @@ on:
     paths:
       - 'FMR-2020/scripts/stage6_author_depreciation_audit.py'
       - 'FMR-2020/scripts/stage7_constrained_policy_audit.py'
+      - 'FMR-2020/scripts/stage7_full_transition_budget_audit.py'
+      - 'FMR-2020/test/test_stage7_distribution_transport.py'
       - 'FMR-2020/test/test_stage7_constrained_policy.py'
       - 'FMR-2020/test/test_stage6_author_depreciation.py'
       - '.github/workflows/fmr-stage6-author-audit.yml'
@@ -35,13 +39,16 @@ jobs:
         run: python -m pip install --disable-pip-version-check numpy scipy
       - name: Python syntax and unit tests
         run: |
-          python -m py_compile scripts/stage6_author_depreciation_audit.py test/test_stage6_author_depreciation.py scripts/stage7_constrained_policy_audit.py test/test_stage7_constrained_policy.py
+          python -m py_compile scripts/stage6_author_depreciation_audit.py test/test_stage6_author_depreciation.py scripts/stage7_constrained_policy_audit.py test/test_stage7_constrained_policy.py scripts/stage7_full_transition_budget_audit.py test/test_stage7_distribution_transport.py
           python -m unittest discover -s test -p 'test_stage6_author_depreciation.py' -v
           python -m unittest discover -s test -p 'test_stage7_constrained_policy.py' -v
+          python -m unittest discover -s test -p 'test_stage7_distribution_transport.py' -v
       - name: Audit saved authors' leveraged flexible depreciation path, without fsolve
         run: python scripts/stage6_author_depreciation_audit.py
       - name: Stage 7 exact borrowing-policy PCHIP and goods-gap decomposition (no GE solve)
         run: python scripts/stage7_constrained_policy_audit.py
+      - name: Stage 7 all 199 saved MATLAB household periods and distribution audit
+        run: python scripts/stage7_full_transition_budget_audit.py
       - name: Archive direct-state original-source diagnostics
         if: always()
         uses: actions/upload-artifact@v4
@@ -56,3 +63,5 @@ jobs:
             FMR-2020/results/stage7_constrained_policy/stage7_audit.md
             FMR-2020/results/stage7_constrained_policy/stage7_metrics.csv
             FMR-2020/results/stage7_constrained_policy/stage7_binding_household_comparison.csv
+            FMR-2020/results/stage7_constrained_policy/stage7_full_transition_periods.csv
+            FMR-2020/results/stage7_constrained_policy/stage7_full_transition_summary.csv
