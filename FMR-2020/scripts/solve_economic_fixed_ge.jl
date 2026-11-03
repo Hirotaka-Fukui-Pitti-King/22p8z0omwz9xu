@@ -32,7 +32,8 @@ end
 function fixed_terminal_acceptance(diag,terminal_K::Float64,terminal_L::Float64)
     return diag.max_terminal_household_budget<=1e-6 &&
            diag.terminal_K_gap/max(1.0,abs(terminal_K))<=1e-4 &&
-           diag.terminal_L_gap/max(1.0,abs(terminal_L))<=1e-4
+           diag.terminal_L_gap/max(1.0,abs(terminal_L))<=1e-4 &&
+           diag.terminal_terms_gap<=1e-6
 end
 
 function solve_economic_fixed_ge()
@@ -51,7 +52,7 @@ function solve_economic_fixed_ge()
     n=length(ctx.economy.B)
     length(saved_author_x)==3n-1 ||
         throw(DimensionMismatch("Fixed exchange GE needs 3T-1 path variables"))
-    checkpoint=joinpath(dir,"julia_599_FIXED_MARKET_ROOT.checkpoint")
+    checkpoint=joinpath(dir,"julia_599_FIXED_TERMINAL_BC.checkpoint")
     start_x=if isfile(checkpoint)
         println("Using previously saved Julia fixed-market solution as guess; " *
                 "all economic residuals will be evaluated again.")
@@ -76,7 +77,7 @@ function solve_economic_fixed_ge()
     println("FIXED ECONOMIC GE diagnostic: ",diag)
     fixed_market_acceptance(diag) ||
         error("Fixed root fails independent asset/labor/goods/price/budget/mass audit")
-    provisional=joinpath(dir,"julia_599_FIXED_MARKET_ROOT_EULER_PENDING.csv")
+    provisional=joinpath(dir,"julia_599_FIXED_TERMINAL_BC_EULER_PENDING.csv")
     FMR2020.stage3_write_csv(result,ctx,provisional;fixed=true)
     if result.iterations>0
         FMR2020.stage3_write_checkpoint(
@@ -93,10 +94,11 @@ function solve_economic_fixed_ge()
                 " Euler_mass_above_1e-4=",diag.euler_mass_above_1e4,
                 " terminal_budget_max=",diag.max_terminal_household_budget,
                 " terminal_K_gap=",diag.terminal_K_gap,
-                " terminal_L_gap=",diag.terminal_L_gap)
+                " terminal_L_gap=",diag.terminal_L_gap,
+                " terminal_terms_gap=",diag.terminal_terms_gap)
         return nothing
     end
-    certified=joinpath(dir,"julia_599_FIXED_FULL_GE_VERIFIED.csv")
+    certified=joinpath(dir,"julia_599_FIXED_TERMINAL_BC_VERIFIED.csv")
     FMR2020.stage3_write_csv(result,ctx,certified;fixed=true)
     println("FIXED FULL GE VERIFIED (market, budget, mass, NKPC, Euler): ",
             certified)
