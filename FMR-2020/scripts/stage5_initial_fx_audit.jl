@@ -110,7 +110,7 @@ function stage5_first_period_case(
     return (
         economy=label,maximum_scaled_residual=maxres,
         terms_pre=ctx.terms_pre,terms_observed=w.terms[1],
-        observed_nominal_depreciation=100log(ctx.terms_pre/w.terms[1]),
+        observed_nominal_depreciation=100*log(ctx.terms_pre/w.terms[1]),
         qK=qK,actual_gross_capital=info.capital,
         gross_capital_gap=info.capital-qK,
         B_initial=inp.B_initial,actual_foreign_bonds=info.bonds,
