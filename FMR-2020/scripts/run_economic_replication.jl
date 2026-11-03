@@ -28,9 +28,17 @@ function economic_aggregate_guess(
             L[t]=boom.workspace.L[oldt]
             terms[t]=boom.workspace.terms[oldt]
         else
-            K[t]=ctx.economy.terminal.K
-            L[t]=ctx.economy.terminal.L
-            terms[t]=ctx.economy.terminal.terms
+            # The initial guess must not jump at the last available
+            # credit-expansion observation. Geometrically splice toward
+            # the stationary tail; this changes guesses, never equations.
+            tail=oldt-nb
+            weight=T(0.9)^tail
+            K[t]=ctx.economy.terminal.K+
+                (boom.workspace.K[end]-ctx.economy.terminal.K)*weight
+            L[t]=ctx.economy.terminal.L+
+                (boom.workspace.L[end]-ctx.economy.terminal.L)*weight
+            terms[t]=ctx.economy.terminal.terms+
+                (boom.workspace.terms[end]-ctx.economy.terminal.terms)*weight
         end
     end
     abs(K[1]-ctx.economy.initial.K)<=T(1e-8) ||
@@ -199,7 +207,14 @@ function main()
     # sheets, but theta_nr=100 Rotemberg costs and monetary rule applied.
     # The starting guess is constructed entirely from the computed
     # flexible-price path and the inherited pre-shock terms.
-    fxguess=copy(flexible.x)
+    # Rotemberg pricing can reject the flexible-ToT surprise jump:
+    # theta_nr=100 would imply extreme or negative real marginal cost.
+    # Start with a slow nominal-price adjustment from inherited ToT
+    # while retaining already solved flexible K and L as numerical seeds.
+    sticky_terms=[ctx.economy.terminal.terms+
+                  (ctx.terms_pre-ctx.economy.terminal.terms)*
+                  0.95^(t-1) for t in 1:n]
+    fxguess=vcat(flexible.x[1:2n-1],sticky_terms)
     println("Solving fixed nominal exchange rate with nonlinear Rotemberg")
     fixed=solve_or_recheck_economic(
         ctx,fxguess,outputdir,"fixed_leveraged";fixed=true)
