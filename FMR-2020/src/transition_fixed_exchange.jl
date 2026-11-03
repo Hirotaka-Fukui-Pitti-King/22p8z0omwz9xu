@@ -216,6 +216,34 @@ function stage3_diagnostics(sol::TransitionSolveResult{T},
             end
         end
     end
+    # A direct one-dimensional constrained household optimal-choice check
+    # at the worst occupied Euler state. This compares the EGM interpolated
+    # savings policy with the exact numerical best response to the SAME
+    # continuous continuation policy, without a source MATLAB reference.
+    worst_best_response=nothing
+    if maxeuler_state.period>0
+        t=maxeuler_state.period
+        j=maxeuler_state.productivity_index
+        i=maxeuler_state.asset_index
+        future=view(w.coarse_consumption,:,:,t+1)
+        income=w.wage[t]*w.L[t]*inp.chain.levels[j]+w.profits[t]
+        gross=one(T)+w.rate[t]
+        resources=gross*grid[i]+income
+        candidate=household_best_response_saving(
+            inp.grids.coarse,future,view(inp.chain.transition,j,:),
+            inp.params.gamma,inp.initial.beta,one(T)+w.rate[t+1],
+            resources,consumption_cost(w.terms[t],inp.params),
+            inp.grids.borrowing_limit)
+        worst_best_response=(
+            numerical_best_savings=candidate.savings,
+            egm_savings=w.fine_savings[i,j,t],
+            absolute_savings_difference=abs(candidate.savings-w.fine_savings[i,j,t]),
+            numerical_best_consumption=candidate.consumption,
+            egm_consumption=w.fine_consumption[i,j,t],
+            binding=candidate.binding,
+            direct_euler_surplus=candidate.euler_surplus,
+            bisection_iterations=candidate.iterations)
+    end
     if fixed
         # Reconstruct every nonlinear NKPC equation independently from
         # realized real MC=(wage*L)/[(1-alpha)Y].
@@ -244,6 +272,7 @@ function stage3_diagnostics(sol::TransitionSolveResult{T},
             max_nonlinear_phillips=maxphillips,
             max_dynamic_euler=maxeuler,
             max_dynamic_euler_state=maxeuler_state,
+            worst_state_direct_best_response=worst_best_response,
             euler_mass_above_1e4=euler_mass_above_1e4/wmass,
             euler_states_above_1e4=euler_states_above_1e4,
             weighted_mean_dynamic_euler=weul/wmass,
