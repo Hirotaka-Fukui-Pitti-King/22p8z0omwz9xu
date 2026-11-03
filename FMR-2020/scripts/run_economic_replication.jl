@@ -94,7 +94,8 @@ that candidate rather than assuming a stored convergence flag.
 function solve_or_recheck_economic(
     ctx::Stage3Context{T}, initial_x::Vector{T},
     directory::AbstractString, label::String;
-    fixed::Bool=false,polish_households::Bool=false) where {T<:AbstractFloat}
+    fixed::Bool=false,polish_households::Bool=false,
+    strict_portfolio::Bool=false) where {T<:AbstractFloat}
 
     n=length(ctx.economy.B)
     length(initial_x)==3n-1 ||
@@ -107,7 +108,8 @@ function solve_or_recheck_economic(
         residual=zeros(T,3n-1)
         if fixed
             FMR2020.stage3_fixed_residual!(
-                residual,candidate,ctx,w;polish_households=polish_households)
+                residual,candidate,ctx,w;polish_households=polish_households,
+                strict_portfolio=strict_portfolio)
         else
             FMR2020.stage3_flexible_full_residual!(
                 residual,candidate,ctx,w;polish_households=polish_households)
@@ -125,12 +127,13 @@ function solve_or_recheck_economic(
     if fixed
         return FMR2020.stage3_nonlinear_solve(
             ctx,copy(candidate);fixed=true,
-            polish_households=polish_households,tolerance=T(1e-6),
+            polish_households=polish_households,
+            strict_portfolio=strict_portfolio,tolerance=T(1e-6),
             maxiter=70,max_evaluations=5000,verbose=true)
     end
     return solve_stage3_flexible_full(
         ctx;x0=copy(candidate),polish_households=polish_households,
-        tolerance=T(1e-6),maxiter=70,max_evaluations=5000,verbose=true)
+        strict_portfolio=strict_portfolio,tolerance=T(1e-6),maxiter=70,max_evaluations=5000,verbose=true)
 end
 
 function economic_validation(result::FMR2020.TransitionSolveResult{T},
@@ -264,9 +267,10 @@ end
 
 function main()
     valid=all(x->x in ("--boom-only","--audit-euler-refinement",
-                        "--solve-polished-boom","--solve-polished-all") ||
+                        "--solve-polished-boom","--solve-polished-all",
+                        "--stage5-solve-strict-flexible") ||
                startswith(x,"--horizon="),ARGS)
-    valid || error("Usage: julia --project=. scripts/run_economic_replication.jl [--boom-only] [--horizon=300] [--audit-euler-refinement] [--solve-polished-boom] [--solve-polished-all] (choose one correction mode)")
+    valid || error("Usage: julia --project=. scripts/run_economic_replication.jl [--boom-only] [--horizon=300] [--audit-euler-refinement] [--solve-polished-boom] [--solve-polished-all] [--stage5-solve-strict-flexible] (choose one correction mode)")
     settings=filter(x->startswith(x,"--horizon="),ARGS)
     length(settings)<=1 || throw(ArgumentError("specify the horizon once"))
     requested_horizon=isempty(settings) ? 200 :
@@ -277,10 +281,13 @@ function main()
     polish_audit="--audit-euler-refinement" in ARGS
     polish_solve="--solve-polished-boom" in ARGS
     polish_all="--solve-polished-all" in ARGS
-    count(x->x, (polish_solve,polish_all,polish_audit))<=1 ||
+    strict_solve="--stage5-solve-strict-flexible" in ARGS
+    count(x->x, (polish_solve,polish_all,polish_audit,strict_solve))<=1 ||
         throw(ArgumentError("choose at most one Euler-polished run mode"))
     polish_all && (boom_only || requested_horizon!=200) &&
         throw(ArgumentError("--solve-polished-all must use the standard 200-date four-economy experiment"))
+    strict_solve && (boom_only || requested_horizon!=200) &&
+        throw(ArgumentError("--stage5-solve-strict-flexible requires the standard 200-date sudden-stop horizon"))
     polish_solve && !boom_only &&
         throw(ArgumentError("polished equilibrium solve requires --boom-only"))
     polish_audit && (!boom_only || requested_horizon!=200) &&
@@ -400,6 +407,49 @@ function main()
         println("POLISHED GE PATH SAVED SEPARATELY, "*
                 "grid/horizon and terminal checks remain independent. "*
                 "Original unpolished market paths are unchanged.")
+        return nothing
+    end
+    if strict_solve
+        # Stage 5 is a SINGLE discriminating full-GE computation:
+        # original foreign-credit path and inherited pre-shock household
+        # distribution are unchanged. Only the initial gross capital /
+        # foreign bond decomposition is corrected to clear q_pre K and B.
+        # No source MATLAB household policies or 399 equation shortcuts.
+        label="credit_expansion_euler_polished"
+        prex=read_economic_root_guess(polishedbasefile,boomctx)
+        prex===nothing && error("Requires the archived Euler-polished boom")
+        preboom=solve_or_recheck_economic(
+            boomctx,prex,outputdir,label;polish_households=true)
+        ctx=stage3_reversal_context(
+            steady,preboom;shock_start=41,leverage_hat=1/16)
+        name="flexible_leveraged_euler_polished"
+        old_csv=joinpath(outputdir,
+            "economic_"*name*"_MARKET_ROOT_UNCERTIFIED.csv")
+        candidate=read_economic_root_guess(old_csv,ctx)
+        candidate===nothing && error("Requires archived leveraged flexible-FX Euler-polished GE path")
+        corrected_name="flexible_leveraged_euler_polished_STRICT_PORTFOLIO"
+        println("STAGE5: resolving the 599-equation leveraged flexible "*
+                "sudden stop with STRICT inherited gross capital/bonds "*
+                "and identical foreign-credit shock. The old solved "*
+                "path is only a NUMERICAL INITIAL GUESS.")
+        newroot=solve_or_recheck_economic(
+            ctx,candidate,outputdir,corrected_name;
+            polish_households=true,strict_portfolio=true)
+        report=economic_validation(
+            newroot,ctx,corrected_name,outputdir)
+        @assert report.diagnostics.max_dynamic_euler<=1e-4
+        println("STAGE5 STRICT RESULT: x_pre=",ctx.terms_pre,
+                ", x_impact=",newroot.workspace.terms[1],
+                ", nominal_depreciation_logpoints=",
+                100*log(ctx.terms_pre/newroot.workspace.terms[1]),
+                ", market_residual=",
+                report.diagnostics.maximum_scaled_solver_residual,
+                ", Euler_max=",report.diagnostics.max_dynamic_euler,
+                ", terminal_K_gap=",report.diagnostics.terminal_K_gap)
+        println("A strict-portfolio root is NOT a validated alternative "*
+                "equilibrium branch or a complete paper replication. "*
+                "Terminal and grid convergence and an independent "*
+                "second initial guess are outstanding.")
         return nothing
     end
     if polish_all
