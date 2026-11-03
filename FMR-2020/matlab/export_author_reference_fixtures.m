@@ -44,7 +44,7 @@ write_array(output_dir,'shock_inherited_metadata',metadata);
 export_one(output_dir,'unleveraged',base.kl_exp,base.resid,base.tot_exp,2*TT-1,TT);
 export_one(output_dir,'leveraged',lev.kl_exp,lev.resid,lev.tot_exp,2*TT-1,TT);
 export_one(output_dir,'fixed',fix.k_l_t_fixed,fix.resid,fix.tot_fixed,3*TT-1,TT);
-fprintf('AUTHOR MATLAB REFERENCE EXPORTED: %s (11 full-precision CSV files)\n',output_dir);
+fprintf('AUTHOR MATLAB REFERENCE EXPORTED: %s (12 full-precision CSV files)\n',output_dir);
 fprintf('No new GE solve performed; numerical residual checks use saved source outputs.\n');
 end
 
