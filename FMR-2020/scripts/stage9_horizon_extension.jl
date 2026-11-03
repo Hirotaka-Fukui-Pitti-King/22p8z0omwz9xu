@@ -294,6 +294,11 @@ function stage9_solve_one(b,branch::String)
     if isfile(rootfile)
         x=read_economic_root_guess(rootfile,b.long)
         x===nothing && error("Unreadable existing root")
+        root_x1=x[2n]
+        correct=branch=="depreciation" ?
+            root_x1<b.long.terms_pre :
+            root_x1>b.long.terms_pre
+        correct || error("Saved Stage 9 root belongs to the opposite FX branch")
         e,rows=stage9_audit_guess(b.long,x,branch)
         e.ok && maximum(abs,e.residual)<=1e-6 ||
             error("Previously saved Stage 9 market root does not solve current equations")
@@ -355,6 +360,14 @@ function stage9_solve_one(b,branch::String)
         strict_portfolio=true,polish_households=true)
     maximum(abs,residual)<=1e-6 ||
         error("Independently re-evaluated 899 root fails market clearing")
+    correct_branch=branch=="depreciation" ?
+        work.terms[1]<b.long.terms_pre :
+        work.terms[1]>b.long.terms_pre
+    correct_branch || error(
+        "899 solver reached a valid candidate on the OPPOSITE FX branch; "*
+        "preserving accepted checkpoints, but refusing to mislabel "*
+        branch*" as a separate "*branch*" market root. x1="*
+        string(work.terms[1]))
     checked=FMR2020.TransitionSolveResult(
         b.long.economy,work,sol.x,residual,0,
         work.function_evals,maximum(abs,residual),true)
