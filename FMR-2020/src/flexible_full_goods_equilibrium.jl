@@ -77,7 +77,8 @@ function stage3_flexible_full_residual!(res::AbstractVector{T},
                                        x::AbstractVector{T},
                                        ctx::Stage3Context{T},
                                        w::TransitionWorkspace{T};
-                                       polish_households::Bool=false) where {T<:AbstractFloat}
+                                       polish_households::Bool=false,
+                                       strict_portfolio::Bool=false) where {T<:AbstractFloat}
     w.function_evals+=1
     stage3_flexible_full_prices!(w,ctx,x)
     stage3_household_backward!(w,ctx)
@@ -87,7 +88,7 @@ function stage3_flexible_full_residual!(res::AbstractVector{T},
     if polish_households
         stage3_euler_polish_households!(w,ctx)
     end
-    stage3_distribution_forward!(w,ctx)
+    stage3_distribution_forward!(w,ctx;strict_portfolio=strict_portfolio)
     return stage3_flexible_full_market_residual!(res,w,ctx)
 end
 
