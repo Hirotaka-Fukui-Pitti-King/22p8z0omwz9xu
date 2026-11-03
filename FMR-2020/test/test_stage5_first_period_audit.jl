@@ -16,6 +16,12 @@ include(joinpath(@__DIR__,"..","scripts","stage5_initial_fx_audit.jl"))
         @test row.upper_trade_root!==nothing
         @test row.upper_trade_root.root>row.trade_price_peak
         @test isfinite(row.observed_aggregate_scalar_root_gap)
+        @test isapprox(row.strictly_cleared_capital,row.qK;atol=1e-9)
+        @test isapprox(row.strictly_cleared_bonds,row.B_initial;atol=1e-5)
+        @test abs(row.strict_portfolio_capital_gap)<1e-9
+        @test abs(row.strict_portfolio_bond_gap)<1e-5
+        @test abs(row.strict_portfolio_consumption_gap)<1e-5
+        @test isfinite(row.strict_portfolio_scaled_market_residual)
     end
     # A conditional trade-price root is NOT an independent GE root.
     # The observed FX path lies close to the higher branch; the
