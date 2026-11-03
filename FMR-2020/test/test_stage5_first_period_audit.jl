@@ -44,4 +44,21 @@ include(joinpath(@__DIR__,"..","scripts","stage5_initial_fx_audit.jl"))
     @test !rows[2].strict_lower_trade_feasibility.feasible
     @test !rows[3].strict_lower_trade_feasibility.feasible
     @test rows[1].strict_lower_trade_feasibility.feasible
+    # The decisive Stage5 distinction is made on ORIGINAL wealth states,
+    # before any mass-splitting to neighboring fine-grid nodes.
+    @test rows[1].direct_lower_trade_feasibility.minimum_resources>0
+    @test rows[1].direct_lower_trade_feasibility.violating_original_mass==0
+    @test rows[2].direct_lower_trade_feasibility.minimum_resources<0
+    @test rows[2].direct_strict_lower_trade_feasibility.minimum_resources<0
+    @test 0.06<rows[2].direct_lower_trade_feasibility.violating_original_mass<0.07
+    @test isapprox(
+        rows[2].direct_lower_trade_feasibility.violating_original_mass,
+        rows[2].direct_strict_lower_trade_feasibility.violating_original_mass;
+        atol=1e-12)
+    # Fixed FX is different: the apparent infeasibility was created
+    # by mass interpolation; furthermore, fixed-regime factor prices
+    # must be recomputed if x is changed, so no fixed-GE claim here.
+    @test rows[3].lower_trade_root.minimum_resources<0
+    @test rows[3].direct_lower_trade_feasibility.minimum_resources>0
+    @test rows[3].direct_lower_trade_feasibility.violating_original_mass==0
 end
