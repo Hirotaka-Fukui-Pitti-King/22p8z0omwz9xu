@@ -76,4 +76,16 @@ include(joinpath(@__DIR__,"..","scripts","run_economic_replication.jl"))
     FMR2020.stage3_flexible_full_market_residual!(
         refined_res,work,shortctx)
     @test all(isfinite,refined_res)
+    # This equivalence is the key GE correctness property: the policy
+    # correction must be included inside EVERY aggregate residual call.
+    work2=TransitionWorkspace(short)
+    integrated_res=similar(residual)
+    FMR2020.stage3_flexible_full_residual!(
+        integrated_res,shortx,shortctx,work2;
+        polish_households=true)
+    @test integrated_res≈refined_res atol=1e-10 rtol=1e-10
+    @test work2.fine_savings≈work.fine_savings atol=1e-10 rtol=1e-10
+    @test work2.coarse_consumption≈work.coarse_consumption atol=1e-10 rtol=1e-10
+    @test work2.aggregate_home≈work.aggregate_home atol=1e-10 rtol=1e-10
+    @test all(isfinite,integrated_res)
 end
