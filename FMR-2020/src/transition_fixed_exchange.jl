@@ -129,6 +129,8 @@ function stage3_diagnostics(sol::TransitionSolveResult{T},
     maxbudget=zero(T); maxterminalbudget=zero(T); maxmass=zero(T)
     maxphillips=zero(T)
     maxeuler=zero(T); weul=zero(T); wmass=zero(T)
+    maxeuler_first40=zero(T); maxeuler_last20=zero(T)
+    weighted_terminal_budget=zero(T); terminal_budget_mass=zero(T)
     euler_mass_above_1e4=zero(T)
     euler_states_above_1e4=0
     maxeuler_state=(period=0,asset_index=0,productivity_index=0,
@@ -198,6 +200,12 @@ function stage3_diagnostics(sol::TransitionSolveResult{T},
                                     binding=saving<=inp.grids.borrowing_limit+T(1e-8),
                                     relative_gap=gap)
                 end
+                if t<=min(n-1,40)
+                    maxeuler_first40=max(maxeuler_first40,violation)
+                end
+                if t>=max(1,n-20)
+                    maxeuler_last20=max(maxeuler_last20,violation)
+                end
                 if violation>T(1e-4)
                     euler_mass_above_1e4+=mass
                     euler_states_above_1e4+=1
@@ -213,6 +221,8 @@ function stage3_diagnostics(sol::TransitionSolveResult{T},
                 income=w.wage[t]*w.L[t]*inp.chain.levels[j]+w.profits[t]
                 budget=(one(T)+w.rate[t])*a+income-m*c-saving
                 maxterminalbudget=max(maxterminalbudget,abs(budget))
+                weighted_terminal_budget+=mass*abs(budget)
+                terminal_budget_mass+=mass
             end
         end
     end
@@ -268,9 +278,13 @@ function stage3_diagnostics(sol::TransitionSolveResult{T},
             max_goods_market_level=maxgoods,
             max_household_budget=maxbudget,
             max_terminal_household_budget=maxterminalbudget,
+            weighted_terminal_household_budget=weighted_terminal_budget/
+                max(terminal_budget_mass,eps(T)),
             max_mass_deviation=maxmass,
             max_nonlinear_phillips=maxphillips,
             max_dynamic_euler=maxeuler,
+            max_dynamic_euler_first40=maxeuler_first40,
+            max_dynamic_euler_last20=maxeuler_last20,
             max_dynamic_euler_state=maxeuler_state,
             worst_state_direct_best_response=worst_best_response,
             euler_mass_above_1e4=euler_mass_above_1e4/wmass,
@@ -280,5 +294,8 @@ function stage3_diagnostics(sol::TransitionSolveResult{T},
             iterations=sol.iterations,evaluations=sol.evaluations,
             terminal_K_gap=abs(w.K[end]-inp.terminal.K),
             terminal_L_gap=abs(w.L[end]-inp.terminal.L),
-            terminal_terms_gap=abs(w.terms[end]-inp.terminal.terms))
+            terminal_terms_gap=abs(w.terms[end]-inp.terminal.terms),
+            terminal_interest_gap=abs(w.rate[end]-inp.terminal.r),
+            terminal_wage_gap=abs(w.wage[end]-inp.terminal.wage),
+            terminal_profit_gap=abs(w.profits[end]-inp.terminal.profits))
 end
