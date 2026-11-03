@@ -48,7 +48,8 @@ function compare_terminal(name::String,source::Matrix{Float64},
     if size(source,1)>size(julia_policy,1)
         # Original 193/769 grid includes 32/128 pre-borrowing knots;
         # Julia stationary household stores only 161/641 active knots.
-        active=view(source,(end-size(julia_policy,1)+1):size(source,1),:)
+        first_active=size(source,1)-size(julia_policy,1)+1
+        active=view(source,first_active:size(source,1),:)
         compare_block(name*" (active borrowing support)",active,julia_policy)
     elseif size(source,1)==size(julia_policy,1)
         compare_block(name,source,julia_policy)
