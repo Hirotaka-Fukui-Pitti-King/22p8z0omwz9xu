@@ -275,6 +275,25 @@ function stage9_audit(b;save::Bool=true)
                 " terms=",guess[2STAGE9_HORIZON],
                 " full899_defined=",e.ok,
                 " max_scaled=",e.ok ? maximum(abs,e.residual) : "UNDEFINED")
+        if e.ok
+            m=Dict(report)
+            println("STAGE9 INITIAL MARKETS ",branch,
+                    " asset=",m["max_scaled_asset"],
+                    " labor=",m["max_scaled_labor_with_terminal"],
+                    " goods=",m["max_scaled_goods_with_terminal"],
+                    " first_goods=",m["first_goods_scaled"],
+                    " mass_error=",m["max_distribution_mass_error"],
+                    " max_household_budget=",m["max_interior_household_budget"])
+            println("STAGE9 INITIAL TERMINAL ",branch,
+                    " max_all=",m["terminal_max_budget_all_occupied"],
+                    " max_material=",m["terminal_max_budget_material_cells"],
+                    " material_mass=",m["terminal_material_probability_mass"],
+                    " weighted_absolute=",m["terminal_weighted_absolute_budget"],
+                    " violation_mass_1e4=",m["terminal_violation_mass_above_1e4"],
+                    " violation_mass_1e3=",m["terminal_violation_mass_above_1e3"],
+                    " interest_gap=",m["terminal_terminal_r_gap"],
+                    " K_gap=",m["terminal_terminal_K_gap"])
+        end
     end
     if save
         stage9_save_metrics(
