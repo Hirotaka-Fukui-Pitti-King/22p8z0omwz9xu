@@ -115,7 +115,8 @@ function inspect_author_path(steady,dir::String,mu::Matrix{Float64},
         ctx;x0=x,tolerance=1e-6,maxiter=60,
         max_evaluations=5000,verbose=true)
     sol.converged || error("Explicit 599 full GE returned unconverged")
-    diag=FMR2020.stage3_diagnostics(sol,ctx;fixed=false)
+    diag=FMR2020.stage3_diagnostics(sol,ctx;fixed=false,
+                                   explicit_flexible=true)
     println("EXPLICIT FLEX GE CANDIDATE ",name," ",diag)
     (diag.max_asset_market_level<1e-4 &&
      diag.max_labor_market_level<1e-4 &&
