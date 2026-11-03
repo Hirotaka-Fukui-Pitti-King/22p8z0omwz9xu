@@ -4,32 +4,7 @@
 
 The ZIP `fmr_author_reference_fixtures.zip` is **not tracked** in this repository. It was a user-supplied/generated bundle. Trying to unpack it without first creating or copying it fails. The supported reproducible source is the original MATLAB `.mat` workspaces.
 
-On **Windows PowerShell** (not the MATLAB Command Window), run the following from `FMR-2020/` after confirming `C:\github\HANKSOME\exp_flex.mat`, `exp_flex_lev16.mat`, and `exp_both_41_lev16.mat` exist. This invokes MATLAB as a process; the syntax `addpath(...)` is MATLAB syntax and cannot be entered directly into PowerShell:
-
-```powershell
-Set-Location C:\github\22p8z0omwz9xu\FMR-2020
-matlab -sd "C:\github\22p8z0omwz9xu\FMR-2020" -batch "addpath(fullfile(pwd,'matlab')); export_author_reference_fixtures('C:\github\HANKSOME',fullfile(pwd,'results','author_reference'))"
-```
-
-If `matlab` is not on PATH, replace `matlab` with the installed MATLAB executable path (e.g. `& 'C:\Program Files\MATLAB\<version>\bin\matlab.exe' -batch "..."`), or enter these commands into the **MATLAB Command Window**:
-
-```matlab
-cd('C:\github\22p8z0omwz9xu\FMR-2020')
-addpath(fullfile(pwd,'matlab'))
-export_author_reference_fixtures('C:\github\HANKSOME',fullfile(pwd,'results','author_reference'))
-```
-
-The resulting directory must contain **12 CSV files**: 3 inherited/boom files and 3 files per each of 3 saved transition solutions. Check before Julia evaluation:
-
-```powershell
-(Get-ChildItem .\results\author_reference\*.csv).Count
-Test-Path .\results\author_reference\original_boom_candidate.csv
-julia --project=. scripts/evaluate_author_matlab_solution.jl results/author_reference
-```
-
-This Julia evaluator ALSO computes its own pre-shock boom GE. It can fail independently if that solve does not converge, even if the CSV bundle is complete. No positive result can be reported without its actual output. **Do not replace source reference data with arbitrary synthetic CSVs.**
-
-## Reliable PowerShell entry point and first saved-root goods test
+## PowerShell entry point and first saved-root goods test
 
 On Windows **PowerShell**, first update the working branch and run the
 checked-in launcher. It derives its paths from the script location, NOT
