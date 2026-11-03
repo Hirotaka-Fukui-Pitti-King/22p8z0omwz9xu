@@ -398,12 +398,16 @@ function stage3_market_residual!(res::AbstractVector{T},
         res[t]=((w.aggregate_savings[t]-inp.B[t])/w.q[t]-w.K[t+1])/scaleK
     end
     unionfactor=p.chi*(p.epsilon_w-1)/p.epsilon_w
-    @inbounds for t in 1:n
-        # The terminal date is a real economic date, not a repeated t=T-1
-        # observation. Source MATLAB c_t=[c_t';c_t(end)] is NOT valid
-        # as a full-economy terminal goods/labor clearing condition.
+    # Truncated infinite-horizon GE:
+    # Dates 1:T-1 are economic transition periods. Date T is the
+    # exogenous stationary continuation POLICY boundary. Counting:
+    # (T-1) asset + (T-1) labor + (T-1) goods + two terminal
+    # anchors (L_T=L_ss and ToT_T=ToT_ss) = 3T-1 equations.
+    # DO NOT impose period-T goods/labor clearing against a terminal
+    # stationary policy evaluated at still-transitory period-T prices.
+    @inbounds for t in 1:n-1
         c=w.aggregate_home[t]
-        c>0 || throw(DomainError(c,"negative aggregate home consumption"))
+        c>0 || throw(DomainError(c,"nonpositive home consumption"))
         w.labor_implied[t]=unionfactor*w.wage[t]/
             (inp.reference.chi_dis*c)
         res[n-1+t]=(w.labor_implied[t]-w.L[t])/scaleL
@@ -411,19 +415,16 @@ function stage3_market_residual!(res::AbstractVector{T},
             inflation=t==1 ? w.terms[1]/ctx.terms_pre :
                               w.terms[t]/w.terms[t-1]
             nominal_cost=ctx.theta_nr/T(2)*(inflation-one(T))^2
-            if t<n
-                goods=w.Y[t]-w.I[t]-w.adjustment[t]-
-                    nominal_cost-inp.reference.export_shift*
-                    w.terms[t]^(-p.theta_star)
-            else
-                # Replicate final-period investment/boundary timing.
-                goods=w.Y[t]-w.I[t-1]-nominal_cost-
-                    inp.reference.export_shift*w.terms[t]^(-p.theta_star)-
-                    ctx.economy.phi_ac/T(2)*w.K[t]*
-                    ((w.I[t-1]-p.delta*w.K[t])/w.K[t])^2
-            end
+            goods=w.Y[t]-w.I[t]-w.adjustment[t]-nominal_cost-
+                  inp.reference.export_shift*w.terms[t]^(-p.theta_star)
             res[2n-1+t]=(goods-c)/max(one(T),inp.reference.Y)
         end
+    end
+    w.labor_implied[n]=w.L[n]
+    res[2n-1]=(w.L[n]-inp.terminal.L)/scaleL
+    if fixed
+        res[3n-1]=(w.terms[n]-inp.terminal.terms)/
+                   max(one(T),abs(inp.terminal.terms))
     end
     all(isfinite,res) || throw(ArgumentError("nonfinite Stage 3 GE residual"))
     return res
