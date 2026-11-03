@@ -55,6 +55,15 @@ end
     @test isapprox(rows[1].composite_leverage_minus_unleveraged_pct,
                    100*log(1.6/1.7);atol=1e-12)
 
+    audit=economic_mechanism_audit(boom,nolev,flexible,fixed)
+    @test audit.shock_start==41
+    @test audit.floating_nominal_depreciation_log_points==0.0
+    @test audit.fixed_real_debt_multiplier==1.0
+    @test audit.floating_real_debt_multiplier==1.0
+    @test !audit.paper_direction_consistent
+    @test audit.paper_direction_checks.fixed_has_higher_consumption
+    @test !audit.paper_direction_checks.floating_depreciates
+
     result=economic_summary(rows,boom,flexible,fixed,0.6)
     @test result.impact_fixed_minus_flexible>0
     @test isapprox(result.cumulative_flexible_vs_boom_pct,-20.0;atol=1e-10)
@@ -94,6 +103,12 @@ end
         @test length(readlines(csvout))==31
         @test isfile(mdout)
         @test occursin("Not certified",read(mdout,String))
+        auditout=joinpath(dir,"PROVISIONAL_mechanism_sign_audit.md")
+        @test isfile(auditout)
+        @test occursin("CRITICAL REPLICATION DISCREPANCY",
+                       read(auditout,String))
+        @test_throws ArgumentError economic_mechanism_audit(
+            boom,nolev,flexible,merge(fixed,Dict("B"=>fill(-9.0,80))))
         @test_throws ArgumentError economic_read_panel(
             joinpath(dir,"unknown.csv"))
     end
