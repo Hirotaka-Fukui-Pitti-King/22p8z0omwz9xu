@@ -514,6 +514,7 @@ end
 
 function stage3_nonlinear_solve(ctx::Stage3Context{T},x0::Vector{T};
                                 fixed::Bool=false,explicit_flexible::Bool=false,
+                                polish_households::Bool=false,
                                 tolerance::T=T(1e-6),
                                 maxiter::Int=70,refresh::Int=15,
                                 max_evaluations::Int=5000,
@@ -521,6 +522,8 @@ function stage3_nonlinear_solve(ctx::Stage3Context{T},x0::Vector{T};
                                 verbose::Bool=true) where {T}
     n=length(x0)
     fixed && explicit_flexible && throw(ArgumentError("conflicting GE regimes"))
+    polish_households && !(fixed || explicit_flexible) &&
+        throw(ArgumentError("Euler-polished GE requires the explicit 3T-1 goods-market system"))
     expected=(fixed || explicit_flexible) ? 3*length(ctx.economy.B)-1 :
                      2*length(ctx.economy.B)-1
     n==expected || throw(DimensionMismatch("Stage3 unknown dimensions"))
@@ -538,9 +541,11 @@ function stage3_nonlinear_solve(ctx::Stage3Context{T},x0::Vector{T};
                 "budget exhausted at $(work.function_evals)/$(max_evaluations), " *
                 "before 399/599-equation convergence"))
         if explicit_flexible
-            stage3_flexible_full_residual!(res,x,ctx,work)
+            stage3_flexible_full_residual!(
+                res,x,ctx,work;polish_households=polish_households)
         elseif fixed
-            stage3_fixed_residual!(res,x,ctx,work)
+            stage3_fixed_residual!(
+                res,x,ctx,work;polish_households=polish_households)
         else
             stage3_residual!(res,x,ctx,work)
         end
@@ -635,6 +640,7 @@ function stage3_nonlinear_solve(ctx::Stage3Context{T},x0::Vector{T};
         oldnorm=norm(f)
         verbose && println("STAGE3 ",explicit_flexible ? "FLEX_FULL" :
                            fixed ? "FIXED" : "FLEX",
+                           polish_households ? " EULER_POLISHED" : "",
                            " iteration=",iter-1,
                            " scaled_max=",maxres," max_at=",maxat,
                            " market=",tag," norm=",oldnorm,
