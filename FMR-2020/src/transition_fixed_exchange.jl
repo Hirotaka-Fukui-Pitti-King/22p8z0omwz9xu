@@ -129,6 +129,11 @@ function stage3_diagnostics(sol::TransitionSolveResult{T},
     maxbudget=zero(T); maxmass=zero(T)
     maxphillips=zero(T)
     maxeuler=zero(T); weul=zero(T); wmass=zero(T)
+    euler_mass_above_1e4=zero(T)
+    euler_states_above_1e4=0
+    maxeuler_state=(period=0,asset_index=0,productivity_index=0,
+                    mass=zero(T),asset=zero(T),savings=zero(T),
+                    binding=false,relative_gap=zero(T))
     grid=inp.grids.fine
     slopes=Matrix{T}(undef,length(inp.grids.coarse),length(inp.chain.levels))
     @inbounds for t in 1:n
@@ -189,7 +194,18 @@ function stage3_diagnostics(sol::TransitionSolveResult{T},
                 gap=(lhs-rhs)/lhs
                 violation=saving<=inp.grids.borrowing_limit+T(1e-8) ?
                          max(zero(T),-gap) : abs(gap)
-                maxeuler=max(maxeuler,violation)
+                if violation>maxeuler
+                    maxeuler=violation
+                    maxeuler_state=(period=t,asset_index=i,
+                                    productivity_index=j,mass=mass,
+                                    asset=a,savings=saving,
+                                    binding=saving<=inp.grids.borrowing_limit+T(1e-8),
+                                    relative_gap=gap)
+                end
+                if violation>T(1e-4)
+                    euler_mass_above_1e4+=mass
+                    euler_states_above_1e4+=1
+                end
                 weul+=mass*violation
                 wmass+=mass
             end
@@ -221,6 +237,9 @@ function stage3_diagnostics(sol::TransitionSolveResult{T},
             max_mass_deviation=maxmass,
             max_nonlinear_phillips=maxphillips,
             max_dynamic_euler=maxeuler,
+            max_dynamic_euler_state=maxeuler_state,
+            euler_mass_above_1e4=euler_mass_above_1e4/wmass,
+            euler_states_above_1e4=euler_states_above_1e4,
             weighted_mean_dynamic_euler=weul/wmass,
             maximum_scaled_solver_residual=sol.maximum_scaled_residual,
             iterations=sol.iterations,evaluations=sol.evaluations,
