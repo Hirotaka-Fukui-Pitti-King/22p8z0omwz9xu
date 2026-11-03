@@ -79,6 +79,8 @@ jobs:
         run: julia --project=. test/test_economic_runner.jl
       - name: Provisional economic model outcome and FX comparison report
         run: julia --project=. test/test_economic_report.jl
+      - name: Recompute actual four-root economic mechanism and published-direction audit
+        run: julia --project=. scripts/report_polished_economic_results.jl
       - name: Independent Stage 3 shock and price-block smoke
         run: julia --project=. scripts/validate_sudden_stop.jl
 
