@@ -172,6 +172,36 @@ using FMR2020
         @test_throws ArgumentError revalue_foreign_debt!(
             mu,mu,grid,2.0,1.0,-0.5,1.2,1.2,1/16)
     end
+    @testset "Strict aggregate gross capital and foreign bond conservation" begin
+        grid=Float64[-3,-2,-1,0,1,2,3,4]
+        mu=zeros(8,1)
+        mu[3,1]=0.2 # pre-shock net wealth -1
+        mu[5,1]=0.2 # net wealth +1
+        mu[7,1]=0.6 # net wealth +3
+        # Mass-weighted pre-shock net wealth: 1.8 = q0*K0 + Bprev.
+        legacy=revalue_foreign_debt!(
+            similar(mu),mu,grid,2.0,1.0,-0.2,1.0,1.2,1/16)
+        dest=similar(mu)
+        strict=revalue_foreign_debt!(
+            dest,mu,grid,2.0,1.0,-0.2,1.0,1.2,1/16;
+            strict_portfolio=true)
+        @test abs(legacy.capital_market_gap)>1e-3
+        @test isapprox(strict.capital,2.0;atol=1e-12)
+        @test isapprox(strict.bonds,-0.2;atol=1e-12)
+        @test abs(strict.capital_market_gap)<1e-12
+        @test abs(strict.inherited_bond_market_gap)<1e-12
+        @test isapprox(strict.net_wealth_before,1.8;atol=1e-12)
+        @test isapprox(strict.net_wealth_after,2.0-0.2/1.2;
+                       atol=1e-12)
+        @test isapprox(sum(dest),1.0;atol=1e-12)
+        @test strict.capital_normalization>1.0
+        @test !legacy.strict_portfolio
+        # Strict conservation correctly rejects inconsistent inherited
+        # total net wealth, rather than silently manufacturing capital.
+        @test_throws DomainError revalue_foreign_debt!(
+            similar(mu),mu,grid,2.0,1.0,0.0,1.0,1.2,1/16;
+            strict_portfolio=true)
+    end
     @testset "Exchange-rate change revalues liabilities and conserves mass" begin
         grid=Float64[-3,-2,-1,0,1,2,3,4]
         mu=zeros(8,1)
