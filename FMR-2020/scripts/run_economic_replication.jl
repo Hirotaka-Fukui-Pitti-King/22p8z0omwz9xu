@@ -261,6 +261,22 @@ function main()
         boomctx=FMR2020.stage3_extend_horizon(originalctx,requested_horizon)
         guess=FMR2020.stage3_prolong_aggregate_guess(
             prior,originalctx,boomctx)
+        # If the user has ALREADY solved this horizon with base EGM,
+        # that candidate generally lies closer to the polished root
+        # than an extrapolation of the corrected 200-date equilibrium.
+        # It is ONLY an initial guess: current Euler-polished market
+        # residuals are independently rebuilt before accepting a root.
+        unpolished_extended_csv=joinpath(outputdir,
+            "economic_credit_expansion_h"*string(requested_horizon)*
+            "_MARKET_ROOT_UNCERTIFIED.csv")
+        extended_guess=read_economic_root_guess(
+            unpolished_extended_csv,boomctx)
+        if extended_guess!==nothing
+            println("Using saved ",requested_horizon,
+                    "-date BASE-EGM path solely as initial guess "*
+                    "for the new Euler-polished GE. No base policies reused.")
+            guess=extended_guess
+        end
         boom_label="credit_expansion_euler_polished_h"*string(requested_horizon)
     elseif requested_horizon>n0
         prior=read_economic_root_guess(basefile,originalctx)
