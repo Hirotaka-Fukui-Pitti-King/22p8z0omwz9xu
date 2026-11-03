@@ -315,6 +315,11 @@ function main()
         println("POLISHED GE TERMINAL BUDGET MAX=",
                 revised.diagnostics.max_terminal_household_budget,
                 " K_GAP=",revised.diagnostics.terminal_K_gap)
+        # Compare actual economic early paths under the unpolished and
+        # polished policy operators at the SAME 200-date shock.
+        change=compare_boom_horizons(basefile,corrected.workspace)
+        println("FIRST-40 ECONOMIC PATH RESPONSE TO HOUSEHOLD EULER "*
+                "CORRECTION (same T, same shock): ",change)
         println("POLISHED GE PATH SAVED SEPARATELY, "*
                 "grid/horizon and terminal checks remain independent. "*
                 "Original unpolished market paths are unchanged.")
