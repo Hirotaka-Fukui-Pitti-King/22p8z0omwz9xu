@@ -214,3 +214,68 @@ credit-expansion shock-date distribution. A final replication must
 replace that inherited distribution with one obtained from the newly
 corrected Julia Stage2 economic transition, before claiming fully
 consistent Figures 1, 4 and 5.
+
+
+## PC result: corrected economic 599 credit-expansion market root (2026-11-03)
+
+The user's own Windows Julia 1.12.6 run of the corrected union FOC
+and explicit full-goods 599-variable **credit-expansion** problem
+reported 9 nonlinear iterations and 611 evaluations, maximum scaled
+market residual 5.950086127137766e-7, maximum original-units asset
+market residual 1.2533693904970278e-7, labor 5.950086127137766e-7,
+home goods 3.7728748791820976e-7, household budget 1.33e-16,
+and probability mass 1.25e-14.
+
+**This is NOT a certified infinite-horizon equilibrium.**
+Independent failures were: maximum Euler/KKT 3.188352638396009e-4
+(period 198, productivity state 1), mass above 1e-4 of 0.7248%,
+terminal K gap 0.2808580561, and maximum terminal household budget
+error 2.4386471598. The independent constrained one-state Euler
+best-response chooses savings 0.1244358901, whereas the interpolated
+EGM policy chooses 0.1245779020 (difference 1.420118684e-4). Thus
+the highest Euler error is a real policy interpolation/optimality error
+conditional on the current continuation approximation, not a
+miscomputed audit flag.
+
+The user-PC root CSV was saved at
+`results/economic_reproduction/economic_credit_expansion_MARKET_ROOT_UNCERTIFIED.csv`.
+The new runner never discards this numerical work: it loads K/L/terms
+from the saved JULIA CSV, verifies the exogenous B path and inherited K,
+recomputes ALL 599 household and market residuals under the current
+Julia implementation, and reuses the expensive 599-Jacobian root
+*only if the re-evaluated residual is still below tolerance.*
+Unsuccessful Euler and terminal checks no longer prevent calculations
+of the subsequent credit-reversal market roots, but **all outputs remain
+provisional and no final Figures 1, 4, or 5 are generated from failed
+economic checks**.
+
+The paper's source initial credit-expansion terminal SS is calibrated
+at the date-200 foreign asset stock B_200, NOT the infinite-horizon AR
+limit B_infinity. An earlier proposed AR(1) extension to date 300
+without recalibrating that SS is wrong (CI caught this mismatch);
+the corrected same-experiment horizon refinement holds exogenous
+B_t=B_200 after t=200. The full original 200 dates remain identical.
+
+From `FMR-2020/` on the user's Windows PC:
+
+```powershell
+julia --project=. scripts\run_economic_replication.jl
+julia --project=. scripts\run_economic_replication.jl --horizon=300 --boom-only
+```
+
+The **first** command resumes/rechecks the saved 200-date boom and
+attempts the unleveraged, leveraged flexible-FX and leveraged fixed-FX
+599-variable roots, retaining each for further numerical validation.
+The **second** is a separate, much more expensive 899-variable
+same-shock boom horizon refinement; it reports the first 40 quarters'
+maximum relative differences in K, L, Y, I, w, r, terms of trade and
+home consumption. Run it after the 200-date root has been preserved.
+Neither command should be called a solved complete replication unless
+the independently reported conditions pass. Avoid rerunning a
+599-column Jacobian on an already solved boom with unchanged equations.
+
+Stage 3 audit now separately reports maximum Euler errors over the
+first 40 dates and the last 20 transition dates, along with
+probability-weighted terminal budget errors and terminal wage/interest
+deviations. This distinguishes interior economic accuracy from the
+numerical truncation layer without hiding either.
