@@ -56,9 +56,15 @@ using FMR2020
         result=transition_stationary_check(inp)
         @test isfinite(result.max_scaled_residual)
         @test result.max_scaled_labor >= 0
-        # The author's code omits the power 1/varphi in labor supply.
-        # This is an expressly documented source inconsistency, not
-        # a reason to silently change the replicated equation.
+        # Economic labor supply MUST use the 1/varphi power from
+        # paper eq. (5), whereas the original source MATLAB omits it.
+        implied=p.chi*(p.epsilon_w-1)/p.epsilon_w*
+                w.wage[1]/(ref.chi_dis*w.aggregate_home[1])
+        @test isapprox(w.labor_implied[1],implied^(1/p.varphi);
+                       atol=1e-12)
+        @test isapprox(trial.residual[end],
+                       (w.L[end]-inp.terminal.L)/max(1.0,inp.initial.L);
+                       atol=1e-12)
     end
     @testset "Off-grid saving at unoccupied states is not clipped" begin
         grid=Float64[0.0,1.0]
