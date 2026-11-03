@@ -408,8 +408,14 @@ function stage3_market_residual!(res::AbstractVector{T},
     @inbounds for t in 1:n-1
         c=w.aggregate_home[t]
         c>0 || throw(DomainError(c,"nonpositive home consumption"))
-        w.labor_implied[t]=unionfactor*w.wage[t]/
-            (inp.reference.chi_dis*c)
+        # Paper eq. (5): W/P_H = (epsilon_w/(epsilon_w-1)) *
+        # chi_dis * L^varphi * C_H / chi (gamma=theta=1).
+        # Taking L = ratio is valid ONLY for varphi=1. The author's
+        # MATLAB transition omits the 1/varphi power although its
+        # stationary union condition correctly includes L^varphi.
+        ratio=unionfactor*w.wage[t]/(inp.reference.chi_dis*c)
+        ratio>zero(T) || throw(DomainError(ratio,"nonpositive union labor FOC"))
+        w.labor_implied[t]=ratio^(inv(p.varphi))
         res[n-1+t]=(w.labor_implied[t]-w.L[t])/scaleL
         if fixed
             inflation=t==1 ? w.terms[1]/ctx.terms_pre :
