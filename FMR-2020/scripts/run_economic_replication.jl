@@ -170,6 +170,46 @@ function economic_validation(result::FMR2020.TransitionSolveResult{T},
     return (diagnostics=report,one_horizon_pass=euler&&terminal)
 end
 
+"""
+Compare the SAME 40 shock/credit-expansion dates in a saved 200-period
+Julia market root and the genuinely recomputed extended-horizon root.
+The stationary extension keeps the initial shock EXACTLY unchanged.
+Returned gaps are max |extended - 200-period|/max(1,|200-period|).
+"""
+function compare_boom_horizons(reference_csv::AbstractString,w;
+                               first_periods::Int=40)
+    first_periods>=1 ||
+        throw(ArgumentError("early-path comparison must be nonempty"))
+    isfile(reference_csv) ||
+        throw(ArgumentError("missing 200-date benchmark market root"))
+    lines=readlines(reference_csv)
+    length(lines)>first_periods ||
+        throw(DimensionMismatch("200-date benchmark is too short"))
+    headers=strip.(split(lines[1],","))
+    series=(("K",w.K),("L",w.L),("Y",w.Y),("I",w.I),
+            ("w",w.wage),("r",w.rate),
+            ("terms",w.terms),("home_consumption",w.aggregate_home))
+    maxbyname=Dict{String,Float64}()
+    for (name,path) in series
+        length(path)>=first_periods ||
+            throw(DimensionMismatch("extended path is too short"))
+        index=findfirst(==(name),headers)
+        isnothing(index) && throw(ArgumentError("missing benchmark column "*name))
+        gap=0.0
+        for t in 1:first_periods
+            cells=strip.(split(lines[t+1],","))
+            baseline=parse(Float64,cells[index])
+            fresh=Float64(path[t])
+            isfinite(baseline) && isfinite(fresh) ||
+                throw(DomainError((baseline,fresh),"invalid first-40 path"))
+            gap=max(gap,abs(fresh-baseline)/max(1.0,abs(baseline)))
+        end
+        maxbyname[name]=gap
+    end
+    return (maximum=maximum(values(maxbyname)),
+            by_variable=maxbyname,first_periods=first_periods)
+end
+
 function main()
     valid=all(x->x=="--boom-only" || startswith(x,"--horizon="),ARGS)
     valid || error("Usage: julia --project=. scripts/run_economic_replication.jl [--boom-only] [--horizon=300]")
