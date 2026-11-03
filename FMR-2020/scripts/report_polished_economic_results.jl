@@ -162,6 +162,130 @@ function economic_response_rows(
     return rows
 end
 
+"""
+    economic_mechanism_audit(boom, nolev, flexible, fixed; shock_start=41, chi=0.6)
+
+Independent sign and balance-sheet audit of the stored macro paths.
+The code's definition is x = P_H/P_F and (for floating) e = 1/x.
+Consequently, x_t > x_pre implies a NOMINAL APPRECIATION and reduces
+the home-good value of NEGATIVE foreign-currency liabilities, since
+a'_debt = a_debt * x_pre / x_t.
+
+This audit never claims that the paper's qualitative prediction is a
+mathematical equilibrium condition. It makes replication disagreements
+explicit before economic or welfare conclusions can be published.
+"""
+function economic_mechanism_audit(
+    boom,nolev,flexible,fixed;
+    shock_start::Int=41,chi::Float64=0.6)
+
+    economic_validate_shared_experiment(
+        boom,nolev,flexible,fixed;shock_start=shock_start)
+    0<chi<1 || throw(ArgumentError("consumption share outside (0,1)"))
+    pre=shock_start-1
+    xpre=boom["terms"][pre]
+    xb=boom["terms"][shock_start]
+    xf=flexible["terms"][1]
+    xx=fixed["terms"][1]
+    xpre>0 && xb>0 && xf>0 && xx>0 ||
+        throw(DomainError((xpre,xb,xf,xx),"terms of trade must be positive"))
+    cflex=economic_log_composite(flexible,1,chi)
+    cfixed=economic_log_composite(fixed,1,chi)
+    cboom=economic_log_composite(boom,shock_start,chi)
+    cnolev=economic_log_composite(nolev,1,chi)
+    float_depreciation=100*log(xpre/xf)
+    fixed_real_depreciation=100*log(xpre/xx)
+    float_output_effect=100*log(flexible["Y"][1]/boom["Y"][shock_start])
+    fixed_output_effect=100*log(fixed["Y"][1]/boom["Y"][shock_start])
+    fx_consumption=100*(cfixed-cflex)
+    leverage_consumption=100*(cflex-cnolev)
+    # These correspond to the qualitative mechanisms explicitly
+    # described in de Ferra–Mitman–Romei (2020), section 6.
+    discrepancy=(
+        floating_depreciates=float_depreciation>0,
+        floating_output_increases=float_output_effect>0,
+        fixed_has_higher_consumption=fx_consumption>0,
+    )
+    return (
+        shock_start=shock_start,
+        original_credit_before_shock=boom["B"][pre],
+        no_surprise_credit_at_shock=boom["B"][shock_start],
+        sudden_stop_credit_at_impact=flexible["B"][1],
+        foreign_credit_improvement_vs_no_surprise=
+            flexible["B"][1]-boom["B"][shock_start],
+        terms_before_shock=xpre,
+        anticipated_terms_at_shock=xb,
+        flexible_terms_at_shock=xf,
+        fixed_terms_at_shock=xx,
+        floating_nominal_depreciation_log_points=float_depreciation,
+        fixed_real_depreciation_log_points=fixed_real_depreciation,
+        floating_real_debt_multiplier=xpre/xf,
+        fixed_real_debt_multiplier=xpre/xx,
+        floating_output_vs_anticipated_log_points=float_output_effect,
+        fixed_output_vs_anticipated_log_points=fixed_output_effect,
+        fixed_minus_flexible_output_log_points=
+            100*log(fixed["Y"][1]/flexible["Y"][1]),
+        floating_consumption_vs_anticipated_log_points=
+            100*(cflex-cboom),
+        fixed_consumption_vs_anticipated_log_points=
+            100*(cfixed-cboom),
+        fixed_minus_flexible_consumption_log_points=fx_consumption,
+        leverage_minus_unleveraged_consumption_log_points=
+            leverage_consumption,
+        paper_direction_checks=discrepancy,
+        paper_direction_consistent=all(values(discrepancy)),
+    )
+end
+
+"""
+    economic_write_mechanism_audit(audit, destination)
+
+Persist diagnostic equilibrium signs and real-foreign-liability
+multipliers separately from the consumption and welfare summary.
+"""
+function economic_write_mechanism_audit(audit,destination::AbstractString)
+    mkpath(dirname(destination))
+    open(destination,"w") do io
+        println(io,"# Stage 4 — Economic mechanism and directional replication audit")
+        println(io)
+        println(io,"These are calculated from the saved Julia 200-date ",
+                "Euler-polished market roots, NOT a certified infinite-",
+                "horizon solution or a household welfare comparison.")
+        println(io)
+        println(io,"The convention is x=P_H/P_F and e∝1/x for flexible FX. ",
+                "A positive floating nominal depreciation number means ",
+                "depreciation; a multiplier above 1 means the real ",
+                "home-good value of foreign liabilities INCREASES.")
+        println(io)
+        println(io,"| Calculated mechanism | Value |")
+        println(io,"|---|---:|")
+        for (k,v) in pairs(audit)
+            if k in (:paper_direction_checks,:paper_direction_consistent)
+                continue
+            end
+            println(io,"| ",k," | ",v," |")
+        end
+        println(io)
+        println(io,"## Comparison to qualitative direction in the 2020 paper")
+        println(io)
+        for (name,passed) in pairs(audit.paper_direction_checks)
+            println(io,"- ",name,": ",passed ? "MATCH" : "OPPOSITE")
+        end
+        println(io)
+        if !audit.paper_direction_consistent
+            println(io)
+            println(io,"**CRITICAL REPLICATION DISCREPANCY:** At least one ",
+                    "key directional mechanism reverses the direction ",
+                    "described in the paper. Do not describe this ",
+                    "as a successful economic-mechanism replication. ",
+                    "Audit the credit shock, asset market, initial debt ",
+                    "revaluation, price-setting timing, and potential ",
+                    "multiple GE roots before interpreting welfare.")
+        end
+    end
+    return destination
+end
+
 function economic_write_rows(rows,destination::AbstractString)
     isempty(rows) && throw(ArgumentError("no economic comparison rows"))
     keys0=propertynames(first(rows))
@@ -288,7 +412,21 @@ function report_polished_main(root::AbstractString=
     outputbrief=joinpath(root,"PROVISIONAL_economic_comparison.md")
     economic_write_rows(rows,outputrows)
     economic_write_summary(s,outputbrief,30)
+    mechanism=economic_mechanism_audit(
+        boom,nolev,flexible,fixed;shock_start=41,chi=chi)
+    mechanismfile=joinpath(root,"PROVISIONAL_mechanism_sign_audit.md")
+    economic_write_mechanism_audit(mechanism,mechanismfile)
     println("PROVISIONAL ECONOMIC RESULTS: ",s)
+    println("PAPER MECHANISM DIRECTION CHECK: ",mechanism.paper_direction_checks)
+    println("FOREIGN-DEBT REAL VALUATION (floating, fixed): ",
+            (mechanism.floating_real_debt_multiplier,
+             mechanism.fixed_real_debt_multiplier))
+    if !mechanism.paper_direction_consistent
+        println("CRITICAL: DIRECTIONAL DISCREPANCY WITH PUBLISHED HANKSOME. "*
+                "Do not classify the stored market roots as the paper's "*
+                "successful structural replication.")
+    end
+    println("Independent mechanism and valuation audit: ",mechanismfile)
     println("Quarter-by-quarter economic comparison: ",outputrows)
     println("Research-summary table: ",outputbrief)
     println("NOT a certified infinite-horizon welfare comparison.")
