@@ -112,7 +112,8 @@ function solve_or_recheck_economic(
                 strict_portfolio=strict_portfolio)
         else
             FMR2020.stage3_flexible_full_residual!(
-                residual,candidate,ctx,w;polish_households=polish_households)
+                residual,candidate,ctx,w;polish_households=polish_households,
+                strict_portfolio=strict_portfolio)
         end
         maxerror=maximum(abs,residual)
         println("RECHECK SAVED ",label,
