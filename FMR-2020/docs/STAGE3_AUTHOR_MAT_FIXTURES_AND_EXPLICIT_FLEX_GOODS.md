@@ -139,3 +139,78 @@ julia --project=. scripts\evaluate_author_explicit_goods.jl results\author_refer
 ```
 
 These new equations use distinct checkpoint/output filenames with `TERMINAL_BC`; old market roots must never be silently accepted as new full-GE results. Heavy transition calculations remain PC-only. The new terminal-boundary regime requires observing its actual numerical outputs before claiming convergence.
+
+
+## Economic equation correction and independent Euler test (2026-11-03)
+
+The source MATLAB transition labor condition is **not the same** as
+the model's union wage-setting FOC when varphi differs from one.
+Paper equation (5) and the Cobb-Douglas consumption calibration
+gamma=theta=1 imply
+
+    L_t^varphi = [chi * (epsilon_w - 1)/epsilon_w] *
+                 w_t/(chi_dis * C_H,t).
+
+The old MATLAB/Julia transition code instead set L_t equal to the
+right-hand side. With varphi=0.5 this changes the marginal labor
+response; it also contradicts the stationary union FOC already used
+in steady_state.jl. Both Stage2 credit expansion and Stage3 sudden
+stop have now been corrected. Any previously saved paths under the
+old labor formula are NUMERICAL INITIAL GUESSES ONLY, not verified
+solutions of the economic model.
+
+The interpolation-only EGM policies have an observed maximum relative
+Euler/KKT discrepancy of about 4e-4 in low-wealth, lowest-productivity
+states. src/accuracy.jl now contains an **independent constrained
+one-state Euler root** (household_best_response_saving). The Stage3
+post-solve audit recomputes the directly optimal savings of the worst
+occupied state conditional on the same continuation policy, without
+source MATLAB or a consumption floor. It reports the discrepancy
+between the EGM-interpolated asset choice and that one-dimensional
+Euler/KKT best response. It deliberately does NOT claim that a zero
+best-response discrepancy by itself validates the continuation value
+function or the full infinite-horizon economic equilibrium.
+
+## Proper horizon-truncation comparison
+
+The existing finite-horizon 3T-1 closure uses asset markets at dates
+1:T-1; labor and realized home-goods markets at dates 1:T-1; and
+stationary-boundary labor and terms of trade at date T. The last two
+boundary conditions are a **finite-horizon asymptotic approximation**,
+not a theorem establishing the infinite-horizon solution. Terminal
+capital, prices and household-budget consistency must be independently
+checked.
+
+Extending the 200-date exogenous quartic credit-reversal path by simply
+recomputing its formula with T=300 would make the contraction decay more
+slowly, *changing the economic shock*. We therefore preserve the full
+original 200-date credit path and append the limiting foreign asset
+supply when the simulation horizon is extended. New tail K/L/terms
+values are generated for a numerical starting guess only.
+
+The fixed-FX command now supports the original 200-date problem and a
+300-date **same-shock** horizon refinement:
+
+```powershell
+Set-Location C:\github\22p8z0omwz9xu
+git pull --ff-only
+Set-Location FMR-2020
+julia --project=. scripts\solve_economic_fixed_ge.jl results\author_reference 200
+julia --project=. scripts\solve_economic_fixed_ge.jl results\author_reference 300
+```
+
+The second command uses the 200-date saved market path as a numerical
+guess, and reports the maximum normalized deviation over the initial
+40 quarters in K, L, Y, I, w, r, terms of trade and home consumption.
+The original credit shock is unchanged. There is no certification
+without independent market, Euler/KKT, terminal, and horizon checks.
+These calculations are **not yet executed for the revised economic
+labor condition**. Do not report the earlier MATLAB-compatible market
+roots as final economic results.
+
+Important remaining initial-state issue: the current
+scripts/solve_economic_fixed_ge.jl starts from the archived author
+credit-expansion shock-date distribution. A final replication must
+replace that inherited distribution with one obtained from the newly
+corrected Julia Stage2 economic transition, before claiming fully
+consistent Figures 1, 4 and 5.
