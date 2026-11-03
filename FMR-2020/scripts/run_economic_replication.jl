@@ -68,14 +68,14 @@ function economic_validation(result::FMR2020.TransitionSolveResult{T},
     euler=(report.max_dynamic_euler<=T(1e-4) &&
            report.weighted_mean_dynamic_euler<=T(1e-5))
     if !(euler&&terminal)
-        error("Economic "*name*
-              " markets clear, but household Euler/KKT or asymptotic "*
-              "terminal continuation is not validated. Figures suppressed.")
+        println("UNVERIFIED ",name,": market root only. "*
+                "Euler/KKT and terminal checks remain unpassed. "*
+                "Continue shock experiments provisionally; suppress final figures.")
+    else
+        println("ONE-HORIZON PASS ",name,
+                "; grid and horizon convergence still unverified.")
     end
-    println("ECONOMIC NUMERICAL CANDIDATE ",name,
-            " passes one-horizon market, Euler and terminal checks; "*
-            "horizon/grid convergence still requires independent comparison.")
-    return report
+    return (diagnostics=report,one_horizon_pass=euler&&terminal)
 end
 
 function main()
@@ -93,7 +93,7 @@ function main()
     boom=solve_stage3_flexible_full(
         boomctx;x0=guess,tolerance=1e-6,maxiter=70,
         max_evaluations=5000,verbose=true)
-    economic_validation(boom,boomctx,"credit_expansion",outputdir)
+    boom_check=economic_validation(boom,boomctx,"credit_expansion",outputdir)
 
     # The PRE-SHOCK wealth distribution, K, q and terms all come from the
     # computed Julia boom; they are never copied from archived MATLAB MAT.
@@ -104,7 +104,7 @@ function main()
     nolev=solve_stage3_flexible_full(
         noctx;x0=noguess,tolerance=1e-6,maxiter=70,
         max_evaluations=5000,verbose=true)
-    economic_validation(nolev,noctx,"flexible_unleveraged",outputdir)
+    nolev_check=economic_validation(nolev,noctx,"flexible_unleveraged",outputdir)
 
     ctx=stage3_reversal_context(steady,boom;
                                 shock_start=41,leverage_hat=1.0/16.0)
@@ -112,7 +112,7 @@ function main()
     flexible=solve_stage3_flexible_full(
         ctx;x0=copy(nolev.x),tolerance=1e-6,maxiter=70,
         max_evaluations=5000,verbose=true)
-    economic_validation(flexible,ctx,"flexible_leveraged",outputdir)
+    flexible_check=economic_validation(flexible,ctx,"flexible_leveraged",outputdir)
 
     # Fixed exchange rates: same current shocks and inherited balance
     # sheets, but theta_nr=100 Rotemberg costs and monetary rule applied.
@@ -124,11 +124,20 @@ function main()
     fixed=FMR2020.stage3_nonlinear_solve(
         ctx,fxguess;fixed=true,tolerance=1e-6,maxiter=70,
         max_evaluations=5000,verbose=true)
-    economic_validation(fixed,ctx,"fixed_leveraged",outputdir;
+    fixed_check=economic_validation(fixed,ctx,"fixed_leveraged",outputdir;
                         fixed=true)
 
     # This output is explicitly marked as PROVISIONAL until independent
     # 200-vs-300 horizon and asset-grid stability checks are completed.
+    all_pass=all((boom_check.one_horizon_pass,
+                  nolev_check.one_horizon_pass,
+                  flexible_check.one_horizon_pass,
+                  fixed_check.one_horizon_pass))
+    if !all_pass
+        println("FOUR MARKET ROOTS SAVED, BUT NOT VERIFIED "*
+                "AS INFINITE-HORIZON EQUILIBRIA. Figures suppressed.")
+        return nothing
+    end
     provisionaldir=joinpath(outputdir,"PROVISIONAL_NOT_HORIZON_GRID_VALIDATED")
     mkpath(provisionaldir)
     figures=(
