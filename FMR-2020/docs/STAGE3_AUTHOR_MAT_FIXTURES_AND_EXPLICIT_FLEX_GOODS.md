@@ -391,3 +391,50 @@ save its own explicitly unverified economic market-root CSV. The
 terminal budget gap, stationarity consistency and asset-grid convergence
 remain separate requirements. Do NOT plot or certify Figures 1/4/5
 solely because the corrected 599-market residual converges.
+
+
+## Actual Euler-polished 200-date GE outcome and corrected 300-date test (2026-11-03)
+
+User-PC Julia 1.12.6 run:
+`julia --project=. scripts/run_economic_replication.jl --boom-only --solve-polished-boom`
+
+- Independent corrected 599-market equilibrium root converged after 2 nonlinear
+  steps / 604 residual evaluations from the saved baseline-EGM market root.
+- New maximum scaled market residual: **2.558332579116751e-8**.
+- Asset, labor and goods market residuals (native units):
+  **2.1377693215640647e-7**, **2.558332579116751e-8**,
+  **1.976769303801973e-8**.
+- Maximum Euler/KKT: **9.992665155151346e-6** (vs baseline
+  3.188352638396009e-4); occupied Euler states exceeding 1e-4: **0**.
+- Weighted mean Euler error: **4.523967749583114e-7** (baseline
+  3.1532937519699157e-6).
+- Household budget: 4.44e-16; probability mass: 1.22e-14.
+- First 40 quarters vs baseline-EGM market root, maximum normalized
+  difference: **1.744521140878419e-5**, arising in investment.
+- **NOT yet infinite-horizon certified**: terminal capital gap remains
+  **0.281054172258294**, terminal budget max **2.4473603018791437**,
+  probability-weighted terminal budget **0.0293744196445066**.
+
+The economically relevant first-40-quarter response is insensitive to
+the Euler refinement on this grid, even though the old *household
+optimality* errors were large enough to correct. But Euler accuracy
+and horizon approximation are logically independent.
+
+The Julia runner now accepts a **polished 300-date same-shock comparison**:
+```powershell
+Set-Location C:\github\22p8z0omwz9xu
+git pull --ff-only
+Set-Location FMR-2020
+julia --project=. scripts\run_economic_replication.jl --boom-only --solve-polished-boom --horizon=300
+```
+
+It verifies and uses the existing *polished 200-date root* as the
+initial-40-quarter comparison baseline; it may reuse the already
+solved 300-date BASE-EGM market root as a **numerical starting guess
+only**. It then recomputes Euler-polished household choices and
+their distribution in EVERY 899-equation GE evaluation and reports
+both first-40 economic-path changes and terminal capital/budget
+distortions. The 300-date corrected GE must actually converge on the
+user PC before any 300-date outcomes can be claimed.
+
+Existing 200-date results are not discarded or silently overwritten.
