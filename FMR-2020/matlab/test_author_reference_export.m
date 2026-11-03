@@ -28,9 +28,23 @@ save(fullfile(input,'exp_flex_lev16.mat'),'kl_exp','G0_shock', ...
 k_l_t_fixed=[kl_exp;1.01*ones(T,1)];
 resid=zeros(599,1);
 tot_fixed=1.01*ones(T,1);
+r_t_fixed=0.02*ones(T,1);
+w_nr_guess_fixed=ones(T,1);
+Profits_fixed=0.2*ones(T,1);
+q_agg_fixed=ones(T,1);
+In_dis_fixed=G0_shock;
+c_tran_fine_fixed=ones(769,7,T);
+dec_tran_fine_fixed=0.3*ones(769,7,T);
+new_shock_b_agg=-ones(T,1);
 save(fullfile(input,'exp_both_41_lev16.mat'), ...
-     'k_l_t_fixed','resid','tot_fixed','G0_shock','params');
+     'k_l_t_fixed','resid','tot_fixed','G0_shock','params', ...
+     'r_t_fixed','w_nr_guess_fixed','Profits_fixed','q_agg_fixed', ...
+     'In_dis_fixed','c_tran_fine_fixed','dec_tran_fine_fixed', ...
+     'new_shock_b_agg');
 export_author_reference_fixtures(input,output);
+export_author_fixed_audit(input,output);
+assert(size(dlmread(fullfile(output,'fixed_src_savings_t9.csv'),','),1)==769);
+assert(numel(dlmread(fullfile(output,'fixed_src_household_assets.csv'),','))==199);
 expected={'original_boom_candidate','shock_pre_distribution', ...
           'shock_inherited_metadata'};
 for label={'unleveraged','leveraged','fixed'}
