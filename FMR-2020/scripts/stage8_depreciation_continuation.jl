@@ -380,81 +380,223 @@ function stage8_compare_strict_saved_root(ctx::Stage3Context{T},
             is_depreciation=x[2*length(ctx.economy.B)]<ctx.terms_pre)
 end
 
+"""
+    stage8_read_checkpoint(path, n)
+
+Read an accepted (but not converged) Stage 3 iterate. The checkpoint
+stores ONLY x, not the Broyden Jacobian or household distribution.
+The recorded max residual must be RECOMPUTED under the current strict
+Euler-polished economy before a resumed full-system solve is permitted.
+"""
+function stage8_read_checkpoint(path::AbstractString,n::Int)
+    isfile(path) || throw(ArgumentError(
+        "Missing saved Stage 8 accepted-iterate checkpoint: "*path))
+    x=FMR2020.stage3_read_checkpoint(path,n)
+    lines=readlines(path)
+    startswith(lines[3],"# iter=") ||
+        throw(ArgumentError("Invalid saved iteration header"))
+    startswith(lines[4],"# max_scaled_residual=") ||
+        throw(ArgumentError("Invalid stored maximum-residual header"))
+    prior_iter=parse(Int,split(lines[3],"=",limit=2)[2])
+    prior_max=parse(Float64,split(lines[4],"=",limit=2)[2])
+    prior_iter>0 && isfinite(prior_max) && prior_max>=0 ||
+        throw(ArgumentError("Invalid prior checkpoint iteration or residual"))
+    all(v->isfinite(v)&&v>0,x) ||
+        throw(DomainError(x,"Checkpoint has a nonpositive GE unknown"))
+    return (x=x,iterations=prior_iter,stored_max=prior_max)
+end
+
+"""
+    stage8_verify_resume_residual(stored, actual)
+
+Fail closed when the retained path does not satisfy the SAME full
+599-dimensional economic residual map as the checkpoint source.
+Checking its numerical residual is a stronger guard than trusting
+a previously saved solver flag or the original source name.
+"""
+function stage8_verify_resume_residual(stored::Real,actual::Real)
+    isfinite(stored) && isfinite(actual) && stored>=0 && actual>=0 ||
+        throw(ArgumentError("Nonfinite or negative checkpoint residual"))
+    isapprox(actual,stored;atol=1e-8,rtol=1e-5) ||
+        throw(ErrorException(
+            "Stage 8 checkpoint and CURRENT strict GE residual differ: "*
+            "recorded=$(stored), re-evaluated=$(actual). "*
+            "Refusing to continue a stale or different model checkpoint."))
+    return true
+end
+
+"""
+    stage8_append_accepted_step(path, mode, previous_iter, local_iter,
+                                x, f, terms_pre, n)
+
+Write ONLY solver-accepted iterates. The trace is a numerical log,
+not a convergence or model-equilibrium certification.
+"""
+function stage8_append_accepted_step(path::AbstractString,
+                                     mode::AbstractString,
+                                     previous_iter::Int,
+                                     local_iter::Int,
+                                     x::AbstractVector{T},
+                                     f::AbstractVector{T},
+                                     terms_pre::T,
+                                     n::Int) where {T<:AbstractFloat}
+    length(x)==length(f)==3n-1 ||
+        throw(DimensionMismatch("Invalid accepted 599-system step"))
+    isfinite(terms_pre) && terms_pre>zero(T) ||
+        throw(DomainError(terms_pre,"Invalid pre-shock terms"))
+    all(isfinite,x) && all(isfinite,f) ||
+        throw(ArgumentError("Accepted step contains nonfinite values"))
+    mkpath(dirname(path))
+    fresh=!isfile(path)
+    open(path,"a") do io
+        if fresh
+            println(io,"mode,prior_accepted_iterations,local_iteration,",
+                    "total_accepted_iterations,impact_x,",
+                    "nominal_depreciation_logpoints,",
+                    "is_depreciation,K2,L1,max_scaled_residual,",
+                    "residual_norm,worst_equation_index")
+        end
+        t=2n
+        println(io,join((
+            mode,previous_iter,local_iter,
+            previous_iter+local_iter,
+            x[t],100*log(terms_pre/x[t]),x[t]<terms_pre,
+            x[1],x[n],maximum(abs,f),norm(f),
+            argmax(abs.(f))
+        ),","))
+    end
+    return path
+end
+
 function stage8_main()
-    length(ARGS)<=1 && (isempty(ARGS) || ARGS[1]=="--solve") ||
-        error("Usage: julia --project=. scripts/stage8_depreciation_continuation.jl [--solve]")
-    solve=length(ARGS)==1
+    (isempty(ARGS) || (length(ARGS)==1 && ARGS[1] in ("--solve","--resume"))) ||
+        error("Usage: julia --project=. scripts/stage8_depreciation_continuation.jl [--solve|--resume]")
+    mode=isempty(ARGS) ? "--audit" : ARGS[1]
+    solve=mode!="--audit"
     base=normpath(joinpath(@__DIR__,".."))
     source=joinpath(base,"results","author_reference")
     roots=joinpath(base,"results","economic_reproduction")
     output=joinpath(base,"results","stage8_depreciation")
+    checkpoint=joinpath(output,"source_initialized_UNCONVERGED.checkpoint")
+    trace=joinpath(output,"accepted_full599_trace.csv")
     steady=FMR2020.solve_three_steady_states(FMR2020.default_parameters();
                                              verbose=false)
     boom=stage5_existing_boom(steady,roots)
     ctx=FMR2020.stage3_reversal_context(
         steady,boom;shock_start=41,leverage_hat=1.0/16.0)
-    candidate,meta=stage8_author_initial_guess(source,ctx)
     n=length(ctx.economy.B)
-    values=Pair{String,Any}[
-        "model"=>"strict-portfolio, Euler-polished Julia boom initial state",
-        "source_guess_only"=>true,
-        "equilibrium_root_status"=>"NOT CERTIFIED",
-        "unknown_count"=>length(candidate),
-        "asset_market_equations"=>n-1,
-        "labor_market_equations"=>n-1,
-        "goods_market_equations"=>n-1,
-        "terminal_anchors"=>2,
-        "original_source_K_initial"=>meta[1],
-        "current_strict_K_initial"=>ctx.economy.initial.K,
-        "original_source_q_initial"=>meta[2],
-        "current_strict_q_initial"=>ctx.economy.q_initial,
-        "original_source_B_initial"=>meta[3],
-        "current_strict_B_initial"=>ctx.economy.B_initial,
-        "original_source_terms_pre"=>meta[4],
-        "current_strict_terms_pre"=>ctx.terms_pre,
-        "foreign_credit_B1"=>ctx.economy.B[1],
-        "foreign_credit_Bterminal"=>ctx.economy.B[end],
-    ]
-    strict_saved=joinpath(
-        roots,"economic_flexible_leveraged_euler_polished_"*
-        "STRICT_PORTFOLIO_MARKET_ROOT_UNCERTIFIED.csv")
-    if isfile(strict_saved)
-        high=stage8_compare_strict_saved_root(ctx,strict_saved)
-        push!(values,"saved_strict_stage5_root_available"=>true)
-        push!(values,"prior_strict_root_impact_x"=>high.impact_x)
-        push!(values,"prior_strict_root_depreciates"=>high.is_depreciation)
+    if mode=="--resume"
+        # Do NOT repeat the 399-source audit or the initial 3x3 trial.
+        # Restart from the ACTUAL accepted full-599 iterate on the PC.
+        saved=stage8_read_checkpoint(checkpoint,3n-1)
+        trial=stage8_one_residual(ctx,saved.x;partials=false)
+        trial.ok || error(
+            "Saved accepted-iterate checkpoint is infeasible/undefined under "*
+            "CURRENT strict 599 equations. No resume. "*string(trial.metrics))
+        now=maximum(abs,trial.residual)
+        stage8_verify_resume_residual(saved.stored_max,now)
+        values=Pair{String,Any}[
+            "model"=>"strict-portfolio, Euler-polished Julia boom initial state",
+            "resume_from_accepted_iteration"=>saved.iterations,
+            "checkpoint_max_scaled_recorded"=>saved.stored_max,
+            "checkpoint_max_scaled_recomputed"=>now,
+            "checkpoint_impact_x"=>saved.x[2n],
+            "checkpoint_nominal_depreciation_logpoints"=>
+                100*log(ctx.terms_pre/saved.x[2n]),
+            "checkpoint_is_depreciation"=>saved.x[2n]<ctx.terms_pre,
+            "equilibrium_root_status"=>"NOT CERTIFIED",
+        ]
+        append!(values,trial.metrics)
+        stage8_store_metrics(joinpath(output,"resume_candidate_residuals.csv"),
+                             values)
+        println("STAGE8 VERIFIED CHECKPOINT: accepted previous iterations=",
+                saved.iterations," current strict max=",now,
+                " x1=",saved.x[2n],
+                " depreciation=",saved.x[2n]<ctx.terms_pre)
+        if saved.x[2n]>=ctx.terms_pre
+            println("CAUTION: accepted iterate has crossed into appreciation. ",
+                    "Its eventual convergence would not establish a second ",
+                    "depreciation equilibrium.")
+        end
+        candidate=saved.x
+        previous_iter=saved.iterations
     else
-        # Stage 5 recorded a strict appreciation root on the owner PC,
-        # but its CSV is NOT tracked in the shared repository.
-        # No Julia same-economy comparison may be asserted without it.
-        push!(values,"saved_strict_stage5_root_available"=>false)
-        push!(values,"prior_strict_root_impact_x"=>"NOT VERIFIED IN THIS RUN")
+        candidate,meta=stage8_author_initial_guess(source,ctx)
+        values=Pair{String,Any}[
+            "model"=>"strict-portfolio, Euler-polished Julia boom initial state",
+            "source_guess_only"=>true,
+            "equilibrium_root_status"=>"NOT CERTIFIED",
+            "unknown_count"=>length(candidate),
+            "asset_market_equations"=>n-1,
+            "labor_market_equations"=>n-1,
+            "goods_market_equations"=>n-1,
+            "terminal_anchors"=>2,
+            "original_source_K_initial"=>meta[1],
+            "current_strict_K_initial"=>ctx.economy.initial.K,
+            "original_source_q_initial"=>meta[2],
+            "current_strict_q_initial"=>ctx.economy.q_initial,
+            "original_source_B_initial"=>meta[3],
+            "current_strict_B_initial"=>ctx.economy.B_initial,
+            "original_source_terms_pre"=>meta[4],
+            "current_strict_terms_pre"=>ctx.terms_pre,
+            "foreign_credit_B1"=>ctx.economy.B[1],
+            "foreign_credit_Bterminal"=>ctx.economy.B[end],
+        ]
+        strict_saved=joinpath(
+            roots,"economic_flexible_leveraged_euler_polished_"*
+            "STRICT_PORTFOLIO_MARKET_ROOT_UNCERTIFIED.csv")
+        if isfile(strict_saved)
+            high=stage8_compare_strict_saved_root(ctx,strict_saved)
+            push!(values,"saved_strict_stage5_root_available"=>true)
+            push!(values,"prior_strict_root_impact_x"=>high.impact_x)
+            push!(values,"prior_strict_root_depreciates"=>high.is_depreciation)
+        else
+            push!(values,"saved_strict_stage5_root_available"=>false)
+            push!(values,"prior_strict_root_impact_x"=>"NOT VERIFIED IN THIS RUN")
+        end
+        baseline=stage8_one_residual(ctx,candidate)
+        append!(values,baseline.metrics)
+        push!(values,"source_candidate_599_status"=>
+              (baseline.ok ? "DEFINED_NOT_CERTIFIED" :
+                             "UNDEFINED_ECONOMIC_CANDIDATE"))
+        stage8_store_metrics(joinpath(output,"initial_candidate_residuals.csv"),
+                             values)
+        for (k,v) in values
+            println(k," = ",v)
+        end
+        if !solve
+            println("STAGE8 AUDIT ONLY: no 599-variable GE solve")
+            return nothing
+        end
+        baseline.ok || error("Source depreciation guess economically undefined")
+        # Do not silently destroy an existing accepted-iterate checkpoint.
+        !isfile(checkpoint) || error(
+            "Stage 8 already has an accepted-iterate checkpoint; "*
+            "use --resume rather than --solve to preserve progress.")
+        previous_iter=0
     end
-    baseline=stage8_one_residual(ctx,candidate)
-    append!(values,baseline.metrics)
-    push!(values,"source_candidate_599_status"=>
-          (baseline.ok ? "DEFINED_NOT_CERTIFIED" :
-                         "UNDEFINED_ECONOMIC_CANDIDATE"))
-    stage8_store_metrics(joinpath(output,"initial_candidate_residuals.csv"),values)
-    for (k,v) in values
-        println(k," = ",v)
+
+    # Numerical restart, NOT a warm-start of the Broyden matrix.
+    # The existing solver rebuilds its full Jacobian at resumed iteration 0.
+    # No implementation change or novel 599-dimensional solver is needed.
+    last=(x,f,i)->begin
+        stage8_append_accepted_step(
+            trace,mode,previous_iter,i,x,f,ctx.terms_pre,n)
+        FMR2020.stage3_write_checkpoint(
+            checkpoint,x,f,previous_iter+i)
+        println("STAGE8 ACCEPTED total=",previous_iter+i,
+                " x1=",x[2n],
+                " depreciation=",x[2n]<ctx.terms_pre,
+                " max_scaled=",maximum(abs,f))
     end
-    if !solve
-        println("STAGE8 AUDIT ONLY: no 599-variable GE solve")
-        return nothing
-    end
-    if !baseline.ok
-        println("NO GE SOLVE: source-initialized strict portfolio candidate is infeasible/undefined. See initial_candidate_residuals.csv")
-        return nothing
-    end
-    # Exactly one bounded nonlinear attempt from the source low-price path.
-    # Results and accepted iterates are isolated from Stage 5 root files.
-    checkpoint=joinpath(output,"source_initialized_UNCONVERGED.checkpoint")
-    last=(x,f,i)->FMR2020.stage3_write_checkpoint(checkpoint,x,f,i)
-    println("STARTING SINGLE BOUNDED STRICT 599 GE SOLVE FROM SOURCE LOW PRICE")
+    maxiter=mode=="--resume" ? 12 : 5
+    maxeval=mode=="--resume" ? 2200 : 1000
+    println("STARTING STRICT 599 FULL GE mode=",mode,
+            " from accepted=",previous_iter,
+            " maxiter=",maxiter," max_evaluations=",maxeval)
     sol=FMR2020.solve_stage3_flexible_full(
         ctx;x0=candidate,polish_households=true,strict_portfolio=true,
-        tolerance=1e-6,maxiter=5,max_evaluations=1000,
+        tolerance=1e-6,maxiter=maxiter,max_evaluations=maxeval,
         on_accepted_step=last,verbose=true)
     sol.converged || error("Stage 8 did not converge: no equilibrium claim")
     diagnostics=FMR2020.stage3_diagnostics(
@@ -466,12 +608,17 @@ function stage8_main()
         diagnostics.max_asset_market_level<1e-4 &&
         diagnostics.max_labor_market_level<1e-4 &&
         diagnostics.max_goods_market_level<1e-4)
-    certified_market || error("Returned Stage 8 root fails independent market/budget diagnostics")
-    marketpath=joinpath(output,"source_initialized_STRICT_MARKET_ROOT_UNCERTIFIED.csv")
+    certified_market || error(
+        "Returned Stage 8 root fails independent market/budget diagnostics")
+    marketpath=joinpath(
+        output,"source_initialized_STRICT_MARKET_ROOT_UNCERTIFIED.csv")
     FMR2020.stage3_write_csv(sol,ctx,marketpath)
-    println("STAGE8 SAVED MARKET ROOT (NOT CERTIFIED INFINITE HORIZON): ",marketpath)
+    println("STAGE8 SAVED MARKET ROOT (NOT CERTIFIED INFINITE HORIZON): ",
+            marketpath)
     println("SOURCE-INITIALIZED ROOT PRICE X1=",sol.workspace.terms[1],
-            " prior Xpre=",ctx.terms_pre)
+            " prior Xpre=",ctx.terms_pre,
+            " nominal_depreciation_logpoints=",
+            100*log(ctx.terms_pre/sol.workspace.terms[1]))
     println("INDEPENDENT DIAGNOSTICS ",diagnostics)
     return nothing
 end
