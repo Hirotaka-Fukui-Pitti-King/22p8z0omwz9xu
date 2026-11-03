@@ -280,3 +280,35 @@ end
     @test !fixed_market_acceptance(merge(good,(max_nonlinear_phillips=1e-3,)))
     @test !fixed_market_acceptance(merge(good,(max_mass_deviation=1e-5,)))
 end
+
+
+@testset "Independent one-state Euler/KKT best-response root" begin
+    # Deterministic logarithmic-consumption benchmark with affine future
+    # policy c_next(a')=1+a'; beta*R_next=1 and current resources=2.
+    # Exact interior solution: 1/(2-a') = 1/(1+a'), hence a'=0.5.
+    grid=Float64[0.0,1.0,2.0]
+    future=reshape(Float64[1.0,2.0,3.0],3,1)
+    prob=Float64[1.0]
+    best=FMR2020.household_best_response_saving(
+        grid,future,prob,1.0,1.0,1.0,2.0,1.0,0.0)
+    @test !best.binding
+    @test isapprox(best.savings,0.5;atol=1e-9)
+    @test isapprox(best.consumption,1.5;atol=1e-9)
+    @test abs(best.euler_surplus)<1e-9
+
+    # The unconstrained root would be negative; borrowing KKT must bind.
+    constrained=FMR2020.household_best_response_saving(
+        grid,future,prob,1.0,1.0,1.0,0.5,1.0,0.0)
+    @test constrained.binding
+    @test constrained.savings==0.0
+    @test constrained.consumption==0.5
+    @test constrained.euler_surplus>=0.0
+
+    # Never silently clamp optimal saving at the numerical upper grid bound.
+    @test_throws DomainError FMR2020.household_best_response_saving(
+        grid,future,prob,1.0,1.0,1.0,7.0,1.0,0.0)
+    @test_throws DimensionMismatch FMR2020.household_best_response_saving(
+        grid,future,Float64[0.4,0.6],1.0,1.0,1.0,2.0,1.0,0.0)
+    @test_throws ArgumentError FMR2020.household_best_response_saving(
+        grid,future,Float64[0.99],1.0,1.0,1.0,2.0,1.0,0.0)
+end
