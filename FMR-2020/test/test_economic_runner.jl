@@ -129,7 +129,23 @@ include(joinpath(@__DIR__,"..","scripts","run_economic_replication.jl"))
     # exactly the same household map as a fresh strict GE residual call.
     # Change only the first date's relative price slightly so that
     # foreign-bond revaluation makes the gross portfolio relevant.
-    levctx=Stage3Context(short,copy(ctx.mu_pre),ctx.terms_pre,
+    # Construct a two-atom inherited distribution entirely inside the
+    # asset grid, with exact total inherited net wealth q0*K0+B0.
+    # This prevents a synthetic boundary-node from being pushed beyond
+    # the grid by an arbitrarily small FX revaluation. The test checks
+    # RESIDUAL-MAP DISPATCH, not equilibrium of this artificial distribution.
+    test_mu=zeros(size(ctx.mu_pre))
+    grid=short.grids.fine
+    wealth_target=short.q_initial*short.initial.K+short.B_initial
+    @test grid[1]<wealth_target<grid[end]
+    left=searchsortedlast(grid,wealth_target)
+    @test 1<=left<length(grid)
+    weight_right=(wealth_target-grid[left])/(grid[left+1]-grid[left])
+    test_mu[left,3]=1-weight_right
+    test_mu[left+1,3]=weight_right
+    @test isapprox(sum(test_mu.*reshape(grid,:,1)),wealth_target;
+                   atol=1e-10)
+    levctx=Stage3Context(short,test_mu,ctx.terms_pre,
                          1/16,0.0,true,"resume strict household portfolio")
     levinitial=copy(shortx)
     levinitial[2*Ttiny]=shortctx.terms_pre*1.001
