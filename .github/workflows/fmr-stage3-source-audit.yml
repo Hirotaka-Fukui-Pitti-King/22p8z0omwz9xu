@@ -73,6 +73,9 @@ jobs:
         run: julia --project=. scripts/validate_sudden_stop.jl
 
   matlab-octave-fixture:
+    # Deep MATLAB/Octave source parity is opt-in. PC executes all full GE paths.
+    # Avoid downloading Octave + reproducing large 399 source maps on each commit.
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
