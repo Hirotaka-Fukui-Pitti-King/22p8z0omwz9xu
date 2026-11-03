@@ -58,4 +58,25 @@ end
         NaN,1.0,1.0,0.1,0.01,1.0,0.1,1.0,0.01,1.0,0.1,1.0)
 end
 
+@testset "Stage 8 terminal budget probability-mass diagnostics without clipping" begin
+    tiny=nextfloat(0.0)
+    masses=[1.0-1e-6,1e-6,tiny,0.0]
+    budgets=[2e-4,-0.005,-0.09,NaN]
+    results=stage8_terminal_mass_summary(masses,budgets)
+    @test results.material_cell_count==2
+    @test results.material_cutoff==1e-12
+    @test results.max_budget_all_occupied==0.09
+    @test results.max_budget_material_cells==0.005
+    @test isapprox(results.material_probability_mass,1.0;atol=1e-15)
+    @test isapprox(results.violation_mass_above_1e3,1e-6;atol=1e-15)
+    @test isapprox(results.weighted_absolute_budget,
+                   (1.0-1e-6)*2e-4+1e-6*0.005;atol=1e-15)
+    @test_throws ArgumentError stage8_terminal_mass_summary(
+        [-0.1,1.1],[0.1,0.2])
+    @test_throws ArgumentError stage8_terminal_mass_summary(
+        [0.5,0.5],[0.1,NaN])
+    @test_throws DimensionMismatch stage8_terminal_mass_summary(
+        [1.0],[0.2,0.3])
+end
+
 println("STAGE8 TWO ROOT COMPARISON LIGHT TESTS PASS; no full GE solver")
