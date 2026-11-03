@@ -172,6 +172,57 @@ entirely distinct research computation and should be undertaken
 only if needed to distinguish the remaining equilibrium-selection
 hypothesis.
 
+## 5. Controlled next experiment: one strict-portfolio 599-market solve
+
+After establishing the exact inherited-capital accounting failure and
+that simple reallocation at old macro prices **does not** clear the
+599-equation GE, the next causally informative full simulation is
+**only the leveraged flexible-FX sudden stop**, holding the corrected
+Euler-polished credit-expansion path, foreign-credit shock, and
+predetermined household wealth distribution fixed.
+
+A dedicated opt-in mode is available in the existing runner:
+
+```powershell
+Set-Location C:\github\22p8z0omwz9xu
+git pull --ff-only
+Set-Location FMR-2020
+julia --project=. scripts\run_economic_replication.jl --stage5-solve-strict-flexible
+```
+
+
+It loads/rechecks archived corrected boom, reconstructs the new shock
+context, warm-starts from the archived leveraged-flexible
+Euler-polished 599-dimensional path, and re-solves the SAME market and
+Euler/KKT equations with `strict_portfolio=true` inside every
+household distribution and finite-difference Jacobian evaluation.
+The new result (only if converged) is saved as:
+
+`economic_flexible_leveraged_euler_polished_STRICT_PORTFOLIO_MARKET_ROOT_UNCERTIFIED.csv`.
+
+This separate CSV never replaces the legacy portfolio roots. The
+runner explicitly reports impact x, implied nominal appreciation/
+depreciation, market residual, Euler error, and terminal capital gap.
+
+Interpretation of results:
+- If the new strict equilibrium **still appreciates**, this specific
+  aggregate portfolio accounting error does not explain the published
+  exchange-rate sign. The low-branch GE existence/selection and model
+  assumptions remain the central issue.
+- If the strict equilibrium **depreciates** and satisfies household
+  budgets and all markets, then the gross portfolio accounting
+  inconsistency is sufficient to switch the GE response in this
+  calibration. Only then evaluate the new fixed-FX equilibrium and
+  distributional welfare counterfactual.
+- If the solver does not converge, the experiment is **inconclusive**;
+  do not interpret nonconvergence as proof of no equilibrium branch.
+  Preserve the exception/trace for targeted diagnosis.
+
+This is a justified single GE run only *after* the cheap conditional
+equation/feasibility audit was completed. It has **not yet been run on
+the user's PC**, so there is no strict-portfolio general equilibrium
+claim.
+
 ## 5. Unresolved limitations
 
 - Which full GE branch, if any, corresponds to the original paper's depreciation scenario? **Not established.**
