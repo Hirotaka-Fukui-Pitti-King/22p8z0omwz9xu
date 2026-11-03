@@ -43,5 +43,6 @@ jobs:
           if-no-files-found: warn
           path: |
             FMR-2020/results/stage6_author_audit/first_period_metrics.csv
+            FMR-2020/results/stage6_author_audit/first_period_occupied_budget_errors.csv
             FMR-2020/results/stage6_author_audit/first_30_periods.csv
             FMR-2020/results/stage6_author_audit/stage6_audit.md
