@@ -214,9 +214,10 @@ function compare_boom_horizons(reference_csv::AbstractString,w;
 end
 
 function main()
-    valid=all(x->x in ("--boom-only","--audit-euler-refinement") ||
+    valid=all(x->x in ("--boom-only","--audit-euler-refinement",
+                        "--solve-polished-boom") ||
                startswith(x,"--horizon="),ARGS)
-    valid || error("Usage: julia --project=. scripts/run_economic_replication.jl [--boom-only] [--horizon=300] [--audit-euler-refinement]")
+    valid || error("Usage: julia --project=. scripts/run_economic_replication.jl [--boom-only] [--horizon=300] [--audit-euler-refinement] [--solve-polished-boom]")
     settings=filter(x->startswith(x,"--horizon="),ARGS)
     length(settings)<=1 || throw(ArgumentError("specify the horizon once"))
     requested_horizon=isempty(settings) ? 200 :
@@ -225,6 +226,11 @@ function main()
         throw(ArgumentError("horizon cannot be below 200"))
     boom_only="--boom-only" in ARGS
     polish_audit="--audit-euler-refinement" in ARGS
+    polish_solve="--solve-polished-boom" in ARGS
+    polish_audit && polish_solve &&
+        throw(ArgumentError("choose either audit or polished equilibrium solve"))
+    polish_solve && (!boom_only || requested_horizon!=200) &&
+        throw(ArgumentError("polished equilibrium solve requires --boom-only and 200 dates"))
     polish_audit && (!boom_only || requested_horizon!=200) &&
         throw(ArgumentError("Euler refinement audit requires --boom-only and the 200-date economic root"))
     requested_horizon>200 && !boom_only &&
@@ -281,6 +287,32 @@ function main()
                 "new aggregate equilibrium. The coarse/fine policies and "*
                 "aggregate markets must be solved together if the shift "*
                 "is non-negligible.")
+        return nothing
+    end
+    if polish_solve
+        # Compute NEW GE root with the corrected household map INSIDE
+        # every market residual and every finite-difference Jacobian.
+        # The old unpolished root is a starting guess, not an accepted
+        # market-clearing result under the corrected household operator.
+        corrected_label="credit_expansion_euler_polished"
+        old_x=copy(boom.x)
+        corrected=solve_or_recheck_economic(
+            boomctx,old_x,outputdir,corrected_label;
+            polish_households=true)
+        revised=economic_validation(
+            corrected,boomctx,corrected_label,outputdir)
+        println("POLISHED GE MARKET MAX SCALED RESIDUAL=",
+                revised.diagnostics.maximum_scaled_solver_residual)
+        println("POLISHED GE EULER MAX=",
+                revised.diagnostics.max_dynamic_euler,
+                " first40=",revised.diagnostics.max_dynamic_euler_first40,
+                " last20=",revised.diagnostics.max_dynamic_euler_last20)
+        println("POLISHED GE TERMINAL BUDGET MAX=",
+                revised.diagnostics.max_terminal_household_budget,
+                " K_GAP=",revised.diagnostics.terminal_K_gap)
+        println("POLISHED GE PATH SAVED SEPARATELY, "*
+                "grid/horizon and terminal checks remain independent. "*
+                "Original unpolished market paths are unchanged.")
         return nothing
     end
     if requested_horizon>n0
