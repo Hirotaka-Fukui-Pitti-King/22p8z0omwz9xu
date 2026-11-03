@@ -2,8 +2,8 @@
 """
 Fixed nominal exchange rate, foreign-denominated balance sheets:
 the original solve_transition_fixed.m is a 3T-1 unknown problem.
-K[2:T], L[1:T], and terms[1:T] are endogenous. The last T residuals
-are domestic goods clearing. Firm real marginal costs are solved
+K[2:T], L[1:T], and terms[1:T] are endogenous. The last T residuals are (T-1) actual domestic goods-market equations
+and the stationary continuation terms-of-trade boundary. Firm real marginal costs are solved
 backwards from the original nonlinear Rotemberg price-setting equation.
 """
 function stage3_fixed_prices!(w::TransitionWorkspace{T},
@@ -114,8 +114,8 @@ end
 """
 Independent Stage 3 checks: the expanded inherited negative wealth
 support is allowed only if household consumption and saving are valid
-where the distribution has POSITIVE probability. Fixed-regime goods
-clearing uses actual cross-sectional C_H in ALL T equations.
+where the distribution has POSITIVE probability. Fixed-regime goods clearing uses actual cross-sectional C_H at all
+T-1 economic transition dates; date T is a stationary continuation boundary.
 """
 function stage3_diagnostics(sol::TransitionSolveResult{T},
                             ctx::Stage3Context{T};fixed::Bool=false,
