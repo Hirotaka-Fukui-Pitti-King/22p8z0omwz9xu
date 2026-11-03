@@ -146,7 +146,9 @@ function stage3_diagnostics(sol::TransitionSolveResult{T},
         end
         mu=view(w.distribution,:,:,t)
         maxmass=max(maxmass,abs(sum(mu)-one(T)))
-        maxlabor=max(maxlabor,abs(w.labor_implied[t]-w.L[t]))
+        if t<n
+            maxlabor=max(maxlabor,abs(w.labor_implied[t]-w.L[t]))
+        end
         if t<n
             maxasset=max(maxasset,
                  abs((w.aggregate_savings[t]-inp.B[t])/w.q[t]-w.K[t+1]))
@@ -156,12 +158,6 @@ function stage3_diagnostics(sol::TransitionSolveResult{T},
         nominalcost=fixed ? ctx.theta_nr/T(2)*(infl-one(T))^2 : zero(T)
         if t<n
             supply=w.Y[t]-w.I[t]-w.adjustment[t]-nominalcost-
-                    inp.reference.export_shift*w.terms[t]^(-inp.params.theta_star)
-            maxgoods=max(maxgoods,abs(supply-w.aggregate_home[t]))
-        elseif fixed || explicit_flexible
-            cost=inp.phi_ac/T(2)*w.K[t]*
-                     ((w.I[t-1]-inp.params.delta*w.K[t])/w.K[t])^2
-            supply=w.Y[t]-w.I[t-1]-cost-nominalcost-
                     inp.reference.export_shift*w.terms[t]^(-inp.params.theta_star)
             maxgoods=max(maxgoods,abs(supply-w.aggregate_home[t]))
         end
@@ -254,5 +250,6 @@ function stage3_diagnostics(sol::TransitionSolveResult{T},
             maximum_scaled_solver_residual=sol.maximum_scaled_residual,
             iterations=sol.iterations,evaluations=sol.evaluations,
             terminal_K_gap=abs(w.K[end]-inp.terminal.K),
-            terminal_L_gap=abs(w.L[end]-inp.terminal.L))
+            terminal_L_gap=abs(w.L[end]-inp.terminal.L),
+            terminal_terms_gap=abs(w.terms[end]-inp.terminal.terms))
 end
