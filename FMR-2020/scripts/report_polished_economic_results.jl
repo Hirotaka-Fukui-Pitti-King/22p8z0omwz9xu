@@ -108,7 +108,8 @@ end
 
 Two DIFFERENT counterfactual objects:
 (1) the *no-surprise continuing boom* at each same calendar date,
-and (2) the exchange-rate or leverage contrast holding the credit
+and (2) the exchange-rate contrast, or the allocation of capital/debt
+exposure governed by k_const_hat (zero versus 1/16), holding the credit
 reversal and initial conditions fixed.
 
 Response numbers are 100 times LOG ratios (approximately log points).
@@ -364,13 +365,13 @@ function economic_write_summary(summary,destination,horizon::Int)
              :impact_fixed_vs_no_shock),
             ("On-impact fixed minus flexible",
              :impact_fixed_minus_flexible),
-            ("On-impact leverage effect under flexible",
+            ("On-impact positive vs zero capital intercept (flexible)",
              :impact_leverage_minus_unleveraged),
             ("Average fixed minus flexible ($horizon quarters)",
              :average_fixed_minus_flexible),
             ("Largest absolute fixed-versus-flexible log gap",
              :maxabs_fixed_minus_flexible),
-            ("Largest absolute leverage log gap",
+            ("Largest absolute capital-intercept log gap",
              :maxabs_leverage_minus_unleveraged),
             ("Cumulative consumption level flexible vs continuing boom",
              :cumulative_flexible_vs_boom_pct),
@@ -382,6 +383,17 @@ function economic_write_summary(summary,destination,horizon::Int)
             println(io,"| ",label," | ",
                     round(getproperty(summary,key);digits=7)," |")
         end
+        println(io)
+        println(io,"**Important counterfactual definition.** The ",
+                "so-called 'no-leverage' run uses leverage_hat=0, ",
+                "which removes the CONSTANT capital allocation to ",
+                "low-wealth households. It DOES NOT switch off ",
+                "foreign-currency bonds: foreign=true in both regimes, ",
+                "and the remaining proportional allocation can still ",
+                "generate gross borrowing. The reported 'leverage effect' ",
+                "is strictly the change from zero to 1/16 in the ",
+                "capital-intercept / leverage-distribution parameter, ",
+                "NOT a comparison of foreign debt versus no foreign debt.")
         println(io)
         println(io,"**Interpretation limits.** The cumulative entries ",
                 "compare unweighted quarter sums of Cobb-Douglas ",
@@ -429,6 +441,9 @@ function report_polished_main(root::AbstractString=
     println("Independent mechanism and valuation audit: ",mechanismfile)
     println("Quarter-by-quarter economic comparison: ",outputrows)
     println("Research-summary table: ",outputbrief)
+    println("COUNTERFACTUAL DEFINITION: leverage_hat=0 still allows "*
+            "foreign-currency liabilities; it only removes the "*
+            "low-wealth fixed-capital allocation intercept.")
     println("NOT a certified infinite-horizon welfare comparison.")
     return s
 end
