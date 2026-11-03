@@ -214,7 +214,7 @@ end
     @test length(longer)==3*240-1
     @test longer[1:199]==x0[1:199]
     @test longer[240:439]==x0[200:399]
-    @test longer[479:678]==x0[400:599]
+    @test longer[480:679]==x0[400:599]
     @test_throws ArgumentError FMR2020.stage3_prolong_aggregate_guess(
         x0,ctx,extended;rho=1.0)
     @test length(x0)==599
