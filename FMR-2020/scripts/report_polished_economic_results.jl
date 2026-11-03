@@ -1,0 +1,458 @@
+# Economic comparison from already converged 200-date Julia market roots.
+# No MATLAB fixtures, no GE re-solving, no additional Julia dependencies.
+#
+# julia --project=. scripts/report_polished_economic_results.jl
+#
+# CAUTION: The four equilibria are finite-horizon market roots with
+# tested Euler/KKT accuracy. Terminal continuation and grid convergence
+# are NOT yet certified. The report and data are explicitly PROVISIONAL.
+
+using FMR2020
+
+const ECONOMIC_ROOT_LABELS = (
+    boom="credit_expansion_euler_polished",
+    nolev="flexible_unleveraged_euler_polished",
+    flexible="flexible_leveraged_euler_polished",
+    fixed="fixed_leveraged_euler_polished",
+)
+
+"""
+    economic_read_panel(path)
+
+Read the saved numeric Stage3 market-root CSV with strict row and
+column validation. A panel returned from this reader is ONLY a stored
+candidate path; reading it does not certify equilibrium.
+"""
+function economic_read_panel(path::AbstractString)
+    isfile(path) || throw(ArgumentError("missing Julia GE root CSV: "*path))
+    lines=readlines(path)
+    length(lines)>41 ||
+        throw(DimensionMismatch("economic transition must exceed the first 40 quarters"))
+    names=strip.(split(lines[1],","))
+    wanted=("period","B","K","L","Y","I","q","r","w","terms",
+            "foreign_consumption","home_consumption","wealth",
+            "nominal_exchange_rate")
+    length(unique(names))==length(names) ||
+        throw(ArgumentError("duplicate CSV headers"))
+    all(name->name in names,wanted) ||
+        throw(ArgumentError("saved GE root lacks required economic variables"))
+    panel=Dict{String,Vector{Float64}}(
+        name=>Vector{Float64}(undef,length(lines)-1) for name in wanted)
+    for t in 1:length(lines)-1
+        fields=strip.(split(lines[t+1],","))
+        length(fields)==length(names) ||
+            throw(DimensionMismatch("CSV row $t has wrong column count"))
+        for name in wanted
+            k=findfirst(==(name),names)
+            v=parse(Float64,fields[k])
+            isfinite(v) || throw(DomainError(v,"nonfinite $name at date $t"))
+            panel[name][t]=v
+        end
+        panel["period"][t]==t ||
+            throw(ArgumentError("nonconsecutive economic dates at row $t"))
+        for name in ("K","L","Y","q","terms",
+                     "foreign_consumption","home_consumption")
+            panel[name][t]>0 ||
+                throw(DomainError(panel[name][t],
+                    "nonpositive $name at date $t"))
+        end
+    end
+    return panel
+end
+
+"""
+    economic_validate_shared_experiment(boom, nolev, flexible, fixed;
+                                        shock_start=41)
+
+Verify every sudden-stop equilibrium was computed for the SAME foreign
+credit experiment and inherited physical capital. This does NOT by
+itself verify the common *wealth distribution*, which is not stored in
+the aggregate CSV and must be established by the generating solver.
+"""
+function economic_validate_shared_experiment(
+    boom, nolev, flexible, fixed; shock_start::Int=41)
+
+    n=length(boom["B"])
+    2<=shock_start<=n ||
+        throw(ArgumentError("shock date outside boom path"))
+    for (name,panel) in (("unleveraged",nolev),
+                         ("leveraged flexible",flexible),
+                         ("leveraged fixed",fixed))
+        length(panel["B"])==n ||
+            throw(DimensionMismatch("$name has a different horizon"))
+        all(isapprox.(panel["B"],nolev["B"];rtol=1e-10,atol=1e-10)) ||
+            throw(ArgumentError("$name has a different foreign-credit shock"))
+        isapprox(panel["K"][1],boom["K"][shock_start];
+                 rtol=1e-9,atol=1e-9) ||
+            throw(ArgumentError("$name has inconsistent inherited K at surprise"))
+    end
+    return true
+end
+
+"""
+    economic_log_composite(panel, t, chi)
+
+Log Cobb-Douglas composite consumption, up to an irrelevant shared
+normalization constant. All log DIFFERENCES are invariant to this
+normalization. Here C_H and C_F are physical home and foreign goods.
+"""
+function economic_log_composite(panel,t::Int,chi::Real)
+    0<chi<1 || throw(ArgumentError("Cobb-Douglas weight must be in (0,1)"))
+    return chi*log(panel["home_consumption"][t])+
+           (1-chi)*log(panel["foreign_consumption"][t])
+end
+
+"""
+    economic_response_rows(boom, nolev, flexible, fixed;
+                           shock_start=41, horizon=30, chi=0.6)
+
+Two DIFFERENT counterfactual objects:
+(1) the *no-surprise continuing boom* at each same calendar date,
+and (2) the exchange-rate contrast, or the allocation of capital/debt
+exposure governed by k_const_hat (zero versus 1/16), holding the credit
+reversal and initial conditions fixed.
+
+Response numbers are 100 times LOG ratios (approximately log points).
+They are not the paper's welfare compensating variation.
+"""
+function economic_response_rows(
+    boom,nolev,flexible,fixed;
+    shock_start::Int=41,horizon::Int=30,chi::Float64=0.6)
+
+    horizon>=1 || throw(ArgumentError("comparison horizon must be positive"))
+    length(boom["B"])>=shock_start+horizon-1 ||
+        throw(DimensionMismatch("boom no-shock counterfactual too short"))
+    all(length(p["B"])>=horizon for p in (nolev,flexible,fixed)) ||
+        throw(DimensionMismatch("sudden-stop equilibrium too short"))
+    economic_validate_shared_experiment(
+        boom,nolev,flexible,fixed;shock_start=shock_start)
+    rows=NamedTuple[]
+    for h in 0:horizon-1
+        t=h+1
+        bt=shock_start+h
+        cb=economic_log_composite(boom,bt,chi)
+        cn=economic_log_composite(nolev,t,chi)
+        cf=economic_log_composite(flexible,t,chi)
+        cx=economic_log_composite(fixed,t,chi)
+        push!(rows,(
+            quarter=h,
+            boom_calendar_period=bt,
+            composite_no_leverage_shock_pct=100*(cn-cb),
+            composite_leveraged_flexible_shock_pct=100*(cf-cb),
+            composite_leveraged_fixed_shock_pct=100*(cx-cb),
+            composite_fixed_minus_flexible_pct=100*(cx-cf),
+            composite_leverage_minus_unleveraged_pct=100*(cf-cn),
+            home_fixed_minus_flexible_pct=100*
+                log(fixed["home_consumption"][t]/
+                    flexible["home_consumption"][t]),
+            foreign_fixed_minus_flexible_pct=100*
+                log(fixed["foreign_consumption"][t]/
+                    flexible["foreign_consumption"][t]),
+            output_fixed_minus_flexible_pct=100*
+                log(fixed["Y"][t]/flexible["Y"][t]),
+            investment_fixed_minus_flexible_level=
+                fixed["I"][t]-flexible["I"][t],
+            terms_fixed_minus_flexible_pct=100*
+                log(fixed["terms"][t]/flexible["terms"][t]),
+            wage_fixed_minus_flexible_pct=100*
+                log(fixed["w"][t]/flexible["w"][t]),
+            rate_fixed_minus_flexible_pp=100*
+                (fixed["r"][t]-flexible["r"][t]),
+        ))
+    end
+    return rows
+end
+
+"""
+    economic_mechanism_audit(boom, nolev, flexible, fixed; shock_start=41, chi=0.6)
+
+Independent sign and balance-sheet audit of the stored macro paths.
+The code's definition is x = P_H/P_F and (for floating) e = 1/x.
+Consequently, x_t > x_pre implies a NOMINAL APPRECIATION and reduces
+the home-good value of NEGATIVE foreign-currency liabilities, since
+a'_debt = a_debt * x_pre / x_t.
+
+This audit never claims that the paper's qualitative prediction is a
+mathematical equilibrium condition. It makes replication disagreements
+explicit before economic or welfare conclusions can be published.
+"""
+function economic_mechanism_audit(
+    boom,nolev,flexible,fixed;
+    shock_start::Int=41,chi::Float64=0.6)
+
+    economic_validate_shared_experiment(
+        boom,nolev,flexible,fixed;shock_start=shock_start)
+    0<chi<1 || throw(ArgumentError("consumption share outside (0,1)"))
+    pre=shock_start-1
+    xpre=boom["terms"][pre]
+    xb=boom["terms"][shock_start]
+    xf=flexible["terms"][1]
+    xx=fixed["terms"][1]
+    xpre>0 && xb>0 && xf>0 && xx>0 ||
+        throw(DomainError((xpre,xb,xf,xx),"terms of trade must be positive"))
+    cflex=economic_log_composite(flexible,1,chi)
+    cfixed=economic_log_composite(fixed,1,chi)
+    cboom=economic_log_composite(boom,shock_start,chi)
+    cnolev=economic_log_composite(nolev,1,chi)
+    float_depreciation=100*log(xpre/xf)
+    fixed_real_depreciation=100*log(xpre/xx)
+    float_output_effect=100*log(flexible["Y"][1]/boom["Y"][shock_start])
+    fixed_output_effect=100*log(fixed["Y"][1]/boom["Y"][shock_start])
+    fx_consumption=100*(cfixed-cflex)
+    leverage_consumption=100*(cflex-cnolev)
+    # These correspond to the qualitative mechanisms explicitly
+    # described in de Ferra–Mitman–Romei (2020), section 6.
+    discrepancy=(
+        floating_depreciates=float_depreciation>0,
+        floating_output_increases=float_output_effect>0,
+        fixed_has_higher_consumption=fx_consumption>0,
+    )
+    return (
+        shock_start=shock_start,
+        original_credit_before_shock=boom["B"][pre],
+        no_surprise_credit_at_shock=boom["B"][shock_start],
+        sudden_stop_credit_at_impact=flexible["B"][1],
+        foreign_credit_improvement_vs_no_surprise=
+            flexible["B"][1]-boom["B"][shock_start],
+        terms_before_shock=xpre,
+        anticipated_terms_at_shock=xb,
+        flexible_terms_at_shock=xf,
+        fixed_terms_at_shock=xx,
+        floating_nominal_depreciation_log_points=float_depreciation,
+        fixed_real_depreciation_log_points=fixed_real_depreciation,
+        floating_real_debt_multiplier=xpre/xf,
+        fixed_real_debt_multiplier=xpre/xx,
+        floating_output_vs_anticipated_log_points=float_output_effect,
+        fixed_output_vs_anticipated_log_points=fixed_output_effect,
+        fixed_minus_flexible_output_log_points=
+            100*log(fixed["Y"][1]/flexible["Y"][1]),
+        floating_consumption_vs_anticipated_log_points=
+            100*(cflex-cboom),
+        fixed_consumption_vs_anticipated_log_points=
+            100*(cfixed-cboom),
+        fixed_minus_flexible_consumption_log_points=fx_consumption,
+        leverage_minus_unleveraged_consumption_log_points=
+            leverage_consumption,
+        paper_direction_checks=discrepancy,
+        paper_direction_consistent=all(values(discrepancy)),
+    )
+end
+
+"""
+    economic_write_mechanism_audit(audit, destination)
+
+Persist diagnostic equilibrium signs and real-foreign-liability
+multipliers separately from the consumption and welfare summary.
+"""
+function economic_write_mechanism_audit(audit,destination::AbstractString)
+    mkpath(dirname(destination))
+    open(destination,"w") do io
+        println(io,"# Stage 4 — Economic mechanism and directional replication audit")
+        println(io)
+        println(io,"These are calculated from the saved Julia 200-date ",
+                "Euler-polished market roots, NOT a certified infinite-",
+                "horizon solution or a household welfare comparison.")
+        println(io)
+        println(io,"The convention is x=P_H/P_F and e∝1/x for flexible FX. ",
+                "A positive floating nominal depreciation number means ",
+                "depreciation; a multiplier above 1 means the real ",
+                "home-good value of foreign liabilities INCREASES.")
+        println(io)
+        println(io,"| Calculated mechanism | Value |")
+        println(io,"|---|---:|")
+        for (k,v) in pairs(audit)
+            if k in (:paper_direction_checks,:paper_direction_consistent)
+                continue
+            end
+            println(io,"| ",k," | ",v," |")
+        end
+        println(io)
+        println(io,"## Comparison to qualitative direction in the 2020 paper")
+        println(io)
+        for (name,passed) in pairs(audit.paper_direction_checks)
+            println(io,"- ",name,": ",passed ? "MATCH" : "OPPOSITE")
+        end
+        println(io)
+        if !audit.paper_direction_consistent
+            println(io)
+            println(io,"**CRITICAL REPLICATION DISCREPANCY:** At least one ",
+                    "key directional mechanism reverses the direction ",
+                    "described in the paper. Do not describe this ",
+                    "as a successful economic-mechanism replication. ",
+                    "Audit the credit shock, asset market, initial debt ",
+                    "revaluation, price-setting timing, and potential ",
+                    "multiple GE roots before interpreting welfare.")
+        end
+    end
+    return destination
+end
+
+function economic_write_rows(rows,destination::AbstractString)
+    isempty(rows) && throw(ArgumentError("no economic comparison rows"))
+    keys0=propertynames(first(rows))
+    mkpath(dirname(destination))
+    open(destination,"w") do io
+        println(io,join(string.(keys0),","))
+        for row in rows
+            propertynames(row)==keys0 ||
+                throw(ArgumentError("inconsistent comparison columns"))
+            println(io,join((string(getproperty(row,k)) for k in keys0),","))
+        end
+    end
+    return destination
+end
+
+function economic_summary(rows,boom,flexible,fixed,chi;
+                          shock_start::Int=41)
+    n=length(rows)
+    n>0 || throw(ArgumentError("empty comparison"))
+    start=first(rows)
+    cumulative_c_flex=0.0
+    cumulative_c_fixed=0.0
+    cumulative_c_boom=0.0
+    for h in 0:n-1
+        t=h+1
+        bt=shock_start+h
+        cumulative_c_flex+=exp(economic_log_composite(flexible,t,chi))
+        cumulative_c_fixed+=exp(economic_log_composite(fixed,t,chi))
+        cumulative_c_boom+=exp(economic_log_composite(boom,bt,chi))
+    end
+    average_fx= sum(r.composite_fixed_minus_flexible_pct for r in rows)/n
+    max_fx=maximum(abs(r.composite_fixed_minus_flexible_pct) for r in rows)
+    max_lev=maximum(abs(r.composite_leverage_minus_unleveraged_pct) for r in rows)
+    return (
+        impact_flexible_vs_no_shock=start.composite_leveraged_flexible_shock_pct,
+        impact_fixed_vs_no_shock=start.composite_leveraged_fixed_shock_pct,
+        impact_fixed_minus_flexible=start.composite_fixed_minus_flexible_pct,
+        impact_leverage_minus_unleveraged=start.composite_leverage_minus_unleveraged_pct,
+        average_fixed_minus_flexible=average_fx,
+        maxabs_fixed_minus_flexible=max_fx,
+        maxabs_leverage_minus_unleveraged=max_lev,
+        cumulative_flexible_vs_boom_pct=100*
+            (cumulative_c_flex/cumulative_c_boom-1),
+        cumulative_fixed_vs_boom_pct=100*
+            (cumulative_c_fixed/cumulative_c_boom-1),
+        cumulative_fixed_minus_flexible_pct=100*
+            (cumulative_c_fixed/cumulative_c_flex-1),
+    )
+end
+
+function economic_write_summary(summary,destination,horizon::Int)
+    mkpath(dirname(destination))
+    open(destination,"w") do io
+        println(io,"# PROVISIONAL economic comparison — Euler-polished Stage3")
+        println(io)
+        println(io,"**Not certified as infinite-horizon GE.** ",
+                "Household Euler/KKT and 599-equation market residuals ",
+                "converged on the stored T=200 paths. Terminal budget ",
+                "and grid/horizon convergence for all shock regimes ",
+                "remain unresolved.")
+        println(io)
+        println(io,"Comparison window: $horizon quarters from the ",
+                "unexpected shock, with the time-matched continuing boom ",
+                "as the no-surprise counterfactual.")
+        println(io)
+        println(io,"Log-response values below are 100 × differences in ",
+                "log composite consumption. Positive fixed-minus-flexible ",
+                "means consumption is HIGHER under fixed exchange rates.")
+        println(io)
+        println(io,"| Economic contrast | Value |")
+        println(io,"|---|---:|")
+        for (label,key) in (
+            ("On-impact leveraged flexible vs no surprise",
+             :impact_flexible_vs_no_shock),
+            ("On-impact leveraged fixed vs no surprise",
+             :impact_fixed_vs_no_shock),
+            ("On-impact fixed minus flexible",
+             :impact_fixed_minus_flexible),
+            ("On-impact positive vs zero capital intercept (flexible)",
+             :impact_leverage_minus_unleveraged),
+            ("Average fixed minus flexible ($horizon quarters)",
+             :average_fixed_minus_flexible),
+            ("Largest absolute fixed-versus-flexible log gap",
+             :maxabs_fixed_minus_flexible),
+            ("Largest absolute capital-intercept log gap",
+             :maxabs_leverage_minus_unleveraged),
+            ("Cumulative consumption level flexible vs continuing boom",
+             :cumulative_flexible_vs_boom_pct),
+            ("Cumulative consumption level fixed vs continuing boom",
+             :cumulative_fixed_vs_boom_pct),
+            ("Cumulative consumption level fixed minus flexible",
+             :cumulative_fixed_minus_flexible_pct),
+        )
+            println(io,"| ",label," | ",
+                    round(getproperty(summary,key);digits=7)," |")
+        end
+        println(io)
+        println(io,"**Important counterfactual definition.** The ",
+                "so-called 'no-leverage' run uses leverage_hat=0, ",
+                "which removes the CONSTANT capital allocation to ",
+                "low-wealth households. It DOES NOT switch off ",
+                "foreign-currency bonds: foreign=true in both regimes, ",
+                "and the remaining proportional allocation can still ",
+                "generate gross borrowing. The reported 'leverage effect' ",
+                "is strictly the change from zero to 1/16 in the ",
+                "capital-intercept / leverage-distribution parameter, ",
+                "NOT a comparison of foreign debt versus no foreign debt.")
+        println(io)
+        println(io,"**Interpretation limits.** The cumulative entries ",
+                "compare unweighted quarter sums of Cobb-Douglas ",
+                "composite consumption indexes; they are NOT household ",
+                "welfare or compensating variation. No assumption ",
+                "about terminal welfare is imposed in this report.")
+    end
+    return destination
+end
+
+function report_polished_main(root::AbstractString=
+    normpath(joinpath(@__DIR__,"..","results","economic_reproduction")))
+
+    files=(joinpath(root,"economic_"*ECONOMIC_ROOT_LABELS.boom*
+                     "_MARKET_ROOT_UNCERTIFIED.csv"),
+           joinpath(root,"economic_"*ECONOMIC_ROOT_LABELS.nolev*
+                     "_MARKET_ROOT_UNCERTIFIED.csv"),
+           joinpath(root,"economic_"*ECONOMIC_ROOT_LABELS.flexible*
+                     "_MARKET_ROOT_UNCERTIFIED.csv"),
+           joinpath(root,"economic_"*ECONOMIC_ROOT_LABELS.fixed*
+                     "_MARKET_ROOT_UNCERTIFIED.csv"))
+    boom,nolev,flexible,fixed=map(economic_read_panel,files)
+    chi=Float64(FMR2020.default_parameters().chi)
+    rows=economic_response_rows(boom,nolev,flexible,fixed;
+                                shock_start=41,horizon=30,chi=chi)
+    s=economic_summary(rows,boom,flexible,fixed,chi;shock_start=41)
+    outputrows=joinpath(root,"PROVISIONAL_figure4_5_economic_comparison.csv")
+    outputbrief=joinpath(root,"PROVISIONAL_economic_comparison.md")
+    economic_write_rows(rows,outputrows)
+    economic_write_summary(s,outputbrief,30)
+    mechanism=economic_mechanism_audit(
+        boom,nolev,flexible,fixed;shock_start=41,chi=chi)
+    mechanismfile=joinpath(root,"PROVISIONAL_mechanism_sign_audit.md")
+    economic_write_mechanism_audit(mechanism,mechanismfile)
+    println("PROVISIONAL ECONOMIC RESULTS: ",s)
+    println("PAPER MECHANISM DIRECTION CHECK: ",mechanism.paper_direction_checks)
+    println("FOREIGN-DEBT REAL VALUATION (floating, fixed): ",
+            (mechanism.floating_real_debt_multiplier,
+             mechanism.fixed_real_debt_multiplier))
+    if !mechanism.paper_direction_consistent
+        println("CRITICAL: DIRECTIONAL DISCREPANCY WITH PUBLISHED HANKSOME. "*
+                "Do not classify the stored market roots as the paper's "*
+                "successful structural replication.")
+    end
+    println("Independent mechanism and valuation audit: ",mechanismfile)
+    println("Quarter-by-quarter economic comparison: ",outputrows)
+    println("Research-summary table: ",outputbrief)
+    println("COUNTERFACTUAL DEFINITION: leverage_hat=0 still allows "*
+            "foreign-currency liabilities; it only removes the "*
+            "low-wealth fixed-capital allocation intercept.")
+    println("NOT a certified infinite-horizon welfare comparison.")
+    return s
+end
+
+if abspath(PROGRAM_FILE)==abspath(@__FILE__)
+    length(ARGS)<=1 ||
+        error("Usage: julia --project=. scripts/report_polished_economic_results.jl [RESULTS_DIR]")
+    root=isempty(ARGS) ?
+         normpath(joinpath(@__DIR__,"..","results","economic_reproduction")) :
+         ARGS[1]
+    report_polished_main(root)
+end

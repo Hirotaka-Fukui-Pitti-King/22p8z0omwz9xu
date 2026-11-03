@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "project_id": "FMR-2020",
-  "updated_on": "2026-11-02",
+  "updated_on": "2026-11-03",
   "repository": "https://github.com/Hirotaka-Fukui-Pitti-King/22p8z0omwz9xu",
   "directory": "FMR-2020",
   "title": "Household Heterogeneity and the Transmission of Foreign Shocks — Julia replication",
@@ -46,7 +46,7 @@
     }
   ],
   "current_status": {
-    "phase": "stage2_399_nonlin_ge_and_independent_interior_markets_passed_author_figures_unverified",
+    "phase": "stage3_second_docstring_fixed_full_34_file_static_audit_pass_pending_pc",
     "files_written": [
       "README.md",
       "ALGORITHM.md",
@@ -146,7 +146,14 @@
     "stage2_paper_replication_verified": false,
     "stage2_latest_patch_locally_verified": true,
     "stage2_julia_syntax_verified_scope": "26/26 Julia files on owner Windows Julia 1.12.6 after terminal-vs-interior audit",
-    "stage2_julia_runtime_verified_scope": "2420 Stage1 + 37 Stage2 unit tests, calibrated shock-free limit, full 200-quarter 399-variable nonlinear GE, independent market tests and SVG generation"
+    "stage2_julia_runtime_verified_scope": "2420 Stage1 + 37 Stage2 unit tests, calibrated shock-free limit, full 200-quarter 399-variable nonlinear GE, independent market tests and SVG generation",
+    "stage3_source_committed": true,
+    "stage3_syntax_verified": false,
+    "stage3_runtime_verified": false,
+    "stage3_399_flexible_ge_solved": false,
+    "stage3_599_fixed_ge_solved": false,
+    "stage3_figures_generated": false,
+    "stage3_author_numeric_match_verified": false
   },
   "scope": {
     "first_milestone": "Figures 1–5",
@@ -588,5 +595,130 @@
       "figure_source_matched_transformations": true,
       "figure_numerical_author_series_matched": false
     }
+  },
+  "stage3": {
+    "branch": "research/fmr-2020-stage3-sudden-stop-exchange-regimes",
+    "base": "research/fmr-2020-stage2-flexible-transition",
+    "objective": "unexpected credit reversal at author shock_start_t=41 with foreign-currency household debt and fixed-vs-flexible exchange rates",
+    "horizon": 200,
+    "dimensions": {
+      "flexible": 399,
+      "fixed": 599
+    },
+    "shock_quarter": 41,
+    "leverage_hat": 0.0625,
+    "theta_nr": 100,
+    "original_source_audit": [
+      "Main.m",
+      "MIT_transition.m",
+      "Transition/solve_transition_bis.m",
+      "Transition/solve_transition_fixed.m",
+      "Transition/backsolve_egm.m",
+      "Figures.m"
+    ],
+    "implementation_modules": [
+      "src/foreign_debt_revaluation.jl",
+      "src/sudden_stop_equilibrium.jl",
+      "src/transition_fixed_exchange.jl",
+      "src/stage3_figures.jl"
+    ],
+    "runnable_scripts": [
+      "scripts/run_sudden_stop.jl",
+      "scripts/validate_sudden_stop.jl",
+      "scripts/plot_figures_1_4_5.jl"
+    ],
+    "tests": [
+      "test/test_stage3.jl"
+    ],
+    "stage2_baseline_correction": "recompute credit expansion foreign=true even with B_initial=0; negative wealth households may have foreign debt",
+    "revaluation_method": "source leverage and household gross capital/bond mapping, valuation via terms_pre/terms_new, full fine wealth grid, no positive-mass clipping",
+    "fixed_equilibrium": "399 macro K/L plus 200 endogenous terms of trade, backward Rotemberg NKPC, all goods constraints",
+    "source_discrepancy": "original solve_transition_fixed.m has stale capital-adjustment indexing and double-negative nominal resource cost; Julia uses economically consistent signs/indexing, explicitly not exact source-line match",
+    "owner_windows_julia_only": true,
+    "runtime_checked": false,
+    "syntax_checked": false,
+    "full_equilibria_solved": false,
+    "figures_generated": false,
+    "comparison_with_author_series_verified": false,
+    "results_expected": [
+      "stage3_credit_reversal.csv",
+      "stage3_corrected_expansion.csv",
+      "stage3_flexible_transition.csv",
+      "stage3_fixed_transition.csv",
+      "stage3_household_revaluation.csv",
+      "stage3_equilibrium_diagnostics.csv",
+      "stage3_solver_log.txt",
+      "figure_1.svg",
+      "figure_4.svg",
+      "figure_5.svg"
+    ],
+    "last_owner_pc_attempt": {
+      "julia_version": "1.12.6",
+      "syntax_files_passed": 34,
+      "stage1_tests_passed": 2420,
+      "stage2_tests_passed": 37,
+      "stage3_tests_passed": 27,
+      "smoke_599_fixed_prices_pass": true,
+      "foreign_expansion_max_scaled_residual": 3.551030838266911e-7,
+      "foreign_expansion_max_goods_level": 5.376718812399872e-7,
+      "foreign_expansion_max_dynamic_euler": 0.0003921324579892358,
+      "reversal_full_ge_started": false,
+      "failure": "first-period first-root far-endpoints same sign despite two positive roots",
+      "f_coefficients": {
+        "C": -2.7782230139198565,
+        "E": 3.8257097540368417,
+        "D": 1.0149463596999195,
+        "theta": 3
+      },
+      "positive_roots": [
+        0.7865895839646455,
+        1.0379166453624395
+      ],
+      "patch_status": "source committed, PC parse and runtime pending",
+      "latest_attempt_module_load_failed": true,
+      "latest_parseonly_files_passed": 34,
+      "latest_error": "Julia LoadError cannot document the following expression at src/sudden_stop_equilibrium.jl:2",
+      "latest_test_runs_executed": false,
+      "latest_smoke_executed": false,
+      "latest_full_run_executed": false,
+      "docstring_fix_commit": "ef781a05905ffc77931076340cbfd442bb2fe1ca",
+      "syntax_checker_now_loads_module": true,
+      "fix_owner_pc_verified": false,
+      "latest_parse_files_passed": 34,
+      "module_load_passed": true,
+      "stage1_tests": 2420,
+      "stage2_tests": 37,
+      "stage3_tests": 22,
+      "stage3_smoke_passed": true,
+      "foreign_expansion_max_scaled_root_error": 3.551030838266911e-7,
+      "latest_full_reversal_error": "positive-mass household infeasible after FX shock (t=1,a=-0.6604250433394604,s=1,c=NaN,savings=NaN)",
+      "solved_flexible_sudden_stop": false,
+      "solved_fixed_sudden_stop": false,
+      "fixed_price_block_smoke_passed": true,
+      "patch": "select actual first-period trade root by feasibility of every positive-mass revalued household node; avoid MATLAB c=1e-5 floor that violates budget",
+      "patch_owner_pc_tested": false,
+      "latest_files_parsed": 34,
+      "latest_module_loaded": true,
+      "latest_trade_roots": {
+        "low": 0.7865895866917804,
+        "high": 1.037916643090368
+      },
+      "latest_trade_min_budget": {
+        "low": -0.1826131304704792,
+        "high": 0.48493043012136894
+      },
+      "full_flexible_reversal_first_iteration_scaled": 0.021003904982795363,
+      "full_flexible_reversal_failure_scaled": 0.021569342187721885,
+      "full_flexible_reversal_failure_iteration": 12,
+      "prior_jacobian_refresh_interval": 15,
+      "adaptive_jacobian_refresh_and_lm_patch_committed": true,
+      "second_docstring_failure": "precompile cannot document string at sudden_stop_equilibrium.jl:439; malformed consecutive docstrings",
+      "numerical_solver_was_executed_on_last_attempt": false,
+      "all_34_files_checked_adjacent_docstrings_static": true,
+      "remaining_adjacent_docstrings": 0,
+      "checker_has_guard_and_selftest": true,
+      "post_fix_owner_pc_verified": false
+    },
+    "verification": "removed duplicated orphan LM docstring and added static guard; owner-PC Julia parse/precompile/test/numerical run not yet performed on this code"
   }
 }

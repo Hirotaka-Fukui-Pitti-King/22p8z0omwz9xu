@@ -1,0 +1,164 @@
+name: FMR 2020 source algorithm audit
+on:
+  push:
+    branches:
+      - research/fmr-2020-stage3-sudden-stop-exchange-regimes
+    paths:
+      - 'FMR-2020/src/**'
+      - 'FMR-2020/matlab/**'
+      - 'FMR-2020/scripts/compare_matlab_egm_fixture.jl'
+      - 'FMR-2020/scripts/export_calibrated_terminal_fixture.jl'
+      - 'FMR-2020/scripts/export_stage3_fx_fixture.jl'
+      - 'FMR-2020/scripts/evaluate_author_matlab_solution.jl'
+      - 'FMR-2020/scripts/evaluate_author_explicit_goods.jl'
+      - 'FMR-2020/scripts/diagnose_author_fixed_map.jl'
+      - 'FMR-2020/scripts/solve_economic_fixed_ge.jl'
+      - 'FMR-2020/scripts/run_economic_replication.jl'
+      - 'FMR-2020/scripts/report_polished_economic_results.jl'
+      - 'FMR-2020/scripts/stage5_initial_fx_audit.jl'
+      - 'FMR-2020/scripts/export_author_reference.ps1'
+      - 'FMR-2020/test/**'
+      - 'FMR-2020/scripts/check_syntax.jl'
+      - 'FMR-2020/scripts/validate_sudden_stop.jl'
+      - '.github/workflows/fmr-stage3-source-audit.yml'
+  pull_request:
+    paths:
+      - 'FMR-2020/src/**'
+      - 'FMR-2020/matlab/**'
+      - 'FMR-2020/scripts/compare_matlab_egm_fixture.jl'
+      - 'FMR-2020/scripts/export_calibrated_terminal_fixture.jl'
+      - 'FMR-2020/scripts/export_stage3_fx_fixture.jl'
+      - 'FMR-2020/scripts/evaluate_author_matlab_solution.jl'
+      - 'FMR-2020/scripts/evaluate_author_explicit_goods.jl'
+      - 'FMR-2020/scripts/diagnose_author_fixed_map.jl'
+      - 'FMR-2020/scripts/solve_economic_fixed_ge.jl'
+      - 'FMR-2020/scripts/run_economic_replication.jl'
+      - 'FMR-2020/scripts/report_polished_economic_results.jl'
+      - 'FMR-2020/scripts/stage5_initial_fx_audit.jl'
+      - 'FMR-2020/scripts/export_author_reference.ps1'
+      - 'FMR-2020/test/**'
+      - '.github/workflows/fmr-stage3-source-audit.yml'
+  workflow_dispatch:
+
+jobs:
+  windows-powershell-export-parse:
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Windows PowerShell exporter syntax
+        shell: powershell
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+              (Join-Path $PWD "FMR-2020\scripts\export_author_reference.ps1"),
+              [ref]$tokens, [ref]$errors) | Out-Null
+          if ($errors.Count -ne 0) {
+              $errors | ForEach-Object { Write-Error $_.Message }
+              exit 1
+          }
+          Write-Host "POWERSHELL PARSE OK"
+
+  julia-source-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: FMR-2020
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.12.6'
+      - name: Instantiate Julia environment
+        run: julia --project=. -e 'using Pkg; Pkg.instantiate()'
+      - name: Parse all Julia files and load FMR2020
+        run: julia --project=. scripts/check_syntax.jl
+      - name: Unit tests, source full-grid EGM regression and docstrings
+        run: julia --project=. test/runtests.jl
+      - name: Economic runner reuse/inherited shock correctness
+        run: julia --project=. test/test_economic_runner.jl
+      - name: Provisional economic model outcome and FX comparison report
+        run: julia --project=. test/test_economic_report.jl
+      - name: Recompute actual four-root economic mechanism and published-direction audit
+        run: julia --project=. scripts/report_polished_economic_results.jl
+      - name: Stage 5 first-period foreign-debt, gross-capital and trade-root audit
+        run: julia --project=. test/test_stage5_first_period_audit.jl
+      - name: Archive independent Stage 5 monetary accounting and root-feasibility evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fmr-stage5-first-period-accounting
+          if-no-files-found: ignore
+          path: FMR-2020/results/economic_reproduction/STAGE5_INITIAL_FX_ACCOUNTING_AUDIT.md
+      - name: Independent Stage 3 shock and price-block smoke
+        run: julia --project=. scripts/validate_sudden_stop.jl
+
+  matlab-octave-fixture:
+    # Deep MATLAB/Octave source parity is opt-in. PC executes all full GE paths.
+    # Avoid downloading Octave + reproducing large 399 source maps on each commit.
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: julia-replication
+      - uses: actions/checkout@v4
+        with:
+          repository: kurtmitman/HANKSOME
+          path: HANKSOME
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.12.6'
+      - name: Install GNU Octave to evaluate original MATLAB routines
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends octave
+      - name: Verify author MAT-to-CSV export on synthetic MATLAB workspaces
+        run: |
+          octave --no-gui --quiet --eval "addpath('julia-replication/FMR-2020/matlab'); test_author_reference_export();"
+      - name: Export actual calibrated 161-node Julia terminal and 193-node source inputs
+        working-directory: julia-replication/FMR-2020
+        run: |
+          julia --project=. -e 'using Pkg; Pkg.instantiate()'
+          julia --project=. scripts/export_calibrated_terminal_fixture.jl results/matlab_egm_fixture/calibrated_input
+      - name: Evaluate original-source Rouwenhorst and source PCHIP one-step EGM
+        run: |
+          octave --no-gui --quiet --eval "addpath('julia-replication/FMR-2020/matlab'); export_source_egm_fixture('HANKSOME','julia-replication/FMR-2020/results/matlab_egm_fixture');"
+      - name: Reevaluate original source solve_R at actual calibrated Julia prices
+        run: |
+          octave --no-gui --quiet --eval "addpath('julia-replication/FMR-2020/matlab'); export_calibrated_terminal_fixture('HANKSOME','julia-replication/FMR-2020/results/matlab_egm_fixture/calibrated_input','julia-replication/FMR-2020/results/matlab_egm_fixture/calibrated_output');"
+      - name: Export real shock-date foreign-debt portfolios and both trade-price roots
+        working-directory: julia-replication/FMR-2020
+        run: |
+          julia --project=. scripts/export_stage3_fx_fixture.jl results/matlab_egm_fixture/fx_input
+      - name: Revalue original shock-date household portfolios with original MATLAB basefun
+        run: |
+          octave --no-gui --quiet --eval "addpath('julia-replication/FMR-2020/matlab'); export_stage3_fx_fixture('HANKSOME','julia-replication/FMR-2020/results/matlab_egm_fixture/fx_input','julia-replication/FMR-2020/results/matlab_egm_fixture/fx_output');"
+      - name: Test literal original 399 function and record if zero-mass tail NaNs block it
+        run: |
+          set +e
+          octave --no-gui --quiet --eval "addpath('julia-replication/FMR-2020/matlab'); export_original_399_residual('HANKSOME','julia-replication/FMR-2020/results/matlab_egm_fixture/fx_input','julia-replication/FMR-2020/results/matlab_egm_fixture/calibrated_output','julia-replication/FMR-2020/results/matlab_egm_fixture/original_399_literal');" > original_399_literal.log 2>&1
+          status=$?
+          set -e
+          cat original_399_literal.log
+          if [ "$status" -ne 0 ]; then
+            grep -q 'params(nan)' original_399_literal.log || exit "$status"
+            echo 'LITERAL SOURCE INVALID: backsolve_egm.m tries to index Agrid_fine with NaN at this input; this is NOT original 399 numerical parity.'
+          fi
+      - name: Evaluate separately labeled PCHIP-tail-extrapolated source reference on same 399 path
+        run: |
+          octave --no-gui --quiet --eval "addpath('julia-replication/FMR-2020/matlab'); export_original_399_residual('HANKSOME','julia-replication/FMR-2020/results/matlab_egm_fixture/fx_input','julia-replication/FMR-2020/results/matlab_egm_fixture/calibrated_output','julia-replication/FMR-2020/results/matlab_egm_fixture/original_399_output','tail_extrapolation');"
+      - name: Compare source MATLAB fixture and Julia full-grid EGM numerically
+        working-directory: julia-replication/FMR-2020
+        run: |
+          julia --project=. -e 'using Pkg; Pkg.instantiate()'
+          julia --project=. scripts/compare_matlab_egm_fixture.jl results/matlab_egm_fixture
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fmr-matlab-octave-full-grid-egm-fixture
+          if-no-files-found: ignore
+          path: julia-replication/FMR-2020/results/matlab_egm_fixture/

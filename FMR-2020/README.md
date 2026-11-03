@@ -293,3 +293,60 @@ At CSV quarter=99 (outside the first 100 *plotted* points because the image inse
 **Terminal caution from the actual CSV**: between quarters 198 and 199, terms of trade jump from 0.9821022495 to 0.9131088404, whereas capital remains near 31.837. This is a T-th boundary approximation associated with the reported terminal goods and wealth gaps, not a regular interior market-clearing outcome. The first 100 plotting points do not include this terminal observation.
 
 Original `Figures.m` panel definitions and scaling agree with the plotted Julia formulas. The original Figure 1 includes a later surprise contraction, which Stage 2 does not implement. The original `Figures.m` uses fixed y-axis ranges while the Julia SVG uses dynamic ranges. The **exact original numerical response paths are not supplied in the author's public repository** (the main branch has `transition_start.mat` but not `solution_figures.mat`), so matching the source panel variables is **not** confirmation of numerical equality to the paper. The SVG files were fetched and verified as files/XML, but no graphical rendering inspection was completed in the assistant environment. Keep quantitative paper-figure replication marked as unverified.
+
+
+## Stage 3 — sudden stop, balance-sheet revaluation, and exchange-rate regimes
+
+**Branch:** `research/fmr-2020-stage3-sudden-stop-exchange-regimes` (based on validated Stage 2). **Julia syntax, runtime and numerical convergence are unverified on the author's Windows PC.**
+
+The new Julia modules are `src/foreign_debt_revaluation.jl`, `src/sudden_stop_equilibrium.jl`, `src/transition_fixed_exchange.jl`, and `src/stage3_figures.jl`. Stage 1/2 household, stationary and nonlinear macro modules are preserved. Stage 3 includes:
+
+- The original `Main.m` `KK=2`, `foreign=true` convention. The first credit expansion is re-solved with household FX debt revaluation, because an economy with **zero aggregate foreign debt can still have some household liabilities**. Initially `k_const_hat=0`; the surprise reversal uses the original `k_const_hat=1/16`.
+- Unexpected reversal at `shock_start_t=41`, with `B_1=B^{boom}_{40}`, `B_{200}=B^{calibrated}`, and quartic `linspace(1,0,200)^4`.
+- Pre-shock inherited `K[41]`, joint household distribution `mu[:,:,41]`, previous `B[40]`, `q[40]`, and terms of trade `x[40]`. The household distribution is revalued *inside each nonlinear aggregate-path evaluation*, not frozen at a single guessed exchange rate.
+- Original `backsolve_egm.m` gross capital and foreign-bond mapping. The pre-revaluation **full fine asset grid** (including negative wealth states) is preserved; no off-grid probability mass is dropped. Consumption below zero in unused off-constraint states is represented as unavailable and triggers an error if positive mass lands there.
+- Nonlinear flexible regime with 399 unknowns `K[2:T],L[1:T]`, backward EGM, forward heterogeneous distribution; nonlinear fixed regime with 599 unknowns `K[2:T],L[1:T],terms[1:T]`, backward nonlinear Rotemberg price-setting condition, and 200 goods-market equations.
+- A single Julia Broyden/Newton engine is used on both regimes with independent market, household Euler/KKT, probability and Phillips-curve diagnostics.
+- Exports `stage3_corrected_expansion.csv`, `stage3_credit_reversal.csv`, `stage3_flexible_transition.csv`, `stage3_fixed_transition.csv`, `stage3_household_revaluation.csv`, `stage3_equilibrium_diagnostics.csv`, `stage3_solver_log.txt`, `figure_1.svg`, `figure_4.svg` and `figure_5.svg` after successful independent numerical verification.
+
+**Source caveat:** `solve_transition_fixed.m` line 65 has inconsistent capital adjustment-cost indexing (uses a stale `t` and changes vector dimensions), and lines 65–67 have `- -theta_nr/2` for price adjustment costs. The economically consistent *negative* resource cost with time-`t` capital has been used; this is documented as a transparent correction rather than a claim of exact unmodified MATLAB source execution. Figure 5's source nominal exchange baseline also uses an inconsistent `log(tot0)` rather than `log(1/tot0)`; the Julia plot uses the source's economic normalized inverse terms of trade. The author transition labor FOC exponent mismatch recorded in Stage 2 is preserved, not silently changed.
+
+### Windows PowerShell execution
+
+```powershell
+Set-Location C:\github\22p8z0omwz9xu
+git fetch origin
+git switch research/fmr-2020-stage3-sudden-stop-exchange-regimes
+git pull --ff-only
+Set-Location FMR-2020
+
+julia --project=. scripts/check_syntax.jl
+julia --project=. test/runtests.jl
+julia --project=. scripts/validate_sudden_stop.jl
+julia --project=. scripts/run_sudden_stop.jl
+```
+
+The full run first recalibrates the original three steady states, then re-solves the initial foreign-denominated expansion, then solves the flexible sudden stop, then the 599-equation fixed regime. It **does not** create new figures from an unconverged solution. If the root does not converge or a positive-mass household's revalued wealth is infeasible, the program reports an error instead of clipping or declaring success.
+
+See `docs/STAGE3_AUDIT.md` for complete source-to-Julia formula mapping and unresolved numerical acceptance requirements.
+
+
+## 2026-11-03: owner-PC 399-variable solver stagnation and adaptive Jacobian repair
+
+Windows 11 Julia 1.12.6 logs on preceding commit:
+
+- All 34 Julia files parsed; `using FMR2020` precompiled and loaded successfully.
+- Stage 1 2420/2420, Stage 2 37/37, Stage 3 27/27 unit tests passed, total 2484.
+- Recomputed foreign-currency-denominated expansion passed (maximum scaled GE residual 3.5510e-7, maximum independent interior goods gap 5.3767e-7).
+- For the leveraged surprise reversal, the first-period trade equation yielded two roots: **low=0.7865895866917804, high=1.037916643090368**. Post-revaluation minimum household budget resources: **low=-0.1826131304704792**, **high=+0.48493043012136894**. High root is the admissible candidate under the implemented household budget constraint.
+- The full flexible sudden-stop **did not converge**: max normalized residual at iteration 0=0.021003904982795363; iteration 11=0.021569342187721885. The backtracking line search failed at iteration 12, after multiple highly damped steps. No 399-equation solution or fixed 599-equation run resulted.
+
+**Specific numerical design issue:** The Stage 3 nonlinear solver computed one 399×399 finite-difference Jacobian at its first iteration and then only applied Broyden rank-one updates; the refresh schedule of 15 iterations never triggered before failure. A sequence of tiny damped steps can make these quasi-Newton updates increasingly uninformative for the piecewise nonlinear FX revaluation and mass-splitting mapping. This **could explain** the stagnation, but the log does not establish that a budget-feasible zero of all 399 GE equations exists. The original MATLAB uses `fsolve` with numerical Jacobians and globalization.
+
+**Focused numeric correction committed:** 
+1. Print maximum-residual equation index and market block, Euclidean residual norm, accepted damping α, rejected trial count and achieved improvement; never report a solver return as convergence without the 399 residual tolerance.
+2. Recompute full finite-difference Jacobian when two consecutive steps improve norm less than 2%, after a small damping α<1/8, on the original refresh schedule, or immediately after a failed Broyden line search. A failed forward finite difference can use the valid backward difference instead; failure of both is explicitly reported.
+3. After rebuilding the Jacobian, retry the exact Newton direction, then — **only if necessary** — apply positive-regularization Levenberg–Marquardt directions to the **same** 399/599 economic residual system. The regularized direction is only a numerical globalization of MATLAB's `fsolve`-class algorithm, not a different household/aggregate model.
+4. Add a near-singular-Jacobian unit regression testing LM descent. Keep positive-mass household feasibility, currency revaluation, borrowing bounds, market residuals and all tolerances unchanged.
+
+**Validation status:** This numerical patch is committed but has NOT been run on the user's PC. Syntax, runtime and convergence of patched code are unverified. Previous 2484 passed tests apply only to the preceding code. Full Stage 3 Figures 1/4/5 remain unverified. If refreshed Jacobians and LM globalization still cannot lower the market residual, investigate the economic closure and root-selection feasibility; do not invent a converged result.

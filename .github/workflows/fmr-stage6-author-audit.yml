@@ -1,0 +1,67 @@
+name: FMR Stage 6 original author depreciation audit
+on:
+  push:
+    branches:
+      - research/fmr-2020-stage3-sudden-stop-exchange-regimes
+    paths:
+      - 'FMR-2020/scripts/stage6_author_depreciation_audit.py'
+      - 'FMR-2020/scripts/stage7_constrained_policy_audit.py'
+      - 'FMR-2020/scripts/stage7_full_transition_budget_audit.py'
+      - 'FMR-2020/test/test_stage7_distribution_transport.py'
+      - 'FMR-2020/test/test_stage7_constrained_policy.py'
+      - 'FMR-2020/test/test_stage6_author_depreciation.py'
+      - 'FMR-2020/results/author_reference/**'
+      - '.github/workflows/fmr-stage6-author-audit.yml'
+  pull_request:
+    paths:
+      - 'FMR-2020/scripts/stage6_author_depreciation_audit.py'
+      - 'FMR-2020/scripts/stage7_constrained_policy_audit.py'
+      - 'FMR-2020/scripts/stage7_full_transition_budget_audit.py'
+      - 'FMR-2020/test/test_stage7_distribution_transport.py'
+      - 'FMR-2020/test/test_stage7_constrained_policy.py'
+      - 'FMR-2020/test/test_stage6_author_depreciation.py'
+      - '.github/workflows/fmr-stage6-author-audit.yml'
+  workflow_dispatch:
+
+jobs:
+  archived-matlab-independent-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: FMR-2020
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install independent numerical audit dependencies
+        run: python -m pip install --disable-pip-version-check numpy scipy
+      - name: Python syntax and unit tests
+        run: |
+          python -m py_compile scripts/stage6_author_depreciation_audit.py test/test_stage6_author_depreciation.py scripts/stage7_constrained_policy_audit.py test/test_stage7_constrained_policy.py scripts/stage7_full_transition_budget_audit.py test/test_stage7_distribution_transport.py
+          python -m unittest discover -s test -p 'test_stage6_author_depreciation.py' -v
+          python -m unittest discover -s test -p 'test_stage7_constrained_policy.py' -v
+          python -m unittest discover -s test -p 'test_stage7_distribution_transport.py' -v
+      - name: Audit saved authors' leveraged flexible depreciation path, without fsolve
+        run: python scripts/stage6_author_depreciation_audit.py
+      - name: Stage 7 exact borrowing-policy PCHIP and goods-gap decomposition (no GE solve)
+        run: python scripts/stage7_constrained_policy_audit.py
+      - name: Stage 7 all 199 saved MATLAB household periods and distribution audit
+        run: python scripts/stage7_full_transition_budget_audit.py
+      - name: Archive direct-state original-source diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fmr-stage6-original-matlab-depreciation-audit
+          if-no-files-found: warn
+          path: |
+            FMR-2020/results/stage6_author_audit/first_period_metrics.csv
+            FMR-2020/results/stage6_author_audit/first_period_occupied_budget_errors.csv
+            FMR-2020/results/stage6_author_audit/first_30_periods.csv
+            FMR-2020/results/stage6_author_audit/stage6_audit.md
+            FMR-2020/results/stage7_constrained_policy/stage7_audit.md
+            FMR-2020/results/stage7_constrained_policy/stage7_metrics.csv
+            FMR-2020/results/stage7_constrained_policy/stage7_binding_household_comparison.csv
+            FMR-2020/results/stage7_constrained_policy/stage7_full_transition_periods.csv
+            FMR-2020/results/stage7_constrained_policy/stage7_full_transition_summary.csv
