@@ -110,7 +110,7 @@ function inspect_author_path(steady,dir::String,mu::Matrix{Float64},
         println("EVALUATION ONLY. A nonzero 599-vector is NOT a GE.")
         return coremax<1e-6 && maxgoods<1e-6
     end
-    root_checkpoint=joinpath(dir,"julia_599_MARKET_ROOT_"*name*".checkpoint")
+    root_checkpoint=joinpath(dir,"julia_599_TERMINAL_BC_"*name*".checkpoint")
     start=if isfile(root_checkpoint)
         println("REUSING PREVIOUS 599 MARKET ROOT AS INITIAL GUESS; " *
                 "ALL RESIDUALS WILL BE RECOMPUTED.")
@@ -136,7 +136,7 @@ function inspect_author_path(steady,dir::String,mu::Matrix{Float64},
                  diag.max_mass_deviation<1e-8 &&
                  diag.maximum_scaled_solver_residual<1e-6)
     market_pass || error("599 numerical root failed independent market/budget checks")
-    market_path=joinpath(dir,"julia_599_MARKET_ROOT_EULER_PENDING_"*name*".csv")
+    market_path=joinpath(dir,"julia_599_TERMINAL_BC_EULER_PENDING_"*name*".csv")
     FMR2020.stage3_write_csv(sol,ctx,market_path)
     if sol.iterations>0
         FMR2020.stage3_write_checkpoint(root_checkpoint,sol.x,
@@ -147,7 +147,8 @@ function inspect_author_path(steady,dir::String,mu::Matrix{Float64},
                 diag.weighted_mean_dynamic_euler<1e-5)
     terminal_pass=(diag.max_terminal_household_budget<1e-6 &&
         diag.terminal_K_gap/max(1.0,abs(ctx.economy.terminal.K))<1e-4 &&
-        diag.terminal_L_gap/max(1.0,abs(ctx.economy.terminal.L))<1e-4)
+        diag.terminal_L_gap/max(1.0,abs(ctx.economy.terminal.L))<1e-4 &&
+        diag.terminal_terms_gap<1e-6)
     if !(euler_pass && terminal_pass)
         println("MARKETS CLEAR, BUT FULL DYNAMIC GE IS NOT YET CERTIFIED: ",
                 "Euler_max=",diag.max_dynamic_euler,
@@ -157,10 +158,11 @@ function inspect_author_path(steady,dir::String,mu::Matrix{Float64},
                 " terminal_budget_max=",diag.max_terminal_household_budget,
                 " terminal_K_gap=",diag.terminal_K_gap,
                 " terminal_L_gap=",diag.terminal_L_gap,
+                " terminal_terms_gap=",diag.terminal_terms_gap,
                 ". Saved market root is NOT a verified infinite-horizon GE.")
         return false
     end
-    output=joinpath(dir,"julia_full_599_"*name*".csv")
+    output=joinpath(dir,"julia_full_599_TERMINAL_BC_"*name*".csv")
     FMR2020.stage3_write_csv(sol,ctx,output)
     println("FULL 599 GE VERIFIED AND SAVED: ",output,
             " (including strict Euler/KKT tolerances)")
