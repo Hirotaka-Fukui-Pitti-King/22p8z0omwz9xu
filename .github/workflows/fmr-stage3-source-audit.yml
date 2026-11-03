@@ -10,6 +10,8 @@ on:
       - 'FMR-2020/scripts/export_calibrated_terminal_fixture.jl'
       - 'FMR-2020/scripts/export_stage3_fx_fixture.jl'
       - 'FMR-2020/scripts/evaluate_author_matlab_solution.jl'
+      - 'FMR-2020/scripts/evaluate_author_explicit_goods.jl'
+      - 'FMR-2020/scripts/export_author_reference.ps1'
       - 'FMR-2020/test/**'
       - 'FMR-2020/scripts/check_syntax.jl'
       - 'FMR-2020/scripts/validate_sudden_stop.jl'
@@ -22,11 +24,32 @@ on:
       - 'FMR-2020/scripts/export_calibrated_terminal_fixture.jl'
       - 'FMR-2020/scripts/export_stage3_fx_fixture.jl'
       - 'FMR-2020/scripts/evaluate_author_matlab_solution.jl'
+      - 'FMR-2020/scripts/evaluate_author_explicit_goods.jl'
+      - 'FMR-2020/scripts/export_author_reference.ps1'
       - 'FMR-2020/test/**'
       - '.github/workflows/fmr-stage3-source-audit.yml'
   workflow_dispatch:
 
 jobs:
+  windows-powershell-export-parse:
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Windows PowerShell exporter syntax
+        shell: powershell
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+              (Join-Path $PWD "FMR-2020\scripts\export_author_reference.ps1"),
+              [ref]$tokens, [ref]$errors) | Out-Null
+          if ($errors.Count -ne 0) {
+              $errors | ForEach-Object { Write-Error $_.Message }
+              exit 1
+          }
+          Write-Host "POWERSHELL PARSE OK"
+
   julia-source-audit:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -65,6 +88,9 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends octave
+      - name: Verify author MAT-to-CSV export on synthetic MATLAB workspaces
+        run: |
+          octave --no-gui --quiet --eval "addpath('julia-replication/FMR-2020/matlab'); test_author_reference_export();"
       - name: Export actual calibrated 161-node Julia terminal and 193-node source inputs
         working-directory: julia-replication/FMR-2020
         run: |
