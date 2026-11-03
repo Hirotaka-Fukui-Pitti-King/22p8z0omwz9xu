@@ -134,24 +134,35 @@ end
 
 function main()
     (length(ARGS)==1 ||
-     (length(ARGS)==2 && ARGS[2]=="--solve")) ||
-        error("Usage: julia --project=. scripts/evaluate_author_explicit_goods.jl FIXTURE_DIR [--solve]")
+     (length(ARGS)==2 &&
+      ARGS[2] in ("--solve", "--solve-unleveraged", "--solve-leveraged"))) ||
+        error("Usage: julia --project=. scripts/evaluate_author_explicit_goods.jl FIXTURE_DIR [--solve|--solve-unleveraged|--solve-leveraged]")
     dir=ARGS[1]
-    do_solve=length(ARGS)==2
+    mode=length(ARGS)==1 ? "--audit" : ARGS[2]
+    do_solve=mode!="--audit"
     st=FMR2020.solve_three_steady_states(FMR2020.default_parameters();
                                            verbose=false)
     mu=source_matrix(dir,"shock_pre_distribution")
     meta=source_vector(dir,"shock_inherited_metadata")
-    states=[("unleveraged",0.0),("leveraged",1.0/16.0)]
+    states=mode=="--solve-unleveraged" ? [("unleveraged",0.0)] :
+           mode=="--solve-leveraged" ? [("leveraged",1.0/16.0)] :
+           [("unleveraged",0.0),("leveraged",1.0/16.0)]
     results=Bool[]
     for (name,lev) in states
         push!(results,inspect_author_path(st,dir,mu,meta,name,lev;
                                           solve=do_solve))
     end
-    if !all(results)
-        error("At least one ORIGINAL saved author path does not pass explicit 599 GE. " *
-              "See printed first-date goods or household feasibility errors.")
+    if do_solve
+        all(results) ||
+            error("Explicit 599 GE not verified. Do not claim convergence.")
+    else
+        println("SOURCE-PATH AUDIT COMPLETE: ",count(identity,results),
+                "/",length(results)," original saved paths satisfy the " *
+                "strict explicit 599 GE. Nonzero goods residuals are " *
+                "a measured finding, not a file or program error.")
     end
 end
 
-main()
+if abspath(PROGRAM_FILE)==abspath(@__FILE__)
+    main()
+end
