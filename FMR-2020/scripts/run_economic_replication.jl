@@ -38,6 +38,46 @@ function economic_aggregate_guess(
     return vcat(K[2:end],L,terms)
 end
 
+"""
+Recover K[2:T], L[1:T], x[1:T] from a saved JULIA market-root CSV.
+The credit sequence, dates and inherited K are verified before reuse.
+Only the numerical aggregate starting path is retained.
+"""
+function read_economic_root_guess(path::AbstractString,
+                                  ctx::Stage3Context{T}) where {T<:AbstractFloat}
+    isfile(path) || return nothing
+    lines=readlines(path)
+    n=length(ctx.economy.B)
+    length(lines)==n+1 ||
+        throw(DimensionMismatch("saved GE path horizon differs"))
+    columns=strip.(split(lines[1],","))
+    indices=map(("period","B","K","L","terms")) do key
+        idx=findfirst(==(key),columns)
+        isnothing(idx) && throw(ArgumentError("missing saved GE column "*key))
+        idx
+    end
+    K=Vector{T}(undef,n)
+    L=similar(K)
+    x=similar(K)
+    for t in 1:n
+        values=split(lines[t+1],",")
+        parse(Int,values[indices[1]])==t ||
+            throw(ArgumentError("saved GE date mismatch"))
+        b=parse(T,values[indices[2]])
+        isapprox(b,ctx.economy.B[t];rtol=T(1e-10),atol=T(1e-10)) ||
+            throw(ArgumentError("saved GE uses a different foreign-credit shock"))
+        K[t]=parse(T,values[indices[3]])
+        L[t]=parse(T,values[indices[4]])
+        x[t]=parse(T,values[indices[5]])
+    end
+    isapprox(K[1],ctx.economy.initial.K;atol=T(1e-10),rtol=T(1e-10)) ||
+        throw(ArgumentError("saved GE uses different inherited capital"))
+    z=vcat(K[2:end],L,x)
+    all(v->isfinite(v)&&v>zero(T),z) ||
+        throw(DomainError(z,"nonpositive saved aggregate path"))
+    return z
+end
+
 function economic_validation(result::FMR2020.TransitionSolveResult{T},
                              ctx::Stage3Context{T},
                              name::String,outputdir::String;
