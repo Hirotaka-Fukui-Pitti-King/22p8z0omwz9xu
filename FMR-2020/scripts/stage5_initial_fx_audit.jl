@@ -268,7 +268,14 @@ function stage5_audit_main(root_dir::AbstractString=
                 ", strict_599_residual_at_old_prices=",
                 c.strict_portfolio_scaled_market_residual,
                 ", strict_lower_feasible=",
-                c.strict_lower_trade_feasibility.feasible)
+                c.strict_lower_trade_feasibility.feasible,
+                ", strict_lower_minresource=",
+                c.strict_lower_trade_feasibility.minresource,
+                ", strict_lower_error=",
+                c.strict_lower_trade_feasibility.error,
+                ", legacy_lower_minresource=",
+                c.lower_trade_root.minimum_resources,
+                ", legacy_lower_error=",c.lower_trade_root.error)
     end
     println("Saved first-period independent accounting: ",dest)
     return cases
