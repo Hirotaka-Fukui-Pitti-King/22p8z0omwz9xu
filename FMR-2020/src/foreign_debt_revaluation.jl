@@ -67,15 +67,55 @@ function stage3_expansion_context(steady;theta_nr::Float64=100.0)
                          theta_nr,true,"foreign-debt expansion")
 end
 
+"""
+    credit_reversal_path(previous, Bcal; shock_start=41, periods=200,
+                         decay_periods=periods)
+
+Return a credit reversal that reaches Bcal at date decay_periods.
+When extending the numerical transition horizon, hold decay_periods
+fixed so the economic shock at ALL original dates is unchanged.
+Increasing periods while also increasing decay_periods would define
+a different economic experiment, not a valid horizon-convergence test.
+"""
 function credit_reversal_path(previous::AbstractVector{T}, Bcal::T;
-                              shock_start::Int=41, periods::Int=200) where {T}
+                              shock_start::Int=41, periods::Int=200,
+                              decay_periods::Int=periods) where {T}
     2<=shock_start<=length(previous) ||
         throw(ArgumentError("shock must be after first observed quarter"))
-    periods>1 || throw(ArgumentError("reversal needs at least two periods"))
-    # MATLAB shock_start_t=41; shock_b_agg(shock_start_t-1)
+    periods>1 && decay_periods>1 ||
+        throw(ArgumentError("reversal and decay horizons must exceed one"))
+    # MATLAB shock_start_t=41; shock_b_agg(shock_start_t-1).
     bprev=previous[shock_start-1]
-    return [Bcal+(bprev-Bcal)*(one(T)-T(j-1)/T(periods-1))^4
+    return [Bcal+(bprev-Bcal)*
+            max(zero(T),one(T)-T(j-1)/T(decay_periods-1))^4
             for j in 1:periods]
+end
+
+"""
+    stage3_extend_horizon(ctx, periods)
+
+Lengthen an EXISTING Stage 3 economic experiment, preserving the
+entire original foreign-credit path, shocked wealth distribution,
+inherited balance sheet and policy regime. The additional dates
+continue at the limiting exogenous B and productivity z. This is a
+horizon-truncation experiment, NOT a recalibration of the shock.
+"""
+function stage3_extend_horizon(ctx::Stage3Context{T}, periods::Int) where {T}
+    old=ctx.economy
+    previous=length(old.B)
+    periods>=previous ||
+        throw(ArgumentError("new Stage3 horizon cannot be shorter"))
+    if periods==previous
+        return ctx
+    end
+    B=vcat(old.B,fill(old.terminal.B,periods-previous))
+    z=vcat(old.z,fill(old.z[end],periods-previous))
+    extended=TransitionInputs(old.params,old.reference,old.chain,
+                              old.grids,old.initial,old.terminal,B,z,
+                              old.phi_ac,old.q_initial,old.B_initial)
+    return Stage3Context(extended,copy(ctx.mu_pre),ctx.terms_pre,
+                         ctx.leverage_hat,ctx.theta_nr,ctx.foreign,
+                         ctx.label*" | horizon="*string(periods))
 end
 
 function stage3_reversal_context(steady,previous::TransitionSolveResult{T};
