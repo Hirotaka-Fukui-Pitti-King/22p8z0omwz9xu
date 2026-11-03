@@ -35,6 +35,16 @@ The **last pre-shock realized** terms at boom date t=40 are `x_pre=1.02714236144
 - On-impact leveraged-minus-unleveraged floating composite consumption: **-0.61136 log points**. This last comparison agrees in direction with the paper's idea that household foreign-currency leverage worsens the shock, but the first-order exchange-rate response reverses the model's intended balance-sheet channel.
 - Over 30 quarters, the mean fixed-minus-floating composite consumption is **-1.25190 log points** and the ratio of 30-quarter sums of composite-consumption indexes fixed versus floating is **-1.27554%**. Neither is household welfare.
 
+## Important counterfactual classification: "no leverage" is not no foreign debt
+
+The existing `flexible_unleveraged_euler_polished` name is inherited from the numerical pipeline, **but it is an imprecise economic label**. The source call `stage3_reversal_context(...; leverage_hat=0.0)` leaves `foreign=true`. The underlying gross-asset allocation is
+
+    lev = (1 - leverage_hat)*K_initial*q_initial / rich_wealth
+    capital_i = max(lev * a_i + leverage_hat * K_initial, 0)
+    foreign_bonds_i = a_i - capital_i.
+
+Therefore `leverage_hat=0` only removes the FIXED CAPITAL INTERCEPT given to very low-wealth households. It does **not** eliminate foreign-currency liabilities or set foreign-currency borrowing to zero. When `lev>1`, even positive-wealth households hold net foreign-currency debt. The observed -0.61136 log-point contrast is a change in the **distribution of capital exposure/leverage**, not the effect of introducing foreign debt versus having no debt at all. The report preserves legacy CSV field names for compatibility, but explains the correct structural interpretation.
+
 The current roots **do** satisfy the user-PC's full finite-horizon 599 market equations with scaled max residual <= 3.2410e-7 and Euler/KKT max < 1e-5. The 200-vs-300 boom's initial-40-period difference is <= 6.1931e-7. **These successes do not resolve this direction discrepancy**, and extending ONLY the initial boom horizon cannot certify the subsequent sudden-stop response.
 
 ## Published comparison and research implication
