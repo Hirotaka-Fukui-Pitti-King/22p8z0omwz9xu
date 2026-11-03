@@ -137,6 +137,14 @@ function economic_validation(result::FMR2020.TransitionSolveResult{T},
                              ctx::Stage3Context{T},
                              name::String,outputdir::String;
                              fixed::Bool=false) where {T}
+    # Save a numerically converged market-root CANDIDATE before applying
+    # stricter household/terminal diagnostics. An independent audit can
+    # throw (e.g., off-grid optimal saving); this must not destroy an
+    # expensive computed candidate or present it as a certified GE.
+    result.converged || throw(ArgumentError("unconverged GE cannot be exported"))
+    path=joinpath(outputdir,"economic_"*name*"_MARKET_ROOT_UNCERTIFIED.csv")
+    stage3_write_csv(result,ctx,path;fixed=fixed)
+    println("CANDIDATE SAVED, economic verification still pending: ",path)
     report=stage3_diagnostics(result,ctx;fixed=fixed,
                               explicit_flexible=!fixed)
     for (key,value) in pairs(report)
@@ -150,10 +158,7 @@ function economic_validation(result::FMR2020.TransitionSolveResult{T},
             report.max_mass_deviation<=T(1e-8) &&
             report.max_nonlinear_phillips<=T(1e-8))
     market || error("Economic "*name*" market/budget/mass verification FAILED")
-    # Preserve useful roots, but never mislabel them as infinite-horizon GE.
-    path=joinpath(outputdir,"economic_"*name*"_MARKET_ROOT_UNCERTIFIED.csv")
-    stage3_write_csv(result,ctx,path;fixed=fixed)
-    println("PRESERVED UNVERIFIED ECONOMIC MARKET ROOT: ",path)
+    println("MARKET AUDIT PASSED for provisional root: ",path)
     terminal=(report.max_terminal_household_budget<=T(1e-6) &&
               report.terminal_K_gap/
                   max(one(T),abs(ctx.economy.terminal.K))<=T(1e-4) &&
