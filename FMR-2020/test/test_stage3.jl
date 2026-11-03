@@ -219,6 +219,12 @@ end
     FMR2020.stage3_market_residual!(core,w,ctx)
     FMR2020.stage3_flexible_full_market_residual!(full,w,ctx)
     @test full[1:2*n-1]==core
+    # Independently impose the paper's nonlinear union wage condition.
+    # The source MATLAB incorrectly uses L=RHS when varphi != 1.
+    p=ctx.economy.params
+    ratio=p.chi*(p.epsilon_w-1)/p.epsilon_w*
+          w.wage[1]/(ctx.economy.reference.chi_dis*w.aggregate_home[1])
+    @test isapprox(w.labor_implied[1],ratio^(1/p.varphi);atol=1e-12)
     @test all(isfinite,full)
     # T is the stationary continuation boundary, not a final date
     # where the source artificially copies consumption from date T-1.
