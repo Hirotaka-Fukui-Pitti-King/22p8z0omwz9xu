@@ -174,9 +174,8 @@ function main()
     guess=vcat(initial_transition_guess(boomctx.economy),
                fill(steady.initial.terms,n))
     println("Solving corrected full-goods 599-unknown initial credit expansion")
-    boom=solve_stage3_flexible_full(
-        boomctx;x0=guess,tolerance=1e-6,maxiter=70,
-        max_evaluations=5000,verbose=true)
+    boom=solve_or_recheck_economic(
+        boomctx,guess,outputdir,"credit_expansion")
     boom_check=economic_validation(boom,boomctx,"credit_expansion",outputdir)
 
     # The PRE-SHOCK wealth distribution, K, q and terms all come from the
@@ -185,29 +184,25 @@ function main()
                                   shock_start=41,leverage_hat=0.0)
     noguess=economic_aggregate_guess(boom,noctx)
     println("Solving unexpected credit reversal without household leverage")
-    nolev=solve_stage3_flexible_full(
-        noctx;x0=noguess,tolerance=1e-6,maxiter=70,
-        max_evaluations=5000,verbose=true)
+    nolev=solve_or_recheck_economic(
+        noctx,noguess,outputdir,"flexible_unleveraged")
     nolev_check=economic_validation(nolev,noctx,"flexible_unleveraged",outputdir)
 
     ctx=stage3_reversal_context(steady,boom;
                                 shock_start=41,leverage_hat=1.0/16.0)
     println("Solving foreign-currency leveraged reversal, flexible prices")
-    flexible=solve_stage3_flexible_full(
-        ctx;x0=copy(nolev.x),tolerance=1e-6,maxiter=70,
-        max_evaluations=5000,verbose=true)
+    flexible=solve_or_recheck_economic(
+        ctx,copy(nolev.x),outputdir,"flexible_leveraged")
     flexible_check=economic_validation(flexible,ctx,"flexible_leveraged",outputdir)
 
     # Fixed exchange rates: same current shocks and inherited balance
     # sheets, but theta_nr=100 Rotemberg costs and monetary rule applied.
     # The starting guess is constructed entirely from the computed
     # flexible-price path and the inherited pre-shock terms.
-    fxguess=vcat(flexible.x[1:2n-1],
-                 fill(ctx.terms_pre,n))
+    fxguess=copy(flexible.x)
     println("Solving fixed nominal exchange rate with nonlinear Rotemberg")
-    fixed=FMR2020.stage3_nonlinear_solve(
-        ctx,fxguess;fixed=true,tolerance=1e-6,maxiter=70,
-        max_evaluations=5000,verbose=true)
+    fixed=solve_or_recheck_economic(
+        ctx,fxguess,outputdir,"fixed_leveraged";fixed=true)
     fixed_check=economic_validation(fixed,ctx,"fixed_leveraged",outputdir;
                         fixed=true)
 
