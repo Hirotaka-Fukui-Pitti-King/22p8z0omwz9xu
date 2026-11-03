@@ -218,11 +218,35 @@ function compare_boom_horizons(reference_csv::AbstractString,w;
             by_variable=maxbyname,first_periods=first_periods)
 end
 
+"""
+    baseline_guess_if_present(outputdir, label, original_ctx, fallback)
+
+For a NEW Euler-polished inherited-portfolio experiment, a stored
+baseline-EGM market root is admissible as an INITIAL AGGREGATE GUESS
+only when it matches the ORIGINAL baseline boom's inherited K and B
+sequence. It is never reused as a solution of the polished economy.
+"""
+function baseline_guess_if_present(outputdir::AbstractString,
+                                   label::String,
+                                   original_ctx::Stage3Context{T},
+                                   fallback::Vector{T}) where {T<:AbstractFloat}
+    file=joinpath(outputdir,"economic_"*label*"_MARKET_ROOT_UNCERTIFIED.csv")
+    candidate=read_economic_root_guess(file,original_ctx)
+    if candidate===nothing
+        println("No baseline ",label," path; using computed economic guess.")
+        return fallback
+    end
+    println("Using baseline ",label,
+            " K/L/terms path ONLY as a numerical starting guess "*
+            "for the re-computed Euler-polished model.")
+    return candidate
+end
+
 function main()
     valid=all(x->x in ("--boom-only","--audit-euler-refinement",
-                        "--solve-polished-boom") ||
+                        "--solve-polished-boom","--solve-polished-all") ||
                startswith(x,"--horizon="),ARGS)
-    valid || error("Usage: julia --project=. scripts/run_economic_replication.jl [--boom-only] [--horizon=300] [--audit-euler-refinement] [--solve-polished-boom] (the last two are mutually exclusive)")
+    valid || error("Usage: julia --project=. scripts/run_economic_replication.jl [--boom-only] [--horizon=300] [--audit-euler-refinement] [--solve-polished-boom] [--solve-polished-all] (choose one correction mode)")
     settings=filter(x->startswith(x,"--horizon="),ARGS)
     length(settings)<=1 || throw(ArgumentError("specify the horizon once"))
     requested_horizon=isempty(settings) ? 200 :
@@ -232,8 +256,11 @@ function main()
     boom_only="--boom-only" in ARGS
     polish_audit="--audit-euler-refinement" in ARGS
     polish_solve="--solve-polished-boom" in ARGS
-    polish_audit && polish_solve &&
-        throw(ArgumentError("choose either audit or polished equilibrium solve"))
+    polish_all="--solve-polished-all" in ARGS
+    count(x->x, (polish_solve,polish_all,polish_audit))<=1 ||
+        throw(ArgumentError("choose at most one Euler-polished run mode"))
+    polish_all && (boom_only || requested_horizon!=200) &&
+        throw(ArgumentError("--solve-polished-all must use the standard 200-date four-economy experiment"))
     polish_solve && !boom_only &&
         throw(ArgumentError("polished equilibrium solve requires --boom-only"))
     polish_audit && (!boom_only || requested_horizon!=200) &&
@@ -355,6 +382,89 @@ function main()
                 "Original unpolished market paths are unchanged.")
         return nothing
     end
+    if polish_all
+        println("Starting economically consistent four-model Euler-polished "*
+                "replication; each stage is an independently solved "*
+                "599-variable market system.")
+        corrected_label="credit_expansion_euler_polished"
+        corrected=solve_or_recheck_economic(
+            boomctx,copy(boom.x),outputdir,corrected_label;
+            polish_households=true)
+        corrected_check=economic_validation(
+            corrected,boomctx,corrected_label,outputdir)
+
+        # Reconstruct old-context starting guesses using baseline boom
+        # only for validation. The NEW shock context and portfolio
+        # distribution come exclusively from corrected boom.
+        old_noctx=stage3_reversal_context(
+            steady,boom;shock_start=41,leverage_hat=0.0)
+        new_noctx=stage3_reversal_context(
+            steady,corrected;shock_start=41,leverage_hat=0.0)
+        no_guess=baseline_guess_if_present(
+            outputdir,"flexible_unleveraged",old_noctx,
+            economic_aggregate_guess(corrected,new_noctx))
+        no_corrected=solve_or_recheck_economic(
+            new_noctx,no_guess,outputdir,
+            "flexible_unleveraged_euler_polished";
+            polish_households=true)
+        no_check=economic_validation(
+            no_corrected,new_noctx,
+            "flexible_unleveraged_euler_polished",outputdir)
+        println("UNLEVERAGED FIRST-40 POLICY REFINEMENT DIFFERENCE: ",
+                compare_boom_horizons(
+                    joinpath(outputdir,
+                        "economic_flexible_unleveraged_MARKET_ROOT_UNCERTIFIED.csv"),
+                    no_corrected.workspace))
+
+        old_levctx=stage3_reversal_context(
+            steady,boom;shock_start=41,leverage_hat=1.0/16.0)
+        new_levctx=stage3_reversal_context(
+            steady,corrected;shock_start=41,leverage_hat=1.0/16.0)
+        lev_guess=baseline_guess_if_present(
+            outputdir,"flexible_leveraged",old_levctx,
+            copy(no_corrected.x))
+        lev_corrected=solve_or_recheck_economic(
+            new_levctx,lev_guess,outputdir,
+            "flexible_leveraged_euler_polished";
+            polish_households=true)
+        lev_check=economic_validation(
+            lev_corrected,new_levctx,
+            "flexible_leveraged_euler_polished",outputdir)
+        println("LEVERAGED FLEXIBLE FIRST-40 POLICY REFINEMENT DIFFERENCE: ",
+                compare_boom_horizons(
+                    joinpath(outputdir,
+                        "economic_flexible_leveraged_MARKET_ROOT_UNCERTIFIED.csv"),
+                    lev_corrected.workspace))
+
+        sticky_terms=[new_levctx.economy.terminal.terms+
+                      (new_levctx.terms_pre-new_levctx.economy.terminal.terms)*
+                      0.95^(t-1) for t in 1:n]
+        fixed_fallback=vcat(lev_corrected.x[1:2n-1],sticky_terms)
+        fx_guess=baseline_guess_if_present(
+            outputdir,"fixed_leveraged",old_levctx,fixed_fallback)
+        fx_corrected=solve_or_recheck_economic(
+            new_levctx,fx_guess,outputdir,
+            "fixed_leveraged_euler_polished";
+            fixed=true,polish_households=true)
+        fx_check=economic_validation(
+            fx_corrected,new_levctx,
+            "fixed_leveraged_euler_polished",outputdir;fixed=true)
+        println("LEVERAGED FIXED FIRST-40 POLICY REFINEMENT DIFFERENCE: ",
+                compare_boom_horizons(
+                    joinpath(outputdir,
+                        "economic_fixed_leveraged_MARKET_ROOT_UNCERTIFIED.csv"),
+                    fx_corrected.workspace))
+        println("CORRECTED FOUR-EXPERIMENT RESULTS:",
+                " credit_expansion_market=",corrected_check.diagnostics.maximum_scaled_solver_residual,
+                " unleveraged_market=",no_check.diagnostics.maximum_scaled_solver_residual,
+                " flexible_leveraged_market=",lev_check.diagnostics.maximum_scaled_solver_residual,
+                " fixed_leveraged_market=",fx_check.diagnostics.maximum_scaled_solver_residual)
+        println("Results are saved as distinctly named provisional market "*
+                "roots. Euler/KKT, terminal and grid checks remain binding; "*
+                "Figures 1/4/5 are not certified or published.")
+        return nothing
+    end
+
     if requested_horizon>n0
         # Always compare the SAME household algorithm in both horizons.
         comparisonfile=polish_solve ? polishedbasefile : basefile
