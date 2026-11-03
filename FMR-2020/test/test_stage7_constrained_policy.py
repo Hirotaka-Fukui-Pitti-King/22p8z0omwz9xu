@@ -13,7 +13,9 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"scripts"))
 from stage7_constrained_policy_audit import (
     source_constrained_coarse,
     budget_consistent_binding,
+    audit_stage7,
 )
+from stage6_author_depreciation_audit import read_original
 
 
 class TestStage7ConstrainedPolicy(unittest.TestCase):
@@ -53,6 +55,24 @@ class TestStage7ConstrainedPolicy(unittest.TestCase):
             (r*a[:,None]+income[None,:])[binding],atol=1e-14)
         self.assertEqual(corrected[2,0],old[2,0])
         self.assertTrue(np.all(corrected[binding]>0))
+
+    def test_real_author_saved_regression(self):
+        path=Path(__file__).resolve().parents[1]/"results"/"author_reference"/"exp_flex_lev16.mat"
+        metric, rows = audit_stage7(read_original(path))
+        self.assertAlmostEqual(metric["source_max_absolute_budget_error"],
+                               .006961346273794,places=10)
+        self.assertLess(metric["corrected_max_absolute_budget_error"],1e-10)
+        self.assertAlmostEqual(metric["corrected_minus_original_consumption"],
+                               .00009567180543346,places=11)
+        self.assertAlmostEqual(metric["decomposition_portfolio_revaluation"],
+                               .002320487927977,places=10)
+        self.assertAlmostEqual(metric["decomposition_individual_budget_error"],
+                               -.00009567180543341,places=11)
+        self.assertAlmostEqual(metric["binding_max_abs_original_minus_PCHIP_floored"],
+                               0.,places=12)
+        self.assertEqual(metric["worst_asset_index_1based"],116)
+        self.assertEqual(metric["worst_productivity_index_1based"],1)
+        self.assertGreater(len(rows),0)
 
     def test_nonpositive_binding_resources_are_rejected(self):
         with self.assertRaisesRegex(ValueError,"infeasible"):
