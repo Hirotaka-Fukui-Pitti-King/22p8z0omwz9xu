@@ -251,10 +251,18 @@ end
           max_household_budget=1e-14,
           max_mass_deviation=1e-14,
           max_nonlinear_phillips=1e-12,
+          max_terminal_household_budget=1e-8,
+          terminal_K_gap=1e-7,
+          terminal_L_gap=1e-7,
           max_dynamic_euler=5e-5,
           weighted_mean_dynamic_euler=1e-6)
     @test fixed_market_acceptance(good)
     @test fixed_euler_acceptance(good)
+    @test fixed_terminal_acceptance(good,20.0,1.0)
+    @test !fixed_terminal_acceptance(
+        merge(good,(max_terminal_household_budget=0.001,)),20.0,1.0)
+    @test !fixed_terminal_acceptance(
+        merge(good,(terminal_K_gap=0.005,)),20.0,1.0)
     @test fixed_market_acceptance(merge(good,(max_dynamic_euler=3.8e-4,)))
     @test !fixed_euler_acceptance(merge(good,(max_dynamic_euler=3.8e-4,)))
     @test !fixed_market_acceptance(merge(good,(max_goods_market_level=1e-2,)))
