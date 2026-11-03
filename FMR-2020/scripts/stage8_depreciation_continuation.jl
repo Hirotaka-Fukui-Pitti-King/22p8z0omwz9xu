@@ -147,8 +147,7 @@ function stage8_independent_micro_stats(w::FMR2020.TransitionWorkspace{T},
         mass==zero(T) && continue
         gross=one(T)+w.rate[t]
         income=w.wage[t]*w.L[t]*inp.chain.levels[j]+w.profits[t]
-        m=one(T)+w.terms[t]^(inp.params.theta-one(T))*
-            inp.params.omega/(one(T)-inp.params.omega)
+        m=FMR2020.consumption_cost(w.terms[t],inp.params)
         consum=w.fine_consumption[i,j,t]
         saving=w.fine_savings[i,j,t]
         balance=gross*gr[i]+income-m*consum-saving
