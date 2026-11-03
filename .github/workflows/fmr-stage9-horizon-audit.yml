@@ -1,0 +1,50 @@
+name: FMR Stage 9 horizon 899 strict model audit
+on:
+  push:
+    branches:
+      - research/fmr-stage9-horizon-multiplicity-certification
+    paths:
+      - 'FMR-2020/scripts/stage9_horizon_extension.jl'
+      - 'FMR-2020/test/test_stage9_horizon.jl'
+      - 'FMR-2020/docs/STAGE9_HORIZON_CONVERGENCE_AND_MULTIPLE_EQUILIBRIA.md'
+      - 'FMR-2020/src/**'
+      - '.github/workflows/fmr-stage9-horizon-audit.yml'
+  pull_request:
+    paths:
+      - 'FMR-2020/scripts/stage9_horizon_extension.jl'
+      - 'FMR-2020/test/test_stage9_horizon.jl'
+      - 'FMR-2020/src/**'
+      - '.github/workflows/fmr-stage9-horizon-audit.yml'
+  workflow_dispatch:
+
+jobs:
+  verify-original-200-and-new-300-context:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: FMR-2020
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.12.6'
+      - name: Instantiate pinned Julia dependencies
+        run: julia --project=. -e 'using Pkg; Pkg.instantiate()'
+      - name: Meta.parseall every Julia file and load FMR2020
+        run: julia --project=. scripts/check_syntax.jl
+      - name: Horizon invariance and both-branch interpolation regression tests
+        run: julia --project=. test/test_stage9_horizon.jl
+      - name: Evaluate both extended 899-vector residuals without any GE root-solving
+        run: julia --project=. scripts/stage9_horizon_extension.jl --audit
+      - name: Archive actual Stage 9 candidate metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stage9-T300-strict-candidates-no-GE-solve
+          if-no-files-found: warn
+          path: |
+            FMR-2020/results/stage9_horizon/horizon_initialization_audit.csv
+            FMR-2020/results/stage9_horizon/horizon_initial_residuals.csv
+            FMR-2020/results/stage9_horizon/appreciation_T300_initial_residuals.csv
+            FMR-2020/results/stage9_horizon/depreciation_T300_initial_residuals.csv
