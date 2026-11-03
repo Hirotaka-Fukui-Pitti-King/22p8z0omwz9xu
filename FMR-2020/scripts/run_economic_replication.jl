@@ -78,6 +78,50 @@ function read_economic_root_guess(path::AbstractString,
     return z
 end
 
+"""
+Recompute the full 599 residual at a saved Julia path before reuse.
+When the current economic equations are different, solve afresh from
+that candidate rather than assuming a stored convergence flag.
+"""
+function solve_or_recheck_economic(
+    ctx::Stage3Context{T}, initial_x::Vector{T},
+    directory::AbstractString, label::String;
+    fixed::Bool=false) where {T<:AbstractFloat}
+
+    n=length(ctx.economy.B)
+    length(initial_x)==3n-1 ||
+        throw(DimensionMismatch("full GE requires 3T-1 aggregate unknowns"))
+    saved=joinpath(directory,"economic_"*label*"_MARKET_ROOT_UNCERTIFIED.csv")
+    earlier=read_economic_root_guess(saved,ctx)
+    candidate=earlier===nothing ? initial_x : earlier
+    if earlier!==nothing
+        w=FMR2020.TransitionWorkspace(ctx.economy)
+        residual=zeros(T,3n-1)
+        if fixed
+            FMR2020.stage3_fixed_residual!(residual,candidate,ctx,w)
+        else
+            FMR2020.stage3_flexible_full_residual!(residual,candidate,ctx,w)
+        end
+        maxerror=maximum(abs,residual)
+        println("RECHECK SAVED ",label,
+                " CURRENT 599-D MARKET MAX=",maxerror)
+        if maxerror<=T(1e-6)
+            return FMR2020.TransitionSolveResult(
+                ctx.economy,w,copy(candidate),residual,0,
+                w.function_evals,maxerror,true)
+        end
+        println("Old numerical candidate does not solve CURRENT equations.")
+    end
+    if fixed
+        return FMR2020.stage3_nonlinear_solve(
+            ctx,copy(candidate);fixed=true,tolerance=T(1e-6),
+            maxiter=70,max_evaluations=5000,verbose=true)
+    end
+    return solve_stage3_flexible_full(
+        ctx;x0=copy(candidate),tolerance=T(1e-6),maxiter=70,
+        max_evaluations=5000,verbose=true)
+end
+
 function economic_validation(result::FMR2020.TransitionSolveResult{T},
                              ctx::Stage3Context{T},
                              name::String,outputdir::String;
