@@ -137,6 +137,41 @@ julia --project=. test/test_stage5_first_period_audit.jl
 
 No new 599/899-dimensional root solve is required by these commands. CI snapshots of the exact numeric diagnostics are attached as the Stage 5 first-period accounting artifact.
 
+## 5. Strict-portfolio one-pass counterfactual: realized test results
+
+GitHub Actions run #345 and #346 initially FAILED because a test
+incorrectly treated a corrected initial portfolio as a new equilibrium
+**without re-solving household consumption, prices, and the asset and
+goods markets**. This is the wrong numerical claim: the two portfolio
+accounting constraints can clear exactly while the old aggregate path
+ceases to be a GE root. The test has been corrected accordingly.
+
+At the archived (unchanged) Euler-polished GE aggregate price and
+capital paths, enabling `strict_portfolio=true` gives:
+
+| Diagnostic | Flexible intercept 1/16 | Fixed intercept 1/16 |
+|---|---:|---:|
+| Gross capital minus inherited qK | approximately 3.2e-14 | approximately 3.2e-14 |
+| Gross foreign bonds minus inherited B | within historical 2e-7 asset-market error | within historical 2e-7 |
+| Weighted household C_H minus old aggregate-budget C_H | **-0.00223858** | **+0.000273884** |
+| Full 599-system scaled market residual at OLD price path | **1.17791e-4** | **1.54654e-5** |
+| Low conditional price root feasible at OLD macro K/L | **NO** (minimum disposable resources **-0.46417**) | **NO** (minimum **-0.0009253**) |
+
+Thus the corrected gross portfolio **does not automatically restore**
+the paper's depreciation branch, nor does it give a new GE solution.
+In particular, the lower scalar root is still not affordable at the
+old aggregate K/L path. A different endogenously adjusted K/L path
+might alter household budgets; the low-root full GE is therefore
+**unproven, not impossible**.
+
+The original positive-mass household feasibility checks and the
+conditional scalar price-root values remain unchanged as benchmarks.
+The old roots must NOT be silently renamed "strict-portfolio
+equilibria". A strict-portfolio 599-equation solve would be an
+entirely distinct research computation and should be undertaken
+only if needed to distinguish the remaining equilibrium-selection
+hypothesis.
+
 ## 5. Unresolved limitations
 
 - Which full GE branch, if any, corresponds to the original paper's depreciation scenario? **Not established.**
