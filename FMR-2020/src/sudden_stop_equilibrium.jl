@@ -83,7 +83,8 @@ No zero-mass exception, borrowing-limit relaxation, or probability clipping.
 """
 function initial_revaluation_budget_support!(w::TransitionWorkspace{T},
                                               ctx::Stage3Context{T},
-                                              terms::T) where {T}
+                                              terms::T;
+                                              strict_portfolio::Bool=false) where {T}
     inp=ctx.economy
     p=inp.params
     grid=inp.grids.fine
@@ -91,7 +92,7 @@ function initial_revaluation_budget_support!(w::TransitionWorkspace{T},
     revalue_foreign_debt!(mu,ctx.mu_pre,grid,w.K[1],
                           inp.q_initial,inp.B_initial,
                           ctx.terms_pre,terms,ctx.leverage_hat;
-                          foreign=ctx.foreign)
+                          foreign=ctx.foreign,strict_portfolio=strict_portfolio)
     gross=one(T)+w.rate[1]
     minresource=T(Inf)
     minstate=(0,0)
