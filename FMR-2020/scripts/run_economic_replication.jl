@@ -171,20 +171,56 @@ function economic_validation(result::FMR2020.TransitionSolveResult{T},
 end
 
 function main()
-    isempty(ARGS) ||
-        error("Usage: julia --project=. scripts/run_economic_replication.jl")
+    valid=all(x->x=="--boom-only" || startswith(x,"--horizon="),ARGS)
+    valid || error("Usage: julia --project=. scripts/run_economic_replication.jl [--boom-only] [--horizon=300]")
+    settings=filter(x->startswith(x,"--horizon="),ARGS)
+    length(settings)<=1 || throw(ArgumentError("specify the horizon once"))
+    requested_horizon=isempty(settings) ? 200 :
+        parse(Int,split(only(settings),"=")[2])
+    requested_horizon>=200 ||
+        throw(ArgumentError("horizon cannot be below 200"))
+    boom_only="--boom-only" in ARGS
+    requested_horizon>200 && !boom_only &&
+        throw(ArgumentError("extended-horizon calculation must be --boom-only to prevent silently overwriting the 200-date surprise experiments"))
     base=normpath(joinpath(@__DIR__,".."))
     outputdir=joinpath(base,"results","economic_reproduction")
     mkpath(outputdir)
     steady=solve_three_steady_states(default_parameters();verbose=false)
-    boomctx=stage3_expansion_context(steady)
+    originalctx=stage3_expansion_context(steady)
+    n0=length(originalctx.economy.B)
+    baseguess=vcat(initial_transition_guess(originalctx.economy),
+                   fill(steady.initial.terms,n0))
+    basefile=joinpath(outputdir,
+        "economic_credit_expansion_MARKET_ROOT_UNCERTIFIED.csv")
+    if requested_horizon>n0
+        prior=read_economic_root_guess(basefile,originalctx)
+        prior===nothing && error("Missing 200-date Julia boom market root. Run the default economic replication once before requesting --horizon=300.")
+        boomctx=FMR2020.stage3_extend_horizon(originalctx,requested_horizon)
+        guess=FMR2020.stage3_prolong_aggregate_guess(
+            prior,originalctx,boomctx)
+        boom_label="credit_expansion_h"*string(requested_horizon)
+    else
+        boomctx=originalctx
+        guess=baseguess
+        boom_label="credit_expansion"
+    end
     n=length(boomctx.economy.B)
-    guess=vcat(initial_transition_guess(boomctx.economy),
-               fill(steady.initial.terms,n))
-    println("Solving corrected full-goods 599-unknown initial credit expansion")
-    boom=solve_or_recheck_economic(
-        boomctx,guess,outputdir,"credit_expansion")
-    boom_check=economic_validation(boom,boomctx,"credit_expansion",outputdir)
+    println("Solving full goods-clearing initial credit expansion T=",n)
+    boom=solve_or_recheck_economic(boomctx,guess,outputdir,boom_label)
+    boom_check=economic_validation(boom,boomctx,boom_label,outputdir)
+    if requested_horizon>n0
+        horizon_report=compare_boom_horizons(basefile,boom.workspace)
+        println("SAME-SHOCK BOOM HORIZON (first 40 quarters, 200 vs ",
+                n,") relative differences: ",horizon_report)
+        println("Max relative early-path difference: ",
+                horizon_report.maximum,
+                " (horizon approximation requires an additional refinement if not small)")
+    end
+    if boom_only
+        println("BOOM-ONLY economic market-root experiment finished. "*
+                "No reversal or final figures attempted.")
+        return nothing
+    end
 
     # The PRE-SHOCK wealth distribution, K, q and terms all come from the
     # computed Julia boom; they are never copied from archived MATLAB MAT.
