@@ -147,8 +147,9 @@ function transition_stationary_check(input::TransitionInputs{T}) where {T}
             max_scaled_labor=maximum(abs,view(res,n:2n-1)),
             initial_labor=constant.initial.L,
             implied_labor=workspace.labor_implied[1],
-            note="Author's transition labor formula omits 1/varphi power; "*
-                 "initial steady-state stationary limit can fail even with correct code")
+            note="Economic Stage2 transition uses paper union FOC "*
+                 "including 1/varphi; any nonzero stationary residual "*
+                 "is a model/discretization consistency issue.")
 end
 
 function export_transition_csv(sol::TransitionSolveResult{T},
