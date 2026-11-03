@@ -40,6 +40,10 @@ Using \`scripts/stage8_depreciation_continuation.jl\` in default audit mode, Jul
 | Scaled terminal labor anchor | −4.92221731363e−6 |
 | Scaled terminal trade-price anchor | −0.00123504454691 |
 | Maximum distribution-mass error | **1.24344978758e−14** |
+| Maximum positive-mass interior household budget residual | **4.4408920985e−16** |
+| Minimum positive-mass interior consumption | **+0.157901735422** |
+| Positive-mass interior borrowing/consumption violations | **0%** |
+| Date-200 capital gap against terminal SS | **−0.006571897459** |
 | Minimum original-state household resources *before* wealth-grid interpolation | **+0.2736715795904** |
 | Probability mass with nonpositive original-state household resources | **0%** |
 | Probability mass revalued outside asset-grid support | **0%** |
@@ -79,7 +83,7 @@ delta L1 = +0.1838056015856
 delta x1 = -0.1671207385423.
 \`\`\`
 
-The undamped step attempts further depreciation and fails an occupied-household policy/asset-support check; it is **not** an admissible economic solution. With damping \`alpha=0.5\`, the full household/residual map is finite, and the accepted **local three-equation** numerical trial is
+The undamped step attempts further depreciation and fails an occupied-household feasibility check: the worst ORIGINAL pre-interpolation state has disposable resources **−0.1269082063905**, with violating probability mass **0.0102476895031 (1.02477%)**, even though its revalued wealth remains within the saved asset grid. It is **not** an admissible economic solution. With damping \`alpha=0.5\`, the full household/residual map is finite, and the accepted **local three-equation** numerical trial is
 
 \`\`\`text
 K2 = 29.504636678886
@@ -87,7 +91,7 @@ L1 = 1.157493331271
 x1 = 0.826298142140  (still depreciation).
 \`\`\`
 
-The *norm of the first three residuals* changes from \`0.144420016149\` to \`0.081740984141\`. The trial's first-date asset/labor/goods residuals are \`(-0.0147676877201,-0.0273816513863,-0.0755893448520)\`.
+The damped trial's minimum original-state disposable resources are **+0.0667983222232**, with zero violating original-state mass. The *norm of the first three residuals* changes from \`0.144420016149\` to \`0.081740984141\`. The trial's first-date asset/labor/goods residuals are \`(-0.0147676877201,-0.0273816513863,-0.0755893448520)\`.
 
 **However, the maximum scaled FULL 599 residual rises from \`0.107256061729\` to \`0.131528476142\`.** This trial is therefore **not** a globalization step for the actual 599-variable general equilibrium, let alone a root. Improving the first three equations while holding all future aggregates fixed can worsen the remaining dynamic markets. This observation demonstrates why solving a scalar price root or a three-equation first-period problem cannot certify the full depreciation branch.
 
