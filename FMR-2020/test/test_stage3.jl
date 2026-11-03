@@ -220,6 +220,21 @@ end
     FMR2020.stage3_flexible_full_market_residual!(full,w,ctx)
     @test full[1:2*n-1]==core
     @test all(isfinite,full)
+    # Terminal t=T household consumption must enter BOTH labor and
+    # goods equations: copying C[T-1] is an incorrect source shortcut.
+    base=copy(full)
+    w.aggregate_home[n]=1.25
+    FMR2020.stage3_flexible_full_market_residual!(full,w,ctx)
+    scale=max(1.0,ctx.economy.reference.Y)
+    @test isapprox(full[end]-base[end],-0.25/scale;atol=1e-12)
+    @test !isapprox(full[2*n-1],base[2*n-1];atol=1e-12)
+    # The fixed-price full GE must use the same true terminal spending.
+    fixed_125=zeros(3*n-1)
+    fixed_100=zeros(3*n-1)
+    FMR2020.stage3_market_residual!(fixed_125,w,ctx;fixed=true)
+    w.aggregate_home[n]=1.0
+    FMR2020.stage3_market_residual!(fixed_100,w,ctx;fixed=true)
+    @test isapprox(fixed_125[end]-fixed_100[end],-0.25/scale;atol=1e-12)
     @test_throws DimensionMismatch FMR2020.stage3_flexible_full_market_residual!(
         zeros(399),w,ctx)
 end
