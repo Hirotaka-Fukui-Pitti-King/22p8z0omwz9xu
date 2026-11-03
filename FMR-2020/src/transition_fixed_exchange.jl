@@ -299,3 +299,113 @@ function stage3_diagnostics(sol::TransitionSolveResult{T},
             terminal_wage_gap=abs(w.wage[end]-inp.terminal.wage),
             terminal_profit_gap=abs(w.profits[end]-inp.terminal.profits))
 end
+
+
+"""
+    stage3_euler_polish_households!(w, ctx; trigger=1e-5)
+
+Correct the *fixed-price* Stage3 household policy by solving the
+one-period Euler/KKT equation directly only at coarse/fine asset
+states where inverse-EGM interpolation has a material discrepancy.
+Backwards through time: corrected coarse policies become next-period
+continuation values for earlier decisions. Keeps the original stationary
+terminal boundary and all prices/aggregate guesses unchanged.
+
+DO NOT treat the resulting policies as a market-clearing equilibrium.
+After polishing, the caller MUST propagate distribution forward and
+recompute the full aggregate residual at the same K/L/terms candidate.
+If that residual changes, the aggregate GE must be resolved using the
+polished household map. Intended first as a one-pass numerical audit.
+"""
+function stage3_euler_polish_households!(
+    w::TransitionWorkspace{T},ctx::Stage3Context{T};
+    trigger::T=T(1e-5),target::T=T(1e-9)) where {T<:AbstractFloat}
+
+    inp=ctx.economy
+    coarse=inp.grids.coarse
+    fine=inp.grids.fine
+    chain=inp.chain
+    p=inp.params
+    n=length(inp.B)
+    nc=length(coarse)
+    ns=length(chain.levels)
+    slopes=Matrix{T}(undef,nc,ns)
+    improved_coarse=0
+    improved_fine=0
+    offgrid_fine=0
+    maximum_savings_update=zero(T)
+    max_post_gap=zero(T)
+    worst_post=(period=0,asset_index=0,productivity_index=0)
+    @inbounds for t in (n-1):-1:1
+        future=view(w.coarse_consumption,:,:,t+1)
+        now=view(w.coarse_consumption,:,:,t)
+        cnow=view(w.fine_consumption,:,:,t)
+        snow=view(w.fine_savings,:,:,t)
+        for next_j in 1:ns
+            pchip_slopes!(view(slopes,:,next_j),coarse,
+                          view(future,:,next_j))
+        end
+        R=one(T)+w.rate[t]
+        Rnext=one(T)+w.rate[t+1]
+        m=consumption_cost(w.terms[t],p)
+        for j in 1:ns
+            probs=view(chain.transition,j,:)
+            income=w.wage[t]*w.L[t]*chain.levels[j]+w.profits[t]
+            for i in eachindex(coarse)
+                resources=R*coarse[i]+income
+                sav=resources-m*now[i,j]
+                # Only machine-scale budget roundoff can be normalized.
+                if sav<inp.grids.borrowing_limit &&
+                   sav>=inp.grids.borrowing_limit-T(1e-12)
+                    sav=inp.grids.borrowing_limit
+                end
+                result=euler_refine_one_saving(
+                    coarse,future,slopes,probs,p.gamma,inp.initial.beta,
+                    Rnext,resources,m,inp.grids.borrowing_limit,sav;
+                    trigger=trigger,target=target)
+                if result.refined
+                    improved_coarse+=1
+                    now[i,j]=result.consumption
+                end
+            end
+            for i in eachindex(fine)
+                sav=snow[i,j]
+                if !isfinite(sav) || !isfinite(cnow[i,j])
+                    continue
+                end
+                resources=R*fine[i]+income
+                result=euler_refine_one_saving(
+                    coarse,future,slopes,probs,p.gamma,inp.initial.beta,
+                    Rnext,resources,m,inp.grids.borrowing_limit,sav;
+                    trigger=trigger,target=target)
+                if result.offgrid
+                    offgrid_fine+=1
+                    continue
+                end
+                if result.refined
+                    improved_fine+=1
+                    maximum_savings_update=max(maximum_savings_update,
+                                               abs(result.saving-sav))
+                    snow[i,j]=result.saving
+                    cnow[i,j]=result.consumption
+                end
+                # At a binding constraint, positive Euler surplus is
+                # compatible with optimality (KKT), not a violation.
+                violation=result.saving<=inp.grids.borrowing_limit+T(1e-8) ?
+                    max(zero(T),-result.relative_gap) :
+                    abs(result.relative_gap)
+                if violation>max_post_gap
+                    max_post_gap=violation
+                    worst_post=(period=t,asset_index=i,
+                                productivity_index=j)
+                end
+            end
+        end
+    end
+    return (refined_coarse=improved_coarse,
+            refined_fine=improved_fine,
+            offgrid_fine_states=offgrid_fine,
+            maximum_savings_update=maximum_savings_update,
+            maximum_euler_violation_on_supported_grid=max_post_gap,
+            worst_post_state=worst_post)
+end
