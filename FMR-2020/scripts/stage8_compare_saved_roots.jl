@@ -48,6 +48,49 @@ function stage8_terminal_budget_components(a::T, productivity::T,
 end
 
 """
+    stage8_terminal_mass_summary(masses, budgets; material_cutoff=1e-12)
+
+Diagnostic mass distribution of terminal household budget errors.
+Includes EVERY strictly positive-mass state in absolute/signed aggregates;
+a secondary material-cell maximum is descriptive ONLY, not a substitute
+for positive-mass feasibility or a change to the joint distribution.
+"""
+function stage8_terminal_mass_summary(masses::AbstractVector{T},
+                                      budgets::AbstractVector{T};
+                                      material_cutoff::T=T(1e-12)) where {T<:AbstractFloat}
+    length(masses)==length(budgets) ||
+        throw(DimensionMismatch("terminal masses and budgets"))
+    zero(T)<=material_cutoff<one(T) ||
+        throw(ArgumentError("material cutoff must lie in [0,1)"))
+    all(m->isfinite(m) && m>=zero(T),masses) ||
+        throw(ArgumentError("invalid terminal probability masses"))
+    occupied=findall(>(zero(T)),masses)
+    all(i->isfinite(budgets[i]),occupied) ||
+        throw(ArgumentError("nonfinite occupied terminal budget residual"))
+    isempty(occupied) && throw(ArgumentError("no positive terminal probability mass"))
+    total=sum(masses)
+    isapprox(total,one(T);atol=T(1e-8),rtol=zero(T)) ||
+        throw(ArgumentError("terminal distribution not normalized"))
+    material=findall(>(material_cutoff),masses)
+    covered=sum(masses[i] for i in material;init=zero(T))
+    absweighted=sum(masses[i]*abs(budgets[i]) for i in occupied;init=zero(T))
+    fraction_above(threshold)=sum(
+        masses[i] for i in occupied if abs(budgets[i])>threshold;init=zero(T))
+    return (
+        material_cutoff=material_cutoff,
+        material_cell_count=length(material),
+        material_probability_mass=covered,
+        max_budget_all_occupied=maximum(abs(budgets[i]) for i in occupied),
+        max_budget_material_cells=isempty(material) ? T(NaN) :
+            maximum(abs(budgets[i]) for i in material),
+        weighted_absolute_budget=absweighted/total,
+        violation_mass_above_1e6=fraction_above(T(1e-6))/total,
+        violation_mass_above_1e4=fraction_above(T(1e-4))/total,
+        violation_mass_above_1e3=fraction_above(T(1e-3))/total,
+    )
+end
+
+"""
     stage8_audit_saved_market_root(ctx, saved_path)
 
 Read only the saved aggregate path, but independently re-solve household
@@ -99,6 +142,8 @@ function stage8_audit_saved_market_root(ctx::Stage3Context{T},
     sum_budget=zero(T)
     sum_abs_budget=zero(T)
     mass_total=zero(T)
+    occupied_masses=T[]
+    occupied_budgets=T[]
     for j in axes(mu,2), i in axes(mu,1)
         mass=mu[i,j]
         mass>zero(T) || continue
@@ -120,6 +165,8 @@ function stage8_audit_saved_market_root(ctx::Stage3Context{T},
         sum_budget+=mass*parts.actual_budget
         sum_abs_budget+=mass*abs(parts.actual_budget)
         mass_total+=mass
+        push!(occupied_masses,mass)
+        push!(occupied_budgets,parts.actual_budget)
         if abs(parts.actual_budget)>worst.abs
             worst=(abs=abs(parts.actual_budget),state=(i,j),
                    mass=mass,components=parts)
@@ -133,7 +180,9 @@ function stage8_audit_saved_market_root(ctx::Stage3Context{T},
         throw(ErrorException("Independent terminal budget differs from diagnostics"))
     abs(worst.abs-report.max_terminal_household_budget)<=T(1e-9) ||
         throw(ErrorException("Independent maximum terminal budget differs from diagnostics"))
+    tail=stage8_terminal_mass_summary(occupied_masses,occupied_budgets)
     return (path=saved_path,x=guess,max_scaled_residual=maxres,
+            terminal_mass_summary=tail,
             report=report,support=support,
             worst_terminal_budget_state=worst.state,
             worst_terminal_budget_mass=worst.mass,
@@ -190,6 +239,9 @@ function stage8_two_root_report(ctx::Stage3Context, appreciation, depreciation,
         for (name,value) in pairs(z.support)
             push!(metrics,label*"_support_"*string(name)=>value)
         end
+        for (name,value) in pairs(z.terminal_mass_summary)
+            push!(metrics,label*"_terminal_mass_"*string(name)=>value)
+        end
         push!(metrics,label*"_worst_terminal_asset_index"=>
               z.worst_terminal_budget_state[1])
         push!(metrics,label*"_worst_terminal_productivity_index"=>
@@ -226,6 +278,25 @@ function stage8_two_root_report(ctx::Stage3Context, appreciation, depreciation,
     println("Depreciation x1=",d,
             " max 599 residual=",depreciation.max_scaled_residual,
             " max terminal budget=",depreciation.report.max_terminal_household_budget)
+    for (label,z) in (("Appreciation",appreciation),
+                      ("Depreciation",depreciation))
+        println(label," terminal max all positive-mass=",
+                z.terminal_mass_summary.max_budget_all_occupied,
+                "; max on mass>1e-12 cells=",
+                z.terminal_mass_summary.max_budget_material_cells,
+                "; covered mass=",
+                z.terminal_mass_summary.material_probability_mass,
+                "; budget violation mass (>1e-4)=",
+                z.terminal_mass_summary.violation_mass_above_1e4)
+        println(label," terminal worst state mass=",
+                z.worst_terminal_budget_mass,
+                "; stationary policy max residual=",
+                z.terminal_stationary_policy_budget_max,
+                "; weighted signed interest/wage/profits contributions=(",
+                z.terminal_interest_signed_mass,",",
+                z.terminal_wage_signed_mass,",",
+                z.terminal_profits_signed_mass,")")
+    end
     println("Same inherited economy: YES, reconstructed at both saved roots")
     println("Infinite-horizon multiple-equilibrium certification: NO")
     println("Wrote ",out)
