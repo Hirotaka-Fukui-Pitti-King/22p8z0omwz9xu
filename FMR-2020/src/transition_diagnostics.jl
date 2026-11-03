@@ -33,11 +33,11 @@ function transition_diagnostics(sol::TransitionSolveResult{T};
             supply=w.Y[t]-w.I[t-1]-cost-
                    input.reference.export_shift*w.terms[t]^(-input.params.theta_star)
         end
-        # Authors' solve_transition_bis.m has market-clearing equations
-        # for capital in 1:T-1 and labor in 1:T. The final date uses
-        # terminal steady-state household policies and a copied t=T-1
-        # aggregate consumption for the final labor residual; it does
-        # NOT impose an independent T-th goods-clearing condition.
+        # Economic transition uses actual household consumption
+        # at each interior date and paper eq. (5) for union labor supply.
+        # The last labor residual pins stationary continuation L_T=L_ss;
+        # the remaining last-date budget/resource gap is reported
+        # independently rather than masked by copying C_H[T-1].
         #
         # An interior resource residual is independently checked using
         # distribution-weighted actual household consumption, never
@@ -58,7 +58,9 @@ function transition_diagnostics(sol::TransitionSolveResult{T};
             terminal_wealth_gap=w.aggregate_savings[t]-
                                 (input.B[t]+input.terminal.K)
         end
-        Lerror=max(Lerror,abs(w.labor_implied[t]-w.L[t]))
+        if t<n
+            Lerror=max(Lerror,abs(w.labor_implied[t]-w.L[t]))
+        end
         if t<n
             m=consumption_cost(w.terms[t],input.params)
             gross=1+w.rate[t]
@@ -179,7 +181,8 @@ function export_transition_csv(sol::TransitionSolveResult{T},
             terminal_goods=t==n ? gap_goods : T(NaN)
             authors_ch=t<n ? home : w.aggregate_home[t-1]
             capital=t<n ? (w.aggregate_savings[t]-input.B[t])/w.q[t]-w.K[t+1] : T(NaN)
-            labor=w.labor_implied[t]-w.L[t]
+            labor=t<n ? w.labor_implied[t]-w.L[t] :
+                         w.L[t]-input.terminal.L
             println(io,join((t-1,input.B[t],w.K[t],w.L[t],w.Y[t],w.I[t],
                              w.q[t],w.rental[t],w.rate[t],w.wage[t],
                              w.terms[t],inv(w.terms[t]),w.profits[t],
