@@ -45,9 +45,12 @@ Reference CSVs are written by stage3_write_csv, with column names checked.
 The scale for each series is max(1, |reference level|).
 """
 function fixed_horizon_comparison(
-    reference_csv::AbstractString, w::FMR2020.TransitionWorkspace{T};
-    first_periods::Int=40) where {T<:AbstractFloat}
+    reference_csv::AbstractString, w;
+    first_periods::Int=40)
 
+    T=eltype(w.K)
+    T<:AbstractFloat || throw(ArgumentError("horizon series must be floating point"))
+    first_periods>0 || throw(ArgumentError("comparison horizon must be positive"))
     isfile(reference_csv) ||
         throw(ArgumentError("missing shorter-horizon comparison: "*reference_csv))
     lines=readlines(reference_csv)
