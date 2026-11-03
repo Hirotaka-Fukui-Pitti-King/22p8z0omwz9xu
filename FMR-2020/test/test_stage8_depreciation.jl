@@ -40,3 +40,44 @@ end
 end
 
 println("STAGE8 LIGHT UNIT TESTS PASS (no GE residual/Jacobian/solve)")
+
+@testset "Stage 8 restart reads saved 599-vector and checks residual provenance" begin
+    n=599
+    pre=1.0271423614420732
+    x=ones(Float64,n)
+    x[1]=29.1
+    x[200]=1.02
+    x[400]=0.93
+    residual=fill(0.0015,n)
+    mktempdir() do d
+        path=joinpath(d,"source_initialized_UNCONVERGED.checkpoint")
+        FMR2020.stage3_write_checkpoint(path,x,residual,5)
+        state=stage8_read_checkpoint(path,n)
+        @test state.iterations==5
+        @test state.x==x
+        @test state.stored_max==0.0015
+        @test stage8_verify_resume_residual(state.stored_max,0.0015)
+        @test_throws ErrorException stage8_verify_resume_residual(
+            state.stored_max,0.0025)
+        @test_throws ArgumentError stage8_read_checkpoint(
+            joinpath(d,"absent.checkpoint"),n)
+        @test_throws DimensionMismatch stage8_read_checkpoint(path,n+1)
+        trace=joinpath(d,"accepted_full599_trace.csv")
+        stage8_append_accepted_step(trace,"--resume",5,1,x,residual,pre,200)
+        @test isfile(trace)
+        lines=readlines(trace)
+        @test length(lines)==2
+        headers=split(lines[1],",")
+        fields=split(lines[2],",")
+        @test length(headers)==length(fields)
+        @test fields[1]=="--resume"
+        @test parse(Int,fields[4])==6
+        @test parse(Float64,fields[5])==0.93
+        @test fields[7]=="true"
+        # New accepted iterate is incremental; do not corrupt prior row.
+        x[400]=1.1
+        stage8_append_accepted_step(trace,"--resume",5,2,x,residual,pre,200)
+        @test length(readlines(trace))==3
+        @test split(readlines(trace)[3],",")[7]=="false"
+    end
+end
