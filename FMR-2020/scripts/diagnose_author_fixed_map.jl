@@ -29,6 +29,8 @@ function compare_block(name::String,source::AbstractArray,
     smask=isfinite.(source)
     jmask=isfinite.(production)
     nbad=count(xor.(smask,jmask))
+    source_finite_julia_undefined=count(smask .& .!jmask)
+    julia_finite_source_undefined=count(jmask .& .!smask)
     valid=smask .& jmask
     any(valid) || error("$name has no finite source-and-Julia comparison")
     gap=abs.(source[valid].-production[valid])
@@ -36,6 +38,8 @@ function compare_block(name::String,source::AbstractArray,
     idx=argmax(gap)
     println("FIXED MATCH ",name," finite_n=",count(valid),
             " nonfinite_mask_mismatch=",nbad,
+            " source_finite_julia_undefined=",source_finite_julia_undefined,
+            " julia_finite_source_undefined=",julia_finite_source_undefined,
             " max_abs_error=",maxgap,
             " finite_argmax=",idx)
     return maxgap
