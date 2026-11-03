@@ -3,7 +3,8 @@
 #   powershell -ExecutionPolicy Bypass -File .\scripts\export_author_reference.ps1
 param(
     [string]$MatDirectory = 'C:\github\HANKSOME',
-    [string]$MatlabExecutable = 'matlab'
+    [string]$MatlabExecutable = 'matlab',
+    [switch]$WithFixedAudit
 )
 
 Set-StrictMode -Version Latest
@@ -39,6 +40,15 @@ $matlabCode = 'addpath(' + (To-MatlabLiteral $exporterDir) + '); ' +
               'export_author_reference_fixtures(' +
               (To-MatlabLiteral $MatDirectory) + ',' +
               (To-MatlabLiteral $outputDir) + ');'
+if ($WithFixedAudit) {
+    $fixedExporter = Join-Path $exporterDir 'export_author_fixed_audit.m'
+    if (-not (Test-Path -LiteralPath $fixedExporter -PathType Leaf)) {
+        throw "Fixed-rate MATLAB audit exporter missing: $fixedExporter"
+    }
+    $matlabCode += ' export_author_fixed_audit(' +
+                   (To-MatlabLiteral $MatDirectory) + ',' +
+                   (To-MatlabLiteral $outputDir) + ');'
+}
 Write-Host 'Exporting ORIGINAL author MATLAB saved solutions (no fsolve)...'
 & $MatlabExecutable -batch $matlabCode
 if ($LASTEXITCODE -ne 0) {
@@ -63,4 +73,25 @@ foreach ($filename in $expected) {
     }
 }
 Write-Host "Export OK: $($expected.Count) required nonempty CSVs in $outputDir"
+if ($WithFixedAudit) {
+    $extra = @(
+        'fixed_src_rate.csv', 'fixed_src_wage.csv',
+        'fixed_src_profits.csv', 'fixed_src_q.csv',
+        'fixed_src_initial_distribution.csv',
+        'fixed_src_household_assets.csv',
+        'fixed_src_consumption_t1.csv', 'fixed_src_savings_t1.csv',
+        'fixed_src_consumption_t9.csv', 'fixed_src_savings_t9.csv'
+    )
+    foreach ($filename in $extra) {
+        $f = Join-Path $outputDir $filename
+        if (-not (Test-Path -LiteralPath $f -PathType Leaf)) {
+            throw "Fixed-rate source audit CSV missing: $f"
+        }
+        if ((Get-Item -LiteralPath $f).Length -eq 0) {
+            throw "Fixed-rate source audit CSV empty: $f"
+        }
+    }
+    Write-Host 'Fixed-rate audit exported and validated: 10 blocks'
+    Write-Host 'Next: julia --project=. scripts/diagnose_author_fixed_map.jl results/author_reference'
+}
 Write-Host 'Next: julia --project=. scripts/evaluate_author_matlab_solution.jl results/author_reference'
