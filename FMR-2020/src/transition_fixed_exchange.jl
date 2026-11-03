@@ -163,7 +163,7 @@ function stage3_diagnostics(sol::TransitionSolveResult{T},
                      ((w.I[t-1]-inp.params.delta*w.K[t])/w.K[t])^2
             supply=w.Y[t]-w.I[t-1]-cost-nominalcost-
                     inp.reference.export_shift*w.terms[t]^(-inp.params.theta_star)
-            maxgoods=max(maxgoods,abs(supply-w.aggregate_home[t-1]))
+            maxgoods=max(maxgoods,abs(supply-w.aggregate_home[t]))
         end
         for j in axes(mu,2),i in axes(mu,1)
             mass=mu[i,j]
