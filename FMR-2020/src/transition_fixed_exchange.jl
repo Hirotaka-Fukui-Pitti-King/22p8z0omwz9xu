@@ -118,7 +118,8 @@ where the distribution has POSITIVE probability. Fixed-regime goods
 clearing uses actual cross-sectional C_H in ALL T equations.
 """
 function stage3_diagnostics(sol::TransitionSolveResult{T},
-                            ctx::Stage3Context{T};fixed::Bool=false) where {T}
+                            ctx::Stage3Context{T};fixed::Bool=false,
+                            explicit_flexible::Bool=false) where {T}
     sol.converged || throw(ArgumentError("Stage3 unaccepted GE candidate"))
     w=sol.workspace; inp=ctx.economy
     n=length(inp.B)
@@ -152,7 +153,7 @@ function stage3_diagnostics(sol::TransitionSolveResult{T},
             supply=w.Y[t]-w.I[t]-w.adjustment[t]-nominalcost-
                     inp.reference.export_shift*w.terms[t]^(-inp.params.theta_star)
             maxgoods=max(maxgoods,abs(supply-w.aggregate_home[t]))
-        elseif fixed
+        elseif fixed || explicit_flexible
             cost=inp.phi_ac/T(2)*w.K[t]*
                      ((w.I[t-1]-inp.params.delta*w.K[t])/w.K[t])^2
             supply=w.Y[t]-w.I[t-1]-cost-nominalcost-
