@@ -438,3 +438,42 @@ distortions. The 300-date corrected GE must actually converge on the
 user PC before any 300-date outcomes can be claimed.
 
 Existing 200-date results are not discarded or silently overwritten.
+
+
+### Full four-economy Euler-polished re-estimation (next quantitative output)
+
+The corrected 200-date boom GE root is already saved. Rather than
+re-running 200-date baseline shock paths, the following mode solves the
+complete **four-equilibrium sequence** with the SAME high-accuracy
+household policy operator (`polish_households=true`) inside all
+599-dimensional market residuals:
+
+```powershell
+Set-Location C:\github\22p8z0omwz9xu
+git pull --ff-only
+Set-Location FMR-2020
+julia --project=. scripts\run_economic_replication.jl --solve-polished-all
+```
+
+1. Re-evaluate the archived Euler-polished 200-date credit expansion,
+   including all consumption and household-distribution objects.
+2. Construct the *new* pre-sudden-stop portfolio distribution and
+   capital stock from the **Euler-polished boom** (not the old boom).
+3. Independently solve the **nonleveraged flexible-FX**, **leveraged
+   flexible-FX** and **leveraged fixed-FX** 599-equation market systems,
+   each using Euler/KKT-refined household policy throughout.
+4. Reuse the stored base-EGM paths of those same horizons **only as
+   numerical starting guesses**; verify their B paths and inherited
+   capital against the BASE boom to avoid treating stale 599-GE paths
+   as solutions in the new polished model.
+5. Save new CSVs under distinct names containing
+   `_euler_polished_MARKET_ROOT_UNCERTIFIED.csv`, report
+   independent Euler/KKT / market / terminal diagnostics and first-40
+   aggregate differences versus the old approximations.
+
+No quantitative FX or welfare conclusion is claimed before this
+*new* expensive full-economy run is actually executed by the user.
+Even if all four market roots converge, the residual terminal budget
+and grid/horizon error tests remain separate certification criteria.
+The earlier 200-vs-300 Euler-polished boom horizon command is available
+independently to check the shared pre-shock path.
