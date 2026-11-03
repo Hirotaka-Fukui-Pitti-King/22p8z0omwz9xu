@@ -60,6 +60,12 @@ function stage5_first_period_case(
         distribution,ctx.mu_pre,inp.grids.fine,
         inp.initial.K,inp.q_initial,inp.B_initial,
         ctx.terms_pre,w.terms[1],leverage_hat;foreign=true)
+    strict_distribution=similar(ctx.mu_pre)
+    corrected=FMR2020.revalue_foreign_debt!(
+        strict_distribution,ctx.mu_pre,inp.grids.fine,
+        inp.initial.K,inp.q_initial,inp.B_initial,
+        ctx.terms_pre,w.terms[1],leverage_hat;
+        foreign=true,strict_portfolio=true)
 
     qK=inp.q_initial*inp.initial.K
     pre_target=qK+inp.B_initial
@@ -106,6 +112,40 @@ function stage5_first_period_case(
     lower=check_branch(roots.low)
     upper=isnothing(roots.high) ? nothing : check_branch(roots.high)
     observed=check_branch(w.terms[1])
+    # Test the counterfactual corrected portfolio on the SAME prices and
+    # household policies: this is one market RESIDUAL EVALUATION, not GE.
+    # The strict mode revalues positions that add exactly to qK and B.
+    FMR2020.stage3_distribution_forward!(
+        w,ctx;strict_portfolio=true)
+    strict_res=zeros(Float64,3n-1)
+    if fixed
+        FMR2020.stage3_market_residual!(
+            strict_res,w,ctx;fixed=true)
+    else
+        FMR2020.stage3_flexible_full_market_residual!(
+            strict_res,w,ctx)
+    end
+    strict_home_budget_gap=w.aggregate_home[1]-w.home_budget[1]
+    strict_ge_residual=maximum(abs,strict_res)
+    # Check each conditional trade-price branch under both portfolio
+    # allocations, without re-solving 599 aggregate equations.
+    function check_strict_branch(value)
+        try
+            v=FMR2020.initial_revaluation_budget_support!(
+                w,ctx,value;strict_portfolio=true)
+            return (feasible=v.feasible,minresource=v.minresource,
+                    error="")
+        catch err
+            if err isa DomainError
+                return (feasible=false,minresource=NaN,
+                        error=sprint(showerror,err))
+            end
+            rethrow(err)
+        end
+    end
+    strict_lower=check_strict_branch(roots.low)
+    strict_upper=isnothing(roots.high) ? nothing :
+        check_strict_branch(roots.high)
 
     return (
         economy=label,maximum_scaled_residual=maxres,
@@ -121,6 +161,15 @@ function stage5_first_period_case(
         predicted_wealth=implied_wealth,
         predicted_consumption_gap=predicted_consumption_gap,
         actual_consumption_gap=actual_consumption_gap,
+        strictly_cleared_capital=corrected.capital,
+        strictly_cleared_bonds=corrected.bonds,
+        strict_portfolio_scale=corrected.capital_normalization,
+        strict_portfolio_capital_gap=corrected.capital_market_gap,
+        strict_portfolio_bond_gap=corrected.inherited_bond_market_gap,
+        strict_portfolio_consumption_gap=strict_home_budget_gap,
+        strict_portfolio_scaled_market_residual=strict_ge_residual,
+        strict_lower_trade_feasibility=strict_lower,
+        strict_upper_trade_feasibility=strict_upper,
         C=C,E=E,D=D,trade_price_peak=roots.peak,
         lower_trade_root=lower,upper_trade_root=upper,
         observed_feasibility=observed,
@@ -165,6 +214,10 @@ function stage5_audit_main(root_dir::AbstractString=
                 :pre_distribution_wealth,:pre_aggregate_target_wealth,
                 :revalued_wealth,:predicted_wealth,
                 :predicted_consumption_gap,:actual_consumption_gap,
+                :strictly_cleared_capital,:strictly_cleared_bonds,
+                :strict_portfolio_scale,:strict_portfolio_capital_gap,
+                :strict_portfolio_bond_gap,:strict_portfolio_consumption_gap,
+                :strict_portfolio_scaled_market_residual,
                 :C,:E,:D,:trade_price_peak,
                 :observed_aggregate_scalar_root_gap)
                 println(io,"| ",key," | ",getproperty(row,key)," |")
@@ -185,6 +238,13 @@ function stage5_audit_main(root_dir::AbstractString=
                 end
             end
             println(io)
+            println(io,"Under aggregate-conserving portfolio mapping, ",
+                    "lower-branch household affordability: ",
+                    row.strict_lower_trade_feasibility.feasible,
+                    "; upper-branch affordability: ",
+                    row.strict_upper_trade_feasibility===nothing ? "no upper root" :
+                        row.strict_upper_trade_feasibility.feasible,".")
+            println(io)
         end
         println(io,"## Interpretation")
         println(io)
@@ -202,7 +262,13 @@ function stage5_audit_main(root_dir::AbstractString=
                 c.lower_trade_root.root,",",
                 c.upper_trade_root===nothing ? "none" : c.upper_trade_root.root,
                 "), feasible_lower=",c.lower_trade_root.feasible,
-                ", feasible_upper=",c.upper_trade_root===nothing ? "none" : c.upper_trade_root.feasible)
+                ", feasible_upper=",c.upper_trade_root===nothing ? "none" : c.upper_trade_root.feasible,
+                ", strict_capital_gap=",c.strict_portfolio_capital_gap,
+                ", strict_budget_gap=",c.strict_portfolio_consumption_gap,
+                ", strict_599_residual_at_old_prices=",
+                c.strict_portfolio_scaled_market_residual,
+                ", strict_lower_feasible=",
+                c.strict_lower_trade_feasibility.feasible)
     end
     println("Saved first-period independent accounting: ",dest)
     return cases
