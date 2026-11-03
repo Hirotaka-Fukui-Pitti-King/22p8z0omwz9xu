@@ -223,3 +223,26 @@ end
     @test_throws DimensionMismatch FMR2020.stage3_flexible_full_market_residual!(
         zeros(399),w,ctx)
 end
+
+
+@testset "Economic fixed-FX solver: independent acceptance boundaries" begin
+    # Include the real command-line solver without executing a full GE root.
+    # This also verifies imports and methods used by the command-line script.
+    include(joinpath(@__DIR__,"..","scripts","solve_economic_fixed_ge.jl"))
+    good=(maximum_scaled_solver_residual=7e-7,
+          max_asset_market_level=2e-6,
+          max_labor_market_level=1e-6,
+          max_goods_market_level=3e-6,
+          max_household_budget=1e-14,
+          max_mass_deviation=1e-14,
+          max_nonlinear_phillips=1e-12,
+          max_dynamic_euler=5e-5,
+          weighted_mean_dynamic_euler=1e-6)
+    @test fixed_market_acceptance(good)
+    @test fixed_euler_acceptance(good)
+    @test fixed_market_acceptance(merge(good,(max_dynamic_euler=3.8e-4,)))
+    @test !fixed_euler_acceptance(merge(good,(max_dynamic_euler=3.8e-4,)))
+    @test !fixed_market_acceptance(merge(good,(max_goods_market_level=1e-2,)))
+    @test !fixed_market_acceptance(merge(good,(max_nonlinear_phillips=1e-3,)))
+    @test !fixed_market_acceptance(merge(good,(max_mass_deviation=1e-5,)))
+end
