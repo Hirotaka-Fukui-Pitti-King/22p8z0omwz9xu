@@ -47,13 +47,13 @@ end
     @test rows[1].quarter==0
     @test rows[end].boom_calendar_period==70
     @test isapprox(rows[1].composite_leveraged_flexible_shock_pct,
-                   100log(0.8);atol=1e-12)
+                   100*log(0.8);atol=1e-12)
     @test isapprox(rows[1].composite_leveraged_fixed_shock_pct,
-                   100log(0.9);atol=1e-12)
+                   100*log(0.9);atol=1e-12)
     @test isapprox(rows[1].composite_fixed_minus_flexible_pct,
-                   100log(0.9/0.8);atol=1e-12)
+                   100*log(0.9/0.8);atol=1e-12)
     @test isapprox(rows[1].composite_leverage_minus_unleveraged_pct,
-                   100log(1.6/1.7);atol=1e-12)
+                   100*log(1.6/1.7);atol=1e-12)
 
     result=economic_summary(rows,boom,flexible,fixed,0.6)
     @test result.impact_fixed_minus_flexible>0
@@ -87,7 +87,7 @@ end
         end
         summary=report_polished_main(dir)
         @test isapprox(summary.impact_fixed_minus_flexible,
-                       100log(0.9/0.8);atol=1e-12)
+                       100*log(0.9/0.8);atol=1e-12)
         csvout=joinpath(dir,"PROVISIONAL_figure4_5_economic_comparison.csv")
         mdout=joinpath(dir,"PROVISIONAL_economic_comparison.md")
         @test isfile(csvout)
