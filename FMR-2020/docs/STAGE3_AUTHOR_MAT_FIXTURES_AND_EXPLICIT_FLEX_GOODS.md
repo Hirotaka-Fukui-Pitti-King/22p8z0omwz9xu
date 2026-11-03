@@ -477,3 +477,70 @@ Even if all four market roots converge, the residual terminal budget
 and grid/horizon error tests remain separate certification criteria.
 The earlier 200-vs-300 Euler-polished boom horizon command is available
 independently to check the shared pre-shock path.
+
+
+## All four Euler-polished GE roots and 200-to-300 refined horizon: actual PC logs (Nov 3, 2026)
+
+The user-PC solved the first 200-date economic shock experiment
+and all three 200-date reversal/FX equilibria with the same
+high-accuracy household EGM/Euler/KKT operator. The computed GE root
+residuals and worst occupied Euler errors were:
+
+| Corrected economy | Max scaled 3T-1 residual | Max Euler/KKT | Terminal K gap | Max terminal budget |
+|---|---:|---:|---:|---:|
+| 200-date credit expansion | 2.55833e-8 | 9.99267e-6 | .281054 | 2.44736 |
+| No-leverage flexible reversal | 3.24100e-7 | 9.98613e-6 | .013469 | .002359 |
+| Leveraged flexible reversal | 2.65095e-7 | 9.99738e-6 | .010511 | .011091 |
+| Leveraged fixed reversal | 1.10523e-7 | 9.97868e-6 | .001374 | .076837 |
+| 300-date credit expansion | 2.35698e-8 | 9.99267e-6 | .042182 | .225235 |
+
+On all four 200-date roots, there were **zero positive-mass Euler states
+with violation over 1e-4**. Under the refined household operator,
+the initial 40 quarters' paths differ from their baseline-EGM
+equilibria by at most 1.74452e-5 for expansion, 9.62928e-6 for
+unleveraged flexible reversal, 4.76369e-5 for leveraged flexible
+reversal, and 6.86487e-6 for leveraged fixed reversal (scaled
+max componentwise deviation). This is evidence against economically
+material perturbations in those aggregate paths from the inverse-EGM
+interpolation correction **at the current asset-grid resolution**.
+
+Most importantly, **with precisely the same Euler-polished household
+algorithm and foreign credit path**, the 200-vs-300 date boom's
+first 40 economic quarters differ by at most **6.193045294e-7**
+(normalized, worst variable investment). So the reported early response
+is insensitive to the lengthening of the temporary foreign-credit
+expansion experiment, although the terminal budget gap remains large
+by the strict max criterion. This does NOT establish full infinite-horizon
+accuracy for the sudden-stop/fixed-FX paths; their own horizon checks
+remain unperformed.
+
+### Substantive macroeconomic effects, not more solver diagnostics
+
+The next research deliverable is to answer the paper's economic
+questions from the FOUR SAVED corrected market roots without re-solving
+the entire 599-equation system. A lightweight script now constructs
+the same-date continuing-boom counterfactual and exact pairwise
+fixed-vs-flexible and leveraged-vs-unleveraged comparisons:
+
+```powershell
+Set-Location C:\github\22p8z0omwz9xu
+git pull --ff-only
+Set-Location FMR-2020
+julia --project=. scripts\report_polished_economic_results.jl
+```
+
+
+The script uses only the actual Julia `economic_*_euler_polished_MARKET_ROOT_UNCERTIFIED.csv` files already on the PC, not MATLAB or rerun policies. It validates that all three reversal regimes share the same 200-date credit shock and shock-date inherited capital, constructs log Cobb-Douglas composite consumption
+
+    log(C_t) = chi*log(C_H,t) + (1-chi)*log(C_F,t) + constant,
+
+reports the direct FIXED minus FLEXIBLE FX impact and 30-quarter
+average/cumulative differences, and the leveraged minus unleveraged
+consumption effect under floating FX. Separately reports each
+reversal relative to the time-matched continuing-boom counterfactual,
+not an arbitrary assumed steady-state baseline. The output is
+**PROVISIONAL** CSV and Markdown, not certified welfare comparison
+and not a claim of complete reproduction of original figures.
+
+This is the quickest meaningful next research step; it requires
+reading 4 short CSVs, not another 599/899-column Jacobian.
