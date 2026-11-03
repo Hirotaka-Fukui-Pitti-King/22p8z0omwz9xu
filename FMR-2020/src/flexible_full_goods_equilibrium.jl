@@ -65,8 +65,8 @@ function stage3_flexible_full_market_residual!(res::AbstractVector{T},
             terminal_cost=inp.phi_ac/T(2)*w.K[t]*last_gap^2
             goods=w.Y[t]-w.I[t-1]-terminal_cost-
                   inp.reference.export_shift*w.terms[t]^(-p.theta_star)
-            # Original MIT_transition: c_t=[c_t'; c_t(end)].
-            household=w.aggregate_home[t-1]
+            # Match period-T resources to period-T household spending.
+            household=w.aggregate_home[t]
         end
         res[2n-1+t]=(goods-household)/scale
     end
