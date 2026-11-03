@@ -108,7 +108,23 @@ function stage3_extend_horizon(ctx::Stage3Context{T}, periods::Int) where {T}
     if periods==previous
         return ctx
     end
-    B=vcat(old.B,fill(old.terminal.B,periods-previous))
+    # The expansion credit path continues according to its ORIGINAL
+    # 0.98 persistence. Flat-padding at 200 silently changes the model's
+    # exogenous foreign-credit process and contaminates horizon checks.
+    B=if startswith(ctx.label,"foreign-debt expansion")
+        extended_credit=credit_expansion_path(
+            old.params,old.reference.Y;periods=periods)
+        extended_credit[1:previous]==old.B ||
+            throw(ArgumentError("credit-expansion continuation does not match the original shock"))
+        extended_credit
+    else
+        # The finite-length quartic sudden-stop path reaches Bcal at
+        # period 200 and stays at its terminal level thereafter.
+        abs(old.B[end]-old.terminal.B)<=T(1e-8)*
+            max(one(T),abs(old.terminal.B)) ||
+            throw(ArgumentError("unknown shock path does not end at its long-run B"))
+        vcat(old.B,fill(old.terminal.B,periods-previous))
+    end
     z=vcat(old.z,fill(old.z[end],periods-previous))
     extended=TransitionInputs(old.params,old.reference,old.chain,
                               old.grids,old.initial,old.terminal,B,z,
