@@ -211,8 +211,9 @@ function compare_boom_horizons(reference_csv::AbstractString,w;
 end
 
 function main()
-    valid=all(x->x=="--boom-only" || startswith(x,"--horizon="),ARGS)
-    valid || error("Usage: julia --project=. scripts/run_economic_replication.jl [--boom-only] [--horizon=300]")
+    valid=all(x->x in ("--boom-only","--audit-euler-refinement") ||
+               startswith(x,"--horizon="),ARGS)
+    valid || error("Usage: julia --project=. scripts/run_economic_replication.jl [--boom-only] [--horizon=300] [--audit-euler-refinement]")
     settings=filter(x->startswith(x,"--horizon="),ARGS)
     length(settings)<=1 || throw(ArgumentError("specify the horizon once"))
     requested_horizon=isempty(settings) ? 200 :
@@ -220,6 +221,9 @@ function main()
     requested_horizon>=200 ||
         throw(ArgumentError("horizon cannot be below 200"))
     boom_only="--boom-only" in ARGS
+    polish_audit="--audit-euler-refinement" in ARGS
+    polish_audit && (!boom_only || requested_horizon!=200) &&
+        throw(ArgumentError("Euler refinement audit requires --boom-only and the 200-date economic root"))
     requested_horizon>200 && !boom_only &&
         throw(ArgumentError("extended-horizon calculation must be --boom-only to prevent silently overwriting the 200-date surprise experiments"))
     base=normpath(joinpath(@__DIR__,".."))
@@ -248,6 +252,34 @@ function main()
     println("Solving full goods-clearing initial credit expansion T=",n)
     boom=solve_or_recheck_economic(boomctx,guess,outputdir,boom_label)
     boom_check=economic_validation(boom,boomctx,boom_label,outputdir)
+    if polish_audit
+        # A separate workspace protects the saved market root. Perform
+        # exactly one fixed-aggregate-policy correction, forward transport,
+        # and market reevaluation. NO false GE-convergence claim.
+        scratch=FMR2020.TransitionWorkspace(boomctx.economy)
+        old_res=zeros(Float64,3n-1)
+        FMR2020.stage3_flexible_full_residual!(
+            old_res,boom.x,boomctx,scratch)
+        improvement=FMR2020.stage3_euler_polish_households!(
+            scratch,boomctx)
+        FMR2020.stage3_distribution_forward!(scratch,boomctx)
+        refined_res=zeros(Float64,3n-1)
+        FMR2020.stage3_flexible_full_market_residual!(
+            refined_res,scratch,boomctx)
+        println("EULER POLICY REFINEMENT (fixed aggregate prices): ",
+                improvement)
+        println("BEFORE POLISH MAX SCALED 599 RESIDUAL: ",
+                maximum(abs,old_res))
+        println("AFTER POLISH MAX SCALED 599 RESIDUAL: ",
+                maximum(abs,refined_res))
+        println("MAX MARKET RESIDUAL SHIFT: ",
+                maximum(abs,refined_res.-old_res))
+        println("This is a household-accuracy experiment, NOT an accepted "*
+                "new aggregate equilibrium. The coarse/fine policies and "*
+                "aggregate markets must be solved together if the shift "*
+                "is non-negligible.")
+        return nothing
+    end
     if requested_horizon>n0
         horizon_report=compare_boom_horizons(basefile,boom.workspace)
         println("SAME-SHOCK BOOM HORIZON (first 40 quarters, 200 vs ",
