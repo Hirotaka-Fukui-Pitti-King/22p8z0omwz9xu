@@ -10,7 +10,7 @@ These numerical findings reject the stored path as a *certified full economic eq
 
 ## Original-source calculations, no MATLAB/Julia GE solve
 
-GitHub Actions [Stage 6 audit](https://github.com/Hirotaka-Fukui-Pitti-King/22p8z0omwz9xu/actions/workflows/fmr-stage6-author-audit.yml) runs `scripts/stage6_author_depreciation_audit.py` with Python, NumPy and SciPy. The audit opens the tracked original `.mat` file directly using `scipy.io.loadmat`, rather than reconstructing a synthetic economy or calling MATLAB's `fsolve`. Outputs are attached to each CI run as `fmr-stage6-original-matlab-depreciation-audit`, containing `first_period_metrics.csv`, `first_30_periods.csv` and `stage6_audit.md`. The routine does **not** change the author's saved data, any portfolio mapping, the MATLAB code, or the archived Julia market roots.
+GitHub Actions [Stage 6 audit](https://github.com/Hirotaka-Fukui-Pitti-King/22p8z0omwz9xu/actions/workflows/fmr-stage6-author-audit.yml) runs `scripts/stage6_author_depreciation_audit.py` with Python, NumPy and SciPy. The audit opens the tracked original `.mat` file directly using `scipy.io.loadmat`, rather than reconstructing a synthetic economy or calling MATLAB's `fsolve`. Outputs are attached to each CI run as `fmr-stage6-original-matlab-depreciation-audit`, containing `first_period_metrics.csv`, `first_period_occupied_budget_errors.csv`, `first_30_periods.csv` and `stage6_audit.md`. The routine does **not** change the author's saved data, any portfolio mapping, the MATLAB code, or the archived Julia market roots.
 
 Audited experiment: flexible FX, capital-intercept 1/16, shock immediately after period 40 of the previously anticipated credit expansion, saved 200-period reversal.
 
@@ -23,6 +23,9 @@ Audited experiment: flexible FX, capital-intercept 1/16, shock immediately after
 | Nominal depreciation, `100 log(x_pre/x_1)` | **+11.99871760 log points** |
 | Maximum original 399-equation outer residual (unscaled) | 1.3536933352e-8 |
 | Source scalar `c_t_guess(x_1)-net_cons(x_1)` | **+0.00211041927838** |
+| Exact source-scalar minimizing positive price | 0.909875606122 |
+| Exact global minimum of source-scalar residual | **+0.00211041785147** |
+| Source-scalar positive zero at the saved macro path | **Does not exist** |
 | Actual household consumption minus source aggregate-budget consumption | **+0.00222480837002** |
 | Actual first-period household consumption `C_H` | 1.33608285423 |
 | Actual home-goods residual `net_cons(x_1)-C_H` | **−0.00433522764840** |
@@ -37,6 +40,7 @@ Audited experiment: flexible FX, capital-intercept 1/16, shock immediately after
 | Lowest post-interpolation grid-state resources | +0.232172443672 |
 | Post-interpolation probability mass violating affordability | 0 |
 | First-period maximum individual budget residual (absolute) | **0.00696134627379** |
+| Probability mass with individual budget errors above `1e-5` | **0.0468806276181 (4.6881%)** |
 | Probability mass with nonpositive consumption | 0 |
 | Probability mass with original floor consumption `1e-5` | 0 |
 | Probability mass violating borrowing minimum in saved fine savings policy | 0 |
@@ -80,9 +84,26 @@ C_households - C_budget = +0.00222480837002
 C_goods_supply - C_households = -0.00433522764840.
 ```
 
+### Analytical exclusion of any scalar goods root at fixed authors' aggregate K/L
+
+For the saved source calibration `theta=1`, the home-consumption expenditure factor `m=1+omega/(1-omega)` does not vary with the terms of trade. At fixed authors' aggregate capital, labor, wage, interest and profits, the original scalar residual has the exact functional form
+
+```text
+f(x) = C + E/x + D/x^theta_star,
+E = (1+r_1)*BG_shock*x_pre/m < 0, D = d_s > 0.
+```
+
+With `theta_star > 1`, the *only* stationary point on positive prices is
+
+```text
+x_min = (theta_star*D/(-E))^(1/(theta_star-1)).
+```
+
+The function decreases before `x_min` and increases after it, so this is its global minimum, independently of any starting guess or numerical root scanner. For the actual saved MATLAB leveraged flexible-FX macro path, `x_min = 0.909875606122` and `f(x_min)=+0.00211041785147`. **There is no positive root of the source scalar goods equation at this fixed aggregate allocation.** MATLAB's returned `x_1=0.909858511411` lies near this residual minimum. Calling `fsolve` with a different starting guess cannot make the current fixed-K/L allocation satisfy this scalar equation. This does not rule out a different complete GE with different aggregates.
+
 The original gross-portfolio shortfall (`−0.03188894`) is independently measured on the actual inherited MATLAB distribution; it differs slightly from the previously measured Julia-distribution shortfall (`−0.03189366`). The two cannot be conflated. Saving / aggregate total-wealth clearing to `1e-8` does not by itself prove that *gross* capital and foreign liabilities have their assumed aggregate levels.
 
-At positive-mass saved fine-grid states, first-period budget residuals reach `0.00696135`, even though the stored consumption policies are positive and next-period savings do not breach the borrowing floor. Therefore neither initial household insolvency nor an active literal `1e-5` consumption floor explains the entire first-period discrepancy. Pinpointing interpolation-versus-budget source mechanics requires inspecting the exact states attaining the maximum and the corresponding source `c_tran_fine_exp` / `dec_tran_fine_exp` formulas.
+At positive-mass saved fine-grid states, first-period budget residuals reach `0.00696135`, even though the stored consumption policies are positive and next-period savings do not breach the borrowing floor. Therefore neither initial household insolvency nor an active literal `1e-5` consumption floor explains the entire first-period discrepancy. A 4.6881% probability mass has first-period individual budget discrepancies exceeding `1e-5`. The independent audit exports every such positive-mass fine-grid state in `first_period_occupied_budget_errors.csv`, including its asset-grid index, productivity index, probability, saved consumption and savings, available resources, and signed budget residual. Pinpointing interpolation-versus-budget source mechanics requires comparing those exact states with the source constrained-savings and PCHIP expressions.
 
 ### Equilibrium status and what follows logically
 
