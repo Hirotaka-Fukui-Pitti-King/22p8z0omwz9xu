@@ -118,6 +118,50 @@ function stage3_extend_horizon(ctx::Stage3Context{T}, periods::Int) where {T}
                          ctx.label*" | horizon="*string(periods))
 end
 
+"""
+    stage3_prolong_aggregate_guess(old_path, old_ctx, extended_ctx; rho=0.9)
+
+Prolong a 3T-1 K/L/terms numerical starting vector to a longer horizon
+without changing any originally solved period. New capital dates approach
+the unchanged terminal stationary capital geometrically; newly appended
+L and terms dates start at their stationary values. This changes ONLY
+the numerical initial guess, never the exogenous experiment or equations.
+"""
+function stage3_prolong_aggregate_guess(
+    old_path::AbstractVector{T}, old_ctx::Stage3Context{T},
+    extended_ctx::Stage3Context{T};
+    rho::T=T(0.9)) where {T<:AbstractFloat}
+
+    old_n=length(old_ctx.economy.B)
+    new_n=length(extended_ctx.economy.B)
+    length(old_path)==3old_n-1 ||
+        throw(DimensionMismatch("source aggregate path must be 3T-1"))
+    new_n>=old_n ||
+        throw(ArgumentError("extended horizon must not be shorter"))
+    zero(T)<rho<one(T) ||
+        throw(ArgumentError("prolongation rho must lie in (0,1)"))
+    extended_ctx.economy.B[1:old_n]==old_ctx.economy.B ||
+        throw(ArgumentError("prolongation must preserve the credit experiment"))
+    K0=old_ctx.economy.initial.K
+    K0==extended_ctx.economy.initial.K ||
+        throw(ArgumentError("initial capital cannot change on extension"))
+    Kold=vcat(K0,old_path[1:old_n-1])
+    Lold=old_path[old_n:2old_n-1]
+    xold=old_path[2old_n:3old_n-1]
+    ntail=new_n-old_n
+    Ktail=[extended_ctx.economy.terminal.K+
+           (Kold[end]-extended_ctx.economy.terminal.K)*rho^s
+           for s in 1:ntail]
+    Ltail=fill(extended_ctx.economy.terminal.L,ntail)
+    xtail=fill(extended_ctx.economy.terminal.terms,ntail)
+    ans=vcat(Kold[2:end],Ktail,Lold,Ltail,xold,xtail)
+    length(ans)==3new_n-1 ||
+        throw(DimensionMismatch("prolonged 3T-1 unknown vector"))
+    all(x->isfinite(x)&&x>zero(T),ans) ||
+        throw(DomainError(ans,"nonpositive prolonged aggregate candidate"))
+    return ans
+end
+
 function stage3_reversal_context(steady,previous::TransitionSolveResult{T};
                                 shock_start::Int=41,
                                 leverage_hat::T=T(1/16),
