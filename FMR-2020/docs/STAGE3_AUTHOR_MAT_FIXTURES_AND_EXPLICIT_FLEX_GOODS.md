@@ -109,3 +109,33 @@ The market-clearing root is now **retained even if Euler accuracy remains pendin
 MATLAB's original `backsolve_egm.m` produces fine savings decisions only for dates 1 through T-1. Its final-date fine consumption is externally imposed. Hence `dec_tran_fine_fixed` has **199**, not 200, slices. The actual user MATLAB exporter failed because of our incorrect 200-slice assertion; that has been corrected, along with its synthetic test fixture. When rerunning, use the opt-in fixed audit command from the previous section.
 
 **Execution policy:** PC handles actual 399/599 transition and source MAT-file comparisons. GitHub Actions runs quick source/syntax/unit tests; the heavy Octave parity job is now *manual workflow_dispatch only*, not repeated on every push or pull request. No remote CI market root is treated as an actual research result.
+
+## Economically correct finite-horizon stationary-continuation closure (2026-11-03)
+
+**Correction to all older Stage3 outputs:** the previously solved 599 paths used the source MATLAB terminal shortcut `C_T=C_{T-1}` in the labor/goods equations. They are market roots of that old numerical system, **not yet validated equilibria** under an economically coherent infinite-horizon terminal closure. Do NOT cite those residuals as a fully solved economic transition after this change.
+
+An infinite-horizon model truncated at `T=200` has real economic transition dates `t=1,...,T-1`; date T is the start of the externally supplied stationary continuation household policy. It is mathematically inconsistent to impose both `L_T` and `ToT_T` as free transition variables and force the terminal steady household consumption to clear hypothetical final-date labor/goods markets at prices that have not converged to the steady state.
+
+The corrected explicit 599 residual system has **199 asset markets, 199 labor markets, 199 actual home-goods markets, and 2 terminal anchors**:
+
+```text
+R_A(t) = (E_mu[a'(t)] - B_t)/q_t - K_{t+1} = 0, t=1,...,199
+R_L(t) = L_implied(C_t,w_t) - L_t = 0, t=1,...,199
+R_H(t) = Y_t-I_t-cost_t-exports(ToT_t)-C_H,t = 0, t=1,...,199
+L_200 = L_calibrated_SS
+ToT_200 = ToT_calibrated_SS
+```
+
+Unknowns remain `K[2:200]` (199), `L[1:200]` (200), `ToT[1:200]` (200). The terminal `K_200` proximity, stationary household budget feasibility at actual period-200 prices, and Euler/KKT accuracy are **independent truncation/optimality checks**. Date-200 market residuals are not fraudulently set to zero by copying `C_199`. A numerical market root does not by itself certify a valid infinite-horizon equilibrium.
+
+Re-evaluation must be done on the owner PC using the ORIGINAL MATLAB paths **only as initial numerical guesses**, after updating this branch:
+
+```powershell
+Set-Location C:\github\22p8z0omwz9xu
+git pull --ff-only
+Set-Location FMR-2020
+julia --project=. scripts\solve_economic_fixed_ge.jl results\author_reference
+julia --project=. scripts\evaluate_author_explicit_goods.jl results\author_reference --solve-leveraged
+```
+
+These new equations use distinct checkpoint/output filenames with `TERMINAL_BC`; old market roots must never be silently accepted as new full-GE results. Heavy transition calculations remain PC-only. The new terminal-boundary regime requires observing its actual numerical outputs before claiming convergence.
