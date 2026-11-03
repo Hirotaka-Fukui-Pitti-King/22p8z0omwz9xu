@@ -1,14 +1,16 @@
 
 """
-Return the 2T-1-dimensional perfect-foresight equilibrium residual.
-First T-1 rows: aggregate wealth/assets versus qK+B.
-Last T rows: the author's union labor-supply residual.
+Return the 2T-1-dimensional *economic* perfect-foresight residual:
+(T-1) asset-market equations, (T-1) labor-union optimality equations,
+and the terminal stationary-labor continuation condition L_T=L_ss.
 
-Author solve_transition_bis.m computes Ls = chi*(epsw-1)/epsw *
-w/(chi_dis*C_H), WITHOUT the 1/varphi power that appears in the
-stationary labor FOC. This precise discrepancy is documented; it is
-retained here for a direct replication of the author's transition
-algorithm, and an independent stationary-limit diagnostic exposes it.
+Paper (2020) eq. (5) and the CRRA/Cobb-Douglas calibration imply
+L_t^varphi = chi*(epsilon_w-1)/epsilon_w *
+             w_t/(chi_dis*C_H,t).
+The author's MATLAB transition erroneously omits the 1/varphi power
+and copies C_H,T-1 into the final labor residual. Neither shortcut is
+used in this economic closure. Convergence to the terminal steady state
+must still be checked independently as the horizon is increased.
 """
 function transition_residual!(res::AbstractVector{T},x::AbstractVector{T},
                               input::TransitionInputs{T},
@@ -27,15 +29,18 @@ function transition_residual!(res::AbstractVector{T},x::AbstractVector{T},
         res[t]=residualK/scaleK
     end
     union_factor=p.chi*(p.epsilon_w-1)/p.epsilon_w
-    @inbounds for t in 1:n
-        # Consistent with author solve_transition_bis.m:
-        # terminal labor condition uses C_H[T-1] after forward summing.
-        c=t<n ? w.aggregate_home[t] : w.aggregate_home[t-1]
+    @inbounds for t in 1:n-1
+        c=w.aggregate_home[t]
         c>0 || throw(DomainError(c,"nonpositive aggregate home consumption"))
-        w.labor_implied[t]=union_factor*w.wage[t]/
-                             (input.reference.chi_dis*c)
+        ratio=union_factor*w.wage[t]/(input.reference.chi_dis*c)
+        ratio>zero(T) || throw(DomainError(ratio,"nonpositive union labor FOC"))
+        w.labor_implied[t]=ratio^(inv(p.varphi))
         res[n-1+t]=(w.labor_implied[t]-w.L[t])/scaleL
     end
+    # The last date is the calibrated stationary continuation, not an
+    # additional labor FOC using an arbitrary copy of consumption T-1.
+    w.labor_implied[n]=w.L[n]
+    res[2n-1]=(w.L[n]-input.terminal.L)/scaleL
     all(isfinite,res) || throw(ArgumentError("nonfinite GE residual"))
     return res
 end
