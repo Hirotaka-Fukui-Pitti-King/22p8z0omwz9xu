@@ -264,6 +264,7 @@ end
           max_terminal_household_budget=1e-8,
           terminal_K_gap=1e-7,
           terminal_L_gap=1e-7,
+          terminal_terms_gap=1e-8,
           max_dynamic_euler=5e-5,
           weighted_mean_dynamic_euler=1e-6)
     @test fixed_market_acceptance(good)
