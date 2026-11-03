@@ -28,7 +28,7 @@ function compare_block(name::String,source::AbstractArray,
         error("$name MATLAB $(size(source)) vs Julia $(size(production))")
     smask=isfinite.(source)
     jmask=isfinite.(production)
-    nbad=count(smask .⊻ jmask)
+    nbad=count(xor.(smask,jmask))
     valid=smask .& jmask
     any(valid) || error("$name has no finite source-and-Julia comparison")
     gap=abs.(source[valid].-production[valid])
