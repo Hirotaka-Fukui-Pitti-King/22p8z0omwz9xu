@@ -110,9 +110,17 @@ function inspect_author_path(steady,dir::String,mu::Matrix{Float64},
         println("EVALUATION ONLY. A nonzero 599-vector is NOT a GE.")
         return coremax<1e-6 && maxgoods<1e-6
     end
-    println("STARTING FULL 599 NONLINEAR SOLVE from ACTUAL author MATLAB path")
+    root_checkpoint=joinpath(dir,"julia_599_MARKET_ROOT_"*name*".checkpoint")
+    start=if isfile(root_checkpoint)
+        println("REUSING PREVIOUS 599 MARKET ROOT AS INITIAL GUESS; " *
+                "ALL RESIDUALS WILL BE RECOMPUTED.")
+        FMR2020.stage3_read_checkpoint(root_checkpoint,3n-1)
+    else
+        println("STARTING FULL 599 NONLINEAR SOLVE from ACTUAL author MATLAB path")
+        x
+    end
     sol=FMR2020.solve_stage3_flexible_full(
-        ctx;x0=x,tolerance=1e-6,maxiter=60,
+        ctx;x0=start,tolerance=1e-6,maxiter=60,
         max_evaluations=5000,verbose=true)
     sol.converged || error("Explicit 599 full GE returned unconverged")
     diag=FMR2020.stage3_diagnostics(sol,ctx;fixed=false,
@@ -123,6 +131,10 @@ function inspect_author_path(steady,dir::String,mu::Matrix{Float64},
     # It is NOT an independently certified complete household GE.
     market_path=joinpath(dir,"julia_599_MARKET_ROOT_EULER_PENDING_"*name*".csv")
     FMR2020.stage3_write_csv(sol,ctx,market_path)
+    if sol.iterations>0
+        FMR2020.stage3_write_checkpoint(root_checkpoint,sol.x,
+                                         sol.residual,sol.iterations)
+    end
     println("599 MARKET ROOT SAVED (EULER NOT YET CERTIFIED): ",market_path)
     market_pass=(diag.max_asset_market_level<1e-4 &&
                  diag.max_labor_market_level<1e-4 &&
