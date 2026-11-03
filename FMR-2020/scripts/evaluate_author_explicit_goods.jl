@@ -145,14 +145,19 @@ function inspect_author_path(steady,dir::String,mu::Matrix{Float64},
     println("599 MARKET ROOT SAVED (EULER NOT YET CERTIFIED): ",market_path)
     euler_pass=(diag.max_dynamic_euler<1e-4 &&
                 diag.weighted_mean_dynamic_euler<1e-5)
-    if !euler_pass
-        println("MARKETS CLEAR, BUT STRICT EULER ACCURACY REMAINS UNVERIFIED: ",
-                "max=",diag.max_dynamic_euler,
-                " mean=",diag.weighted_mean_dynamic_euler,
-                " worst_state=",diag.max_dynamic_euler_state,
+    terminal_pass=(diag.max_terminal_household_budget<1e-6 &&
+        diag.terminal_K_gap/max(1.0,abs(ctx.economy.terminal.K))<1e-4 &&
+        diag.terminal_L_gap/max(1.0,abs(ctx.economy.terminal.L))<1e-4)
+    if !(euler_pass && terminal_pass)
+        println("MARKETS CLEAR, BUT FULL DYNAMIC GE IS NOT YET CERTIFIED: ",
+                "Euler_max=",diag.max_dynamic_euler,
+                " Euler_mean=",diag.weighted_mean_dynamic_euler,
+                " Euler_worst=",diag.max_dynamic_euler_state,
                 " mass_share_above_1e-4=",diag.euler_mass_above_1e4,
-                ". Keep the saved market root; examine EGM interpolation ",
-                "accuracy before claiming a fully verified household GE.")
+                " terminal_budget_max=",diag.max_terminal_household_budget,
+                " terminal_K_gap=",diag.terminal_K_gap,
+                " terminal_L_gap=",diag.terminal_L_gap,
+                ". Saved market root is NOT a verified infinite-horizon GE.")
         return false
     end
     output=joinpath(dir,"julia_full_599_"*name*".csv")
