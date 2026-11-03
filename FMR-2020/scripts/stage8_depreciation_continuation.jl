@@ -312,6 +312,22 @@ function stage8_one_residual(ctx::Stage3Context{T},candidate::Vector{T};
                     catch err
                         push!(values,"local_step_"*string(alpha)*"_infeasible"=>
                               sprint(showerror,err))
+                        try
+                            # The price block has ordinarily completed
+                            # before an occupied-state EGM error. Distinguish
+                            # genuine original wealth-budget insolvency from
+                            # merely undefined interpolation.
+                            ss=stage8_portfolio_support(tw,ctx,trial[2n])
+                            push!(values,"local_step_"*string(alpha)*
+                                  "_minimum_original_resources"=>ss.minimum_resources)
+                            push!(values,"local_step_"*string(alpha)*
+                                  "_violating_original_mass"=>ss.violating_mass)
+                            push!(values,"local_step_"*string(alpha)*
+                                  "_offgrid_original_mass"=>ss.offgrid_mass)
+                        catch _
+                            push!(values,"local_step_"*string(alpha)*
+                                  "_feasibility_diagnostic"=>"UNAVAILABLE")
+                        end
                         continue
                     end
                     newfirst=T[rr[1],rr[n],rr[2n]]
@@ -327,6 +343,11 @@ function stage8_one_residual(ctx::Stage3Context{T},candidate::Vector{T};
                         push!(values,"local_first_goods_scaled_after"=>rr[2n])
                         push!(values,"local_full599_max_scaled_after"=>maximum(abs,rr))
                         push!(values,"local_first_household_C_H_after"=>tw.aggregate_home[1])
+                        ss=stage8_portfolio_support(tw,ctx,trial[2n])
+                        push!(values,"local_accepted_minimum_original_resources"=>
+                              ss.minimum_resources)
+                        push!(values,"local_accepted_violating_original_mass"=>
+                              ss.violating_mass)
                         recorded=true
                         break
                     end
