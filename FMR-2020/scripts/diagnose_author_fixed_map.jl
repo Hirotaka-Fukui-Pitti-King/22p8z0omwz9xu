@@ -118,6 +118,27 @@ function main_fixed()
                      view(w.coarse_consumption,:,:,size(w.coarse_consumption,3)))
     compare_terminal("terminal fine c_fine",source_matrix(dir,"fixed_src_terminal_fine"),
                      st.calibrated.household.consumption_fine)
+    # One-step source-compatibility experiment at t=T-1, without
+    # recursively modifying Julia or invoking GE. Holding exact original
+    # terminal policy and all matching prices fixed, directly compare
+    # the standalone source MATLAB EGM translation to the original saved
+    # t=199 fine policy. This determines whether source-vs-strict EGM,
+    # rather than terminal calibration, causes the mismatch.
+    terminal_source=source_matrix(dir,"fixed_src_terminal_coarse")
+    size(terminal_source)==(length(st.grids.coarse_full),
+                            length(st.chain.levels)) ||
+        throw(DimensionMismatch("source terminal MATLAB cpol must be full 193x7"))
+    t_last=length(ctx.economy.B)-1
+    source_step=FMR2020.source_matlab_egm_step(
+        st.grids,st.chain,st.parameters,terminal_source,
+        st.calibrated.beta,w.rate[t_last],w.rate[t_last+1],
+        w.terms[t_last],w.wage[t_last],w.L[t_last],w.profits[t_last])
+    compare_block("ORIGINAL source EGM one-step c at t=199",
+                  finite_source_matrix(dir,"fixed_src_consumption_t199"),
+                  source_step.fine_consumption)
+    compare_block("ORIGINAL source EGM one-step a' at t=199",
+                  finite_source_matrix(dir,"fixed_src_savings_t199"),
+                  source_step.fine_savings)
     compare_block("interest rate",source_vector(dir,"fixed_src_rate"),w.rate)
     compare_block("wage",source_vector(dir,"fixed_src_wage"),w.wage)
     compare_block("firm profits",source_vector(dir,"fixed_src_profits"),w.profits)
