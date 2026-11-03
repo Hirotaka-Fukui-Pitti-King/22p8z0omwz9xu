@@ -32,6 +32,16 @@ include(joinpath(@__DIR__,"..","scripts","run_economic_replication.jl"))
         @test v[1:n-1]==K[2:end]
         @test v[n:2n-1]==L
         @test v[2n:3n-1]==terms
+        fake=(K=copy(K),L=copy(L),Y=ones(n),I=fill(0.1,n),
+              wage=fill(0.5,n),rate=fill(0.01,n),
+              terms=copy(terms),aggregate_home=ones(n))
+        same=compare_boom_horizons(csv,fake)
+        @test same.maximum==0.0
+        @test same.first_periods==40
+        fake.K[5]+=0.03
+        different=compare_boom_horizons(csv,fake)
+        @test isapprox(different.by_variable["K"],
+                       0.03/max(1.0,abs(K[5]));atol=1e-12)
         export_path(wrong_B=true)
         @test_throws ArgumentError read_economic_root_guess(csv,ctx)
         rm(csv)
