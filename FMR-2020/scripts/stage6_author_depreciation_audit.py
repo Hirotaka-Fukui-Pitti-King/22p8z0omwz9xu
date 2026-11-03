@@ -299,6 +299,13 @@ def audit(data):
         periods.append((t+1, float(goods), float(saved_resid[t]),
                         float(saved_resid[T-1+t])))
     bad_budget = post_occupied & (np.abs(budget) > 1e-5)
+    binding_mask = post_occupied & (np.abs(s1 - scalar(p, "bmin")) <= 1e-9)
+    nonbinding_mask = post_occupied & ~binding_mask
+    metrics["source_first_period_borrowing_binding_mass"] = float(np.sum(post[binding_mask]))
+    metrics["source_first_period_budget_error_mass_binding"] = float(np.sum(post[bad_budget & binding_mask]))
+    metrics["source_first_period_budget_error_mass_nonbinding"] = float(np.sum(post[bad_budget & nonbinding_mask]))
+    metrics["source_first_period_max_budget_error_binding"] = float(np.max(np.abs(budget[binding_mask]))) if np.any(binding_mask) else math.nan
+    metrics["source_first_period_max_budget_error_nonbinding"] = float(np.max(np.abs(budget[nonbinding_mask]))) if np.any(nonbinding_mask) else math.nan
     household_rows = []
     for ai, sj in zip(*np.where(bad_budget)):
         household_rows.append((int(ai+1), int(sj+1), float(grid[ai]),
