@@ -124,4 +124,31 @@ include(joinpath(@__DIR__,"..","scripts","run_economic_replication.jl"))
         polish_households=true,strict_portfolio=true,
         tolerance=1e-4,maxiter=1,max_evaluations=2,
         verbose=false)
+
+    # Regression: checking a STORED strict-portfolio path must evaluate
+    # exactly the same household map as a fresh strict GE residual call.
+    # Change only the first date's relative price slightly so that
+    # foreign-bond revaluation makes the gross portfolio relevant.
+    levctx=Stage3Context(short,copy(ctx.mu_pre),ctx.terms_pre,
+                         1/16,0.0,true,"resume strict household portfolio")
+    levinitial=copy(shortx)
+    levinitial[2*Ttiny]=shortctx.terms_pre*1.001
+    expected=similar(residual)
+    actual=similar(residual)
+    legacy=similar(residual)
+    direct_work=TransitionWorkspace(short)
+    resumed_work=TransitionWorkspace(short)
+    legacy_work=TransitionWorkspace(short)
+    FMR2020.stage3_flexible_full_residual!(
+        expected,levinitial,levctx,direct_work;
+        polish_households=true,strict_portfolio=true)
+    economic_recheck_residual!(
+        actual,levinitial,levctx,resumed_work;
+        polish_households=true,strict_portfolio=true)
+    economic_recheck_residual!(
+        legacy,levinitial,levctx,legacy_work;
+        polish_households=true,strict_portfolio=false)
+    @test actual≈expected atol=1e-10 rtol=1e-10
+    @test maximum(abs.(legacy.-expected))>1e-10
+    @test all(isfinite,actual)
 end
