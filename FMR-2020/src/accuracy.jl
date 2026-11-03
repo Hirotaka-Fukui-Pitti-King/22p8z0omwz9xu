@@ -209,3 +209,110 @@ function household_best_response_saving(
     end
     throw(ErrorException("independent household Euler root did not converge"))
 end
+
+
+"""
+    euler_refine_one_saving(grid, future, slopes, probs, gamma, beta,
+                            gross_next, resources, m, amin, guess;
+                            trigger=1e-5, target=1e-9)
+
+A safeguarded one-dimensional Euler/KKT corrector for a *given* next-date
+consumption function. Uses PRECOMPUTED PCHIP slopes, so unlike the
+single-state audit's standalone solver it avoids allocating slopes at
+every asset state. Returns (saving, consumption, refined, relative_gap,
+offgrid). It never clamps a genuinely off-grid optimum: offgrid=true
+leaves the original candidate unchanged for subsequent feasibility
+checking. This routine is a fixed-price household numerical refinement,
+not an aggregate equilibrium solver.
+"""
+function euler_refine_one_saving(
+    grid::AbstractVector{T},future::AbstractMatrix{T},
+    slopes::AbstractMatrix{T},probs::AbstractVector{T},
+    gamma::T,beta::T,gross_next::T,resources::T,m::T,
+    amin::T,guess::T;trigger::T=T(1e-5),
+    target::T=T(1e-9)) where {T<:AbstractFloat}
+
+    ns=length(probs)
+    size(future)==size(slopes)==(length(grid),ns) ||
+        throw(DimensionMismatch("future-policy interpolation dimensions"))
+    gamma>zero(T) && beta>zero(T) && gross_next>zero(T) &&
+        m>zero(T) && trigger>target>zero(T) ||
+        throw(ArgumentError("invalid Euler corrector parameters"))
+    lo=amin
+    hi=min(grid[end],resources-m*T(1e-12))
+    if !isfinite(guess) || guess<lo-T(1e-9)
+        throw(DomainError(guess,"infeasible pre-correction saving"))
+    end
+    if hi<=lo
+        throw(DomainError(resources,"no positive constrained consumption"))
+    end
+    if guess>hi || guess<grid[1]
+        c=(resources-guess)/m
+        return (saving=guess,consumption=c,refined=false,
+                relative_gap=T(NaN),offgrid=true)
+    end
+    euler(s)=begin
+        c=(resources-s)/m
+        c>zero(T) || throw(DomainError(c,"nonpositive Euler trial consumption"))
+        emu=zero(T)
+        @inbounds for jp in 1:ns
+            fc=pchip_evaluate(grid,view(future,:,jp),
+                              view(slopes,:,jp),s)
+            fc>zero(T) || throw(DomainError(fc,"nonpositive continuation consumption"))
+            emu+=probs[jp]*fc^(-gamma)
+        end
+        return c^(-gamma)-beta*gross_next*emu
+    end
+    c0=(resources-guess)/m
+    g=euler(guess)
+    relative=g/(c0^(-gamma))
+    if abs(relative)<=trigger ||
+       (guess<=lo+T(1e-9) && relative>=-trigger)
+        return (saving=guess,consumption=c0,refined=false,
+                relative_gap=relative,offgrid=false)
+    end
+
+    glo=euler(lo)
+    if glo>=zero(T)
+        c=(resources-lo)/m
+        return (saving=lo,consumption=c,refined=true,
+                relative_gap=glo/c^(-gamma),offgrid=false)
+    end
+    ghi=euler(hi)
+    if ghi<=zero(T)
+        # No root on the supported continuation-policy grid.
+        # Never manufacture a solution by clipping to grid[end].
+        return (saving=guess,consumption=c0,refined=false,
+                relative_gap=relative,offgrid=true)
+    end
+    saving=clamp(guess,lo,hi)
+    for _ in 1:32
+        c=(resources-saving)/m
+        g=euler(saving)
+        relative=g/c^(-gamma)
+        if abs(relative)<=target
+            return (saving=saving,consumption=c,refined=true,
+                    relative_gap=relative,offgrid=false)
+        end
+        if g>zero(T)
+            hi=saving
+        else
+            lo=saving
+        end
+        step=T(1e-5)*max(one(T),abs(saving))
+        a=max(lo,saving-step)
+        b=min(hi,saving+step)
+        proposal=(lo+hi)/T(2)
+        if b>a
+            derivative=(euler(b)-euler(a))/(b-a)
+            if isfinite(derivative) && derivative>zero(T)
+                newton=saving-g/derivative
+                if isfinite(newton) && lo<newton<hi
+                    proposal=newton
+                end
+            end
+        end
+        saving=proposal
+    end
+    throw(ErrorException("Euler/KKT local Newton-bisection corrector did not converge"))
+end
