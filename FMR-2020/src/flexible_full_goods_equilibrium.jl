@@ -39,7 +39,7 @@ end
     stage3_flexible_full_market_residual!(res, w, ctx)
 
 Use the same 399 household asset/labor equations as existing Stage 3, and
-APPEND 200 explicit, realized household goods clearing equations. The
+APPEND 199 actual household markets plus one terminal terms anchor. The
 last-date boundary is identical to the established fixed-rate transition,
 except there is no nominal adjustment cost under flexible pricing.
 """
