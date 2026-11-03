@@ -302,6 +302,28 @@ end
     @test !fixed_market_acceptance(merge(good,(max_goods_market_level=1e-2,)))
     @test !fixed_market_acceptance(merge(good,(max_nonlinear_phillips=1e-3,)))
     @test !fixed_market_acceptance(merge(good,(max_mass_deviation=1e-5,)))
+    mktempdir() do d
+        path=joinpath(d,"shorter.csv")
+        fields="period,B,K,L,Y,I,q,r,w,terms,foreign_consumption,home_consumption,wealth,nominal_exchange_rate"
+        open(path,"w") do io
+            println(io,fields)
+            for t in 1:40
+                println(io,join((t,0.0,1.5,1.0,2.0,0.1,1.0,0.02,
+                                0.5,1.0,0.1,1.0,1.0,1.0),","))
+            end
+        end
+        longer=(K=fill(1.5,40),L=fill(1.0,40),
+                Y=fill(2.0,40),I=fill(0.1,40),
+                wage=fill(0.5,40),rate=fill(0.02,40),
+                terms=fill(1.0,40),aggregate_home=fill(1.0,40))
+        comparison=fixed_horizon_comparison(path,longer)
+        @test comparison.maximum==0.0
+        @test comparison.first_periods==40
+        longer.K[5]+=0.03
+        disturbed=fixed_horizon_comparison(path,longer)
+        @test isapprox(disturbed.by_variable["K"],0.03/1.5;atol=1e-12)
+        @test isapprox(disturbed.maximum,0.03/1.5;atol=1e-12)
+    end
 end
 
 
