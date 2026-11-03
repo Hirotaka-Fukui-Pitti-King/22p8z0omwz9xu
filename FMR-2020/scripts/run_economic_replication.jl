@@ -94,7 +94,7 @@ that candidate rather than assuming a stored convergence flag.
 function solve_or_recheck_economic(
     ctx::Stage3Context{T}, initial_x::Vector{T},
     directory::AbstractString, label::String;
-    fixed::Bool=false) where {T<:AbstractFloat}
+    fixed::Bool=false,polish_households::Bool=false) where {T<:AbstractFloat}
 
     n=length(ctx.economy.B)
     length(initial_x)==3n-1 ||
@@ -106,9 +106,11 @@ function solve_or_recheck_economic(
         w=FMR2020.TransitionWorkspace(ctx.economy)
         residual=zeros(T,3n-1)
         if fixed
-            FMR2020.stage3_fixed_residual!(residual,candidate,ctx,w)
+            FMR2020.stage3_fixed_residual!(
+                residual,candidate,ctx,w;polish_households=polish_households)
         else
-            FMR2020.stage3_flexible_full_residual!(residual,candidate,ctx,w)
+            FMR2020.stage3_flexible_full_residual!(
+                residual,candidate,ctx,w;polish_households=polish_households)
         end
         maxerror=maximum(abs,residual)
         println("RECHECK SAVED ",label,
@@ -122,12 +124,13 @@ function solve_or_recheck_economic(
     end
     if fixed
         return FMR2020.stage3_nonlinear_solve(
-            ctx,copy(candidate);fixed=true,tolerance=T(1e-6),
+            ctx,copy(candidate);fixed=true,
+            polish_households=polish_households,tolerance=T(1e-6),
             maxiter=70,max_evaluations=5000,verbose=true)
     end
     return solve_stage3_flexible_full(
-        ctx;x0=copy(candidate),tolerance=T(1e-6),maxiter=70,
-        max_evaluations=5000,verbose=true)
+        ctx;x0=copy(candidate),polish_households=polish_households,
+        tolerance=T(1e-6),maxiter=70,max_evaluations=5000,verbose=true)
 end
 
 function economic_validation(result::FMR2020.TransitionSolveResult{T},
