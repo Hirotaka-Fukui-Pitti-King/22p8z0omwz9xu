@@ -59,4 +59,20 @@ end
     end
 end
 
+@testset "Full fine-grid distribution lottery conserves mass and asset first moment" begin
+    fine=[-0.25,0.0,0.7,1.5]
+    mu=[0.1 0.1;0.2 0.2;0.1 0.1;0.1 0.1]
+    P=[0.8 0.2;0.3 0.7]
+    savings=[-0.1 0.0;0.1 0.4;0.8 1.0;1.3 1.4]
+    future=zeros(4,2)
+    FMR2020.distribution_step!(future,mu,savings,fine,P)
+    @test minimum(future)>=0
+    @test isapprox(sum(future),sum(mu);atol=1e-14)
+    @test isapprox(sum(future.*fine),sum(mu.*savings);atol=1e-14)
+    bad=copy(savings)
+    bad[1,1]=-2.0
+    @test_throws DomainError FMR2020.distribution_step!(
+        future,mu,bad,fine,P)
+end
+
 println("STAGE9 599-to-899 horizon structural regression tests PASS (no 899 GE root solve)")
