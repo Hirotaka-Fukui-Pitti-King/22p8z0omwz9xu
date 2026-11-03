@@ -32,6 +32,10 @@ include(joinpath(@__DIR__,"..","scripts","run_economic_replication.jl"))
         @test v[1:n-1]==K[2:end]
         @test v[n:2n-1]==L
         @test v[2n:3n-1]==terms
+        copy_to=joinpath(d,"economic_synthetic_MARKET_ROOT_UNCERTIFIED.csv")
+        cp(csv,copy_to)
+        @test baseline_guess_if_present(d,"synthetic",ctx,zeros(3n-1))==v
+        @test baseline_guess_if_present(d,"absent",ctx,v)==v
         # The same forward-horizon helper must accept a corrected
         # 200-date market root as its seed, without altering the first
         # 200 dates of B or the aggregate K/L/terms guess.
@@ -49,6 +53,10 @@ include(joinpath(@__DIR__,"..","scripts","run_economic_replication.jl"))
         same=compare_boom_horizons(csv,fake)
         @test same.maximum==0.0
         @test same.first_periods==40
+        @test compare_economic_baseline_if_present(
+            d,"synthetic",fake).maximum==0.0
+        @test compare_economic_baseline_if_present(
+            d,"absent",fake)===nothing
         fake.K[5]+=0.03
         different=compare_boom_horizons(csv,fake)
         @test isapprox(different.by_variable["K"],
