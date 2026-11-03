@@ -242,6 +242,26 @@ function baseline_guess_if_present(outputdir::AbstractString,
     return candidate
 end
 
+"""
+    compare_economic_baseline_if_present(outputdir, label, w)
+
+Report changes to the first 40 economic dates against a stored baseline
+market root when that root is available. Missing baseline files are
+not a reason to abandon an already computed Euler-polished GE.
+"""
+function compare_economic_baseline_if_present(outputdir::AbstractString,
+                                              label::String,w)
+    file=joinpath(outputdir,"economic_"*label*"_MARKET_ROOT_UNCERTIFIED.csv")
+    if !isfile(file)
+        println("NO BASELINE COMPARISON for ",label,
+                ": the original unpolished path was not saved.")
+        return nothing
+    end
+    comparison=compare_boom_horizons(file,w)
+    println("FIRST-40 ECONOMIC PATH RESPONSE for ",label,": ",comparison)
+    return comparison
+end
+
 function main()
     valid=all(x->x in ("--boom-only","--audit-euler-refinement",
                         "--solve-polished-boom","--solve-polished-all") ||
@@ -410,11 +430,8 @@ function main()
         no_check=economic_validation(
             no_corrected,new_noctx,
             "flexible_unleveraged_euler_polished",outputdir)
-        println("UNLEVERAGED FIRST-40 POLICY REFINEMENT DIFFERENCE: ",
-                compare_boom_horizons(
-                    joinpath(outputdir,
-                        "economic_flexible_unleveraged_MARKET_ROOT_UNCERTIFIED.csv"),
-                    no_corrected.workspace))
+        compare_economic_baseline_if_present(
+            outputdir,"flexible_unleveraged",no_corrected.workspace)
 
         old_levctx=stage3_reversal_context(
             steady,boom;shock_start=41,leverage_hat=1.0/16.0)
@@ -430,11 +447,8 @@ function main()
         lev_check=economic_validation(
             lev_corrected,new_levctx,
             "flexible_leveraged_euler_polished",outputdir)
-        println("LEVERAGED FLEXIBLE FIRST-40 POLICY REFINEMENT DIFFERENCE: ",
-                compare_boom_horizons(
-                    joinpath(outputdir,
-                        "economic_flexible_leveraged_MARKET_ROOT_UNCERTIFIED.csv"),
-                    lev_corrected.workspace))
+        compare_economic_baseline_if_present(
+            outputdir,"flexible_leveraged",lev_corrected.workspace)
 
         sticky_terms=[new_levctx.economy.terminal.terms+
                       (new_levctx.terms_pre-new_levctx.economy.terminal.terms)*
@@ -449,11 +463,8 @@ function main()
         fx_check=economic_validation(
             fx_corrected,new_levctx,
             "fixed_leveraged_euler_polished",outputdir;fixed=true)
-        println("LEVERAGED FIXED FIRST-40 POLICY REFINEMENT DIFFERENCE: ",
-                compare_boom_horizons(
-                    joinpath(outputdir,
-                        "economic_fixed_leveraged_MARKET_ROOT_UNCERTIFIED.csv"),
-                    fx_corrected.workspace))
+        compare_economic_baseline_if_present(
+            outputdir,"fixed_leveraged",fx_corrected.workspace)
         println("CORRECTED FOUR-EXPERIMENT RESULTS:",
                 " credit_expansion_market=",corrected_check.diagnostics.maximum_scaled_solver_residual,
                 " unleveraged_market=",no_check.diagnostics.maximum_scaled_solver_residual,
