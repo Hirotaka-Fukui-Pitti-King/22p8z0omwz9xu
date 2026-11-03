@@ -34,7 +34,7 @@ Profits_fixed=0.2*ones(T,1);
 q_agg_fixed=ones(T,1);
 In_dis_fixed=G0_shock;
 c_tran_fine_fixed=ones(769,7,T);
-dec_tran_fine_fixed=0.3*ones(769,7,T);
+dec_tran_fine_fixed=0.3*ones(769,7,T-1);
 new_shock_b_agg=-ones(T,1);
 save(fullfile(input,'exp_both_41_lev16.mat'), ...
      'k_l_t_fixed','resid','tot_fixed','G0_shock','params', ...
