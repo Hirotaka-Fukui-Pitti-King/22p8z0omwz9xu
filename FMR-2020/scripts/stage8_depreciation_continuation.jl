@@ -271,9 +271,18 @@ function stage8_main()
     strict_saved=joinpath(
         roots,"economic_flexible_leveraged_euler_polished_"*
         "STRICT_PORTFOLIO_MARKET_ROOT_UNCERTIFIED.csv")
-    high=stage8_compare_strict_saved_root(ctx,strict_saved)
-    push!(values,"prior_strict_root_impact_x"=>high.impact_x)
-    push!(values,"prior_strict_root_depreciates"=>high.is_depreciation)
+    if isfile(strict_saved)
+        high=stage8_compare_strict_saved_root(ctx,strict_saved)
+        push!(values,"saved_strict_stage5_root_available"=>true)
+        push!(values,"prior_strict_root_impact_x"=>high.impact_x)
+        push!(values,"prior_strict_root_depreciates"=>high.is_depreciation)
+    else
+        # Stage 5 recorded a strict appreciation root on the owner PC,
+        # but its CSV is NOT tracked in the shared repository.
+        # No Julia same-economy comparison may be asserted without it.
+        push!(values,"saved_strict_stage5_root_available"=>false)
+        push!(values,"prior_strict_root_impact_x"=>"NOT VERIFIED IN THIS RUN")
+    end
     baseline=stage8_one_residual(ctx,candidate)
     append!(values,baseline.metrics)
     push!(values,"source_candidate_599_status"=>
