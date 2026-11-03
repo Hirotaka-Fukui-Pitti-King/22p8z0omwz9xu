@@ -4,6 +4,41 @@
 
 Paper: de Ferra, Mitman, and Romei (2020), *Journal of International Economics* 124, 103303, https://doi.org/10.1016/j.jinteco.2020.103303. Original source: https://github.com/kurtmitman/HANKSOME. Working scientific context: Stage 7 `STAGE7_CONSTRAINED_POLICY_AND_EQUILIBRIUM_RECONCILIATION.md`.
 
+## 0. Owner-PC Stage 8 full 599 solve and checkpoint recovery (2026-11-03)
+
+The user has now **actually executed** `julia --project=. scripts/stage8_depreciation_continuation.jl --solve` on Windows 11, Julia 1.12.6, using the original depreciation path as the starting vector, with exactly the documented strict-portfolio and Euler-polished full 599-equation map.
+
+The solver accepted **five** steps, with **no full Jacobian rebuild failure and no exhausted function-evaluation budget**. Its `maxiter=5` stopped the run by design:
+
+| Accepted full-system iteration | Maximum scaled 599 residual | Damping |
+|---:|---:|---:|
+| 0 | 0.107256061729 | — |
+| 1 | 0.077513986653 | 0.25 |
+| 2 | 0.025723462623 | 1.0 |
+| 3 | 0.005446066350 | 1.0 |
+| 4 | 0.001638584342 | 1.0 |
+| 5 | **0.001520252578** | 1.0 |
+
+The last solver call reports `evaluations=609`, while its callback has already saved the fifth accepted **full 599-vector iterate** as `results/stage8_depreciation/source_initialized_UNCONVERGED.checkpoint`. This is **not** a failed feasibility check, a nonexistence result, or a converged equilibrium. It is an interrupted but improving full-system Newton/Broyden sequence.
+
+**New recovery implementation:** The Stage 8 script accepts explicit `--resume`. It uses `stage3_read_checkpoint` (read-only), independently reconstructs the same strict inherited Julia boom and the corrected household/market operator, recomputes all 599 residuals, and **refuses stale-model checkpoints** unless the recorded and actual maximum residual agree to `atol=1e-8, rtol=1e-5`. It skips the repeated source 3×3 probe and begins a bounded **12-step, at most 2200 residual-evaluation** follow-on call to the existing solver from the actual saved fifth iterate, not the original MATLAB guess. **It reinitializes the 599-column Jacobian**, because the existing checkpoint contains x only and does not save the previous Broyden matrix. It does not claim continuous Broyden state.
+
+Each new accepted iterate records the current impact trade price, nominal depreciation log points, maximum *full* residual, residual norm and most binding equation in `results/stage8_depreciation/accepted_full599_trace.csv`, and atomically overwrites the same accepted-iterate checkpoint (the author's original MAT and prior Stage 5 root remain untouched). If the iterate crosses into appreciation, the trace labels that transition; convergence to the already-known appreciation solution would **not** establish a distinct depreciation equilibrium.
+
+On the owner PC, from the repository root:
+
+```powershell
+git switch research/fmr-stage8-depreciation-continuation
+git pull --ff-only
+Set-Location FMR-2020
+Get-Content .\results\stage8_depreciation\source_initialized_UNCONVERGED.checkpoint -TotalCount 4
+julia --project=. scripts\stage8_depreciation_continuation.jl --resume
+```
+
+The four header lines must begin `# STAGE3_UNCONVERGED_CHECKPOINT v1`, `# n=599`, `# iter=5` and `# max_scaled_residual=0.001520252578...`. The explicit `--solve` source restart now REFUSES to overwrite an existing checkpoint, in order to prevent accidental loss of the accepted five-step progress.
+
+**Current actual classification remains Outcome E**, pending the first resume. Do not claim that `--resume` has been run on the user's PC or that a low-price root has converged. Only the read/validation and unit-test path can be checked in lightweight CI.
+
 ## 1. Precisely which economy was evaluated
 
 The **target economy** is the current Julia *Euler-polished, strict gross-portfolio, flexible-price, inherited surprise-shock* general equilibrium:
@@ -107,7 +142,7 @@ The initial-source terminal labor and terms anchors are near their targets, but 
 
 The source-initialized candidate passes necessary household affordability, so a **single bounded 599-variable solve** from this actual low-price guess is economically justified. That solve is deliberately **not run in GitHub CI**: the project explicitly reserves expensive 599-dimensional finite-difference Jacobian and Newton computations for the owner's Windows PC. This ChatGPT environment has no access to that user's local Julia runtime.
 
-Stage 8 makes this exact full-system attempt reproducible, but does not pre-claim its outcome:
+The first five-step full-system attempt has been executed on the owner PC and ended at the preset iteration limit, as documented in §0. The source-initialized first-run command remains reproducible, but **must not be repeated when its checkpoint exists**:
 
 ```powershell
 Set-Location C:\github\22p8z0omwz9xu
@@ -121,7 +156,7 @@ julia --project=. scripts/stage8_depreciation_continuation.jl
 julia --project=. scripts/stage8_depreciation_continuation.jl --solve
 ```
 
-The **default** command is evaluation-only. The explicit `--solve` command calls the **existing** `solve_stage3_flexible_full`, with `polish_households=true`, `strict_portfolio=true`, tolerance `1e-6`, maximum **5** Newton/Broyden iterations and **1000** full residual evaluations. Accepted-but-unconverged iterates are checkpointed separately under `results/stage8_depreciation/source_initialized_UNCONVERGED.checkpoint`; no prior Stage 5 root or original MATLAB file is replaced.
+The **default** command is evaluation-only. The original `--solve` command (already executed once on the owner PC) calls the **existing** `solve_stage3_flexible_full`, with `polish_households=true`, `strict_portfolio=true`, tolerance `1e-6`, maximum **5** Newton/Broyden iterations and **1000** full residual evaluations. Accepted-but-unconverged iterates are checkpointed separately under `results/stage8_depreciation/source_initialized_UNCONVERGED.checkpoint`; no prior Stage 5 root or original MATLAB file is replaced.
 
 If the bounded solver converges, `stage3_diagnostics` independently checks household budgets, market levels and probability mass before any new market-root CSV is written. Its filename explicitly says `MARKET_ROOT_UNCERTIFIED`. A converged finite-horizon market map is still **not** evidence of a certified infinite-horizon equilibrium; positive-mass Euler/KKT, terminal policy/budget and horizon sensitivity must then be audited.
 
@@ -145,4 +180,4 @@ The already known Stage 5 strict appreciation path and the original MATLAB sourc
 
 ### Important verification qualifications
 
-Julia syntax parsing and a successful audit run on Julia 1.12.6 verify the **default evaluation mode**. The opt-in **`--solve` numerical branch has not been executed**; no convergence is asserted. The preexisting stricter Euler refinement and full horizon convergence remain questions for any future full root.
+Julia syntax parsing and a successful audit run on Julia 1.12.6 verify the **default evaluation mode**. The opt-in **`--solve` numerical branch WAS executed on the owner PC for five accepted steps and stopped at maxiter=5 with residual 0.001520252578, without convergence**. The newly added **`--resume`** numerical branch has not been executed on the owner's PC at the time of this update. Light CI checks do not constitute a resumed full solve. The preexisting stricter Euler refinement and full horizon convergence remain questions for any future full root.
