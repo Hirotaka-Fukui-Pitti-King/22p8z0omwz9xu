@@ -99,3 +99,13 @@ julia --project=. scripts\evaluate_author_explicit_goods.jl results\author_refer
 ```
 
 This solve has not converged or been validated in the current record. Unlike audit mode, solve mode requires asset, labor, goods, household budget, mass and Euler checks before accepting a candidate.
+
+## Stage3 computational decision (2026-11-03)
+
+The owner PC has already converged both explicit 599-variable flexible-price **market residual maps** (unleveraged: max scaled 6.239591057958354e-7 in three iterations; leveraged: max scaled 8.778387995206213e-7 in two). Probability mass and household budget identities hold to about 1e-15. Both were rejected by an *additional strict* max relative Euler/KKT cutoff of 1e-4 (observed maxima 3.6509e-4 and 3.8339e-4); weighted mean Euler errors were only ~3.1e-6 and ~3.0e-6. This is **not a nonlinear market solver failure**. The relevant outstanding test is whether these maximum errors are localized to rare fine-grid states or reflect systematic policy interpolation problems. The diagnostics now print the worst occupied (period,asset,state) and the probability share above 1e-4.
+
+The market-clearing root is now **retained even if Euler accuracy remains pending** in `julia_599_MARKET_ROOT_EULER_PENDING_NAME.csv`, and the 599-vector is saved in `julia_599_MARKET_ROOT_NAME.checkpoint` for reuse. Only passing strict Euler checks writes a `julia_full_599_NAME.csv` file. The market root is not described as a fully certified household GE.
+
+MATLAB's original `backsolve_egm.m` produces fine savings decisions only for dates 1 through T-1. Its final-date fine consumption is externally imposed. Hence `dec_tran_fine_fixed` has **199**, not 200, slices. The actual user MATLAB exporter failed because of our incorrect 200-slice assertion; that has been corrected, along with its synthetic test fixture. When rerunning, use the opt-in fixed audit command from the previous section.
+
+**Execution policy:** PC handles actual 399/599 transition and source MAT-file comparisons. GitHub Actions runs quick source/syntax/unit tests; the heavy Octave parity job is now *manual workflow_dispatch only*, not repeated on every push or pull request. No remote CI market root is treated as an actual research result.
