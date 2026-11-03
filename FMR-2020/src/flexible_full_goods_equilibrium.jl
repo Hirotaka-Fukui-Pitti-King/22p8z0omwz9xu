@@ -60,15 +60,13 @@ function stage3_flexible_full_market_residual!(res::AbstractVector{T},
             goods=w.Y[t]-w.I[t]-w.adjustment[t]-
                   inp.reference.export_shift*w.terms[t]^(-p.theta_star)
             household=w.aggregate_home[t]
+            res[2n-1+t]=(goods-household)/scale
         else
-            last_gap=w.I[t-1]/w.K[t]-p.delta
-            terminal_cost=inp.phi_ac/T(2)*w.K[t]*last_gap^2
-            goods=w.Y[t]-w.I[t-1]-terminal_cost-
-                  inp.reference.export_shift*w.terms[t]^(-p.theta_star)
-            # Match period-T resources to period-T household spending.
-            household=w.aggregate_home[t]
+            # Period T starts the stationary continuation. Pin its terms
+            # of trade instead of imposing a fictitious final goods market.
+            res[3n-1]=(w.terms[n]-inp.terminal.terms)/
+                       max(one(T),abs(inp.terminal.terms))
         end
-        res[2n-1+t]=(goods-household)/scale
     end
     all(isfinite,res) ||
         throw(ArgumentError("nonfinite explicit flexible GE residual"))
